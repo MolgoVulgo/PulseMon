@@ -1,0 +1,24 @@
+{
+  "v": 1,
+  "ts": 1774256402,
+  "host": "linux-main",
+  "cpu": {
+    "pct": 12.4,
+    "temp_c": 43.8,
+    "power_w": null
+  },
+  "mem": {
+    "used_b": 9123454976,
+    "total_b": 34359738368,
+    "pct": 26.6
+  },
+  "gpu": {
+    "pct": 7.0,
+    "temp_c": 39.0,
+    "power_w": 36.4
+  },
+  "state": {
+    "ok": true,
+    "stale_ms": 0
+  }
+}

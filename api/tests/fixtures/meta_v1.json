@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "host": "linux-main",
+  "metrics": [
+    "cpu.pct",
+    "cpu.temp_c",
+    "cpu.power_w",
+    "mem.used_b",
+    "mem.total_b",
+    "mem.pct",
+    "gpu.pct",
+    "gpu.temp_c",
+    "gpu.power_w"
+  ],
+  "history_series": [
+    "cpu_pct",
+    "cpu_temp_c",
+    "gpu_pct",
+    "gpu_temp_c"
+  ]
+}
