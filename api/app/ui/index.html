@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stats Linux API - Monitor</title>
+    <style>
+      :root {
+        --bg: #0f1115;
+        --panel: #171a21;
+        --line: #2a3140;
+        --text: #d8deea;
+        --muted: #90a0bc;
+        --ok: #2ec27e;
+        --warn: #e5a50a;
+        --bad: #e01b24;
+        --cpu: #62a0ea;
+        --gpu: #f66151;
+        --temp: #ffb84d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        background: radial-gradient(circle at top, #1c2130 0%, var(--bg) 45%);
+        color: var(--text);
+      }
+
+      .wrap {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 600;
+      }
+
+      .meta {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(220px, 1fr));
+        gap: 12px;
+      }
+
+      .panel {
+        background: color-mix(in oklab, var(--panel) 92%, black);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .value {
+        font-size: 26px;
+        font-weight: 700;
+        margin-top: 4px;
+      }
+
+      .row {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 8px;
+        font-size: 13px;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid #2f3b52;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 11px;
+        color: var(--muted);
+        background: #111826;
+      }
+
+      .charts {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(280px, 1fr));
+        gap: 12px;
+      }
+
+      canvas {
+        width: 100%;
+        height: 160px;
+        display: block;
+        border-radius: 8px;
+        background: #0f131d;
+        border: 1px solid #232a38;
+      }
+
+      .status {
+        margin-top: 12px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .legend {
+        margin-top: 8px;
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 6px;
+      }
+
+      .ok {
+        background: var(--ok);
+      }
+
+      .warn {
+        background: var(--warn);
+      }
+
+      .bad {
+        background: var(--bad);
+      }
+
+      @media (max-width: 860px) {
+        .grid,
+        .charts {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <h1>Stats Linux Monitor (V1)</h1>
+        <div class="meta" id="host-meta">host: -</div>
+      </div>
+
+      <div class="grid">
+        <div class="panel">
+          <div class="label">CPU usage</div>
+          <div class="value" id="cpu-pct">-</div>
+          <div class="row"><span>Temp</span><span id="cpu-temp">-</span></div>
+                            </div>
+
+        <div class="panel">
+          <div class="label">Memory</div>
+          <div class="value" id="mem-pct">-</div>
+          <div class="row"><span>Used</span><span id="mem-used">-</span></div>
+          <div class="row"><span>Total</span><span id="mem-total">-</span></div>
+        </div>
+
+        <div class="panel">
+          <div class="label">GPU usage</div>
+          <div class="value" id="gpu-pct">-</div>
+          <div class="row"><span>Temp</span><span id="gpu-temp">-</span></div>
+          <div class="row"><span>Power</span><span id="gpu-power">-</span></div>
+        </div>
+      </div>
+
+      <div class="charts">
+        <div class="panel">
+          <div class="label">History CPU/GPU %</div>
+          <canvas id="usage-chart" width="500" height="160"></canvas>
+          <div class="legend">
+            <span><span class="dot ok" style="background: var(--cpu)"></span>CPU %</span>
+            <span><span class="dot ok" style="background: var(--gpu)"></span>GPU %</span>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="label">History CPU/GPU temperature</div>
+          <canvas id="temp-chart" width="500" height="160"></canvas>
+          <div class="legend">
+            <span><span class="dot ok" style="background: var(--temp)"></span>CPU °C</span>
+            <span><span class="dot ok" style="background: #f66151"></span>GPU °C</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="status" id="status-line">chargement...</div>
+    </div>
+
+    <script>
+      const API = "/api/v1";
+
+      const el = {
+        hostMeta: document.getElementById("host-meta"),
+        cpuPct: document.getElementById("cpu-pct"),
+        cpuTemp: document.getElementById("cpu-temp"),
+        memPct: document.getElementById("mem-pct"),
+        memUsed: document.getElementById("mem-used"),
+        memTotal: document.getElementById("mem-total"),
+        gpuPct: document.getElementById("gpu-pct"),
+        gpuTemp: document.getElementById("gpu-temp"),
+        gpuPower: document.getElementById("gpu-power"),
+        status: document.getElementById("status-line"),
+        usageChart: document.getElementById("usage-chart"),
+        tempChart: document.getElementById("temp-chart"),
+      };
+
+      let lastDashboardTs = null;
+      let lastHistoryTs = null;
+
+      function fmtPct(v) {
+        return v === null || v === undefined ? "null" : `${v.toFixed(1)}%`;
+      }
+
+      function fmtC(v) {
+        return v === null || v === undefined ? "null" : `${v.toFixed(1)} °C`;
+      }
+
+      function fmtW(v) {
+        return v === null || v === undefined ? "null" : `${v.toFixed(1)} W`;
+      }
+
+      function fmtBytes(b) {
+        if (b === null || b === undefined) return "null";
+        const gb = b / (1024 ** 3);
+        return `${gb.toFixed(1)} GiB`;
+      }
+
+      function statusDot(level) {
+        return `<span class="dot ${level}"></span>`;
+      }
+
+      function drawSeries(canvas, seriesList, minY, maxY, unitLabel) {
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const padLeft = 44;
+        const padRight = 12;
+        const padTop = 12;
+        const padBottom = 24;
+        const w = canvas.width - padLeft - padRight;
+        const h = canvas.height - padTop - padBottom;
+
+        ctx.strokeStyle = "#2a3140";
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 5; i++) {
+          const y = padTop + (h * i) / 5;
+          ctx.beginPath();
+          ctx.moveTo(padLeft, y);
+          ctx.lineTo(padLeft + w, y);
+          ctx.stroke();
+        }
+        for (let i = 0; i <= 5; i++) {
+          const x = padLeft + (w * i) / 5;
+          ctx.beginPath();
+          ctx.moveTo(x, padTop);
+          ctx.lineTo(x, padTop + h);
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = "#8ea0bd";
+        ctx.font = "11px IBM Plex Sans, Segoe UI, sans-serif";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        for (let i = 0; i <= 5; i++) {
+          const y = padTop + (h * i) / 5;
+          const v = maxY - ((maxY - minY) * i) / 5;
+          ctx.fillText(`${v.toFixed(0)}${unitLabel}`, padLeft - 6, y);
+        }
+
+        const pointsCount = seriesList.find(s => (s.values || []).length > 1)?.values.length || 0;
+        const stepS = pointsCount > 1 ? 300 / (pointsCount - 1) : 0;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        for (let i = 0; i <= 5; i++) {
+          const x = padLeft + (w * i) / 5;
+          const secAgo = Math.round((5 - i) * (w / 5) / (w || 1) * (pointsCount > 1 ? (pointsCount - 1) * stepS : 0));
+          ctx.fillText(secAgo === 0 ? "now" : `-${secAgo}s`, x, padTop + h + 4);
+        }
+
+        for (const s of seriesList) {
+          const values = s.values || [];
+          if (values.length < 2) continue;
+
+          ctx.strokeStyle = s.color;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+
+          let started = false;
+          for (let i = 0; i < values.length; i++) {
+            const v = values[i];
+            if (v === null || Number.isNaN(v)) {
+              started = false;
+              continue;
+            }
+            const x = padLeft + (i / (values.length - 1)) * w;
+            const y = padTop + (1 - (v - minY) / (maxY - minY || 1)) * h;
+            if (!started) {
+              ctx.moveTo(x, y);
+              started = true;
+            } else {
+              ctx.lineTo(x, y);
+            }
+          }
+          ctx.stroke();
+        }
+      }
+
+      async function fetchDashboard() {
+        const r = await fetch(`${API}/dashboard`, { cache: "no-store" });
+        if (!r.ok) throw new Error(`dashboard ${r.status}`);
+        const d = await r.json();
+
+        lastDashboardTs = d.ts;
+        el.hostMeta.textContent = `host: ${d.host} | v=${d.v} | ts=${d.ts}`;
+
+        el.cpuPct.textContent = fmtPct(d.cpu.pct);
+        el.cpuTemp.textContent = fmtC(d.cpu.temp_c);
+
+        el.memPct.textContent = fmtPct(d.mem.pct);
+        el.memUsed.textContent = fmtBytes(d.mem.used_b);
+        el.memTotal.textContent = fmtBytes(d.mem.total_b);
+
+        el.gpuPct.textContent = fmtPct(d.gpu.pct);
+        el.gpuTemp.textContent = fmtC(d.gpu.temp_c);
+        el.gpuPower.textContent = fmtW(d.gpu.power_w);
+
+        const stale = d.state.stale_ms;
+        const level = stale < 2000 ? "ok" : stale < 7000 ? "warn" : "bad";
+        el.status.innerHTML = `${statusDot(level)}dashboard ts=${d.ts} | stale=${stale} ms`;
+      }
+
+      async function fetchHistory() {
+        const r = await fetch(`${API}/history?window=300&step=1`, { cache: "no-store" });
+        if (!r.ok) throw new Error(`history ${r.status}`);
+        const h = await r.json();
+
+        lastHistoryTs = h.ts;
+
+        drawSeries(
+          el.usageChart,
+          [
+            { values: h.series.cpu_pct, color: getComputedStyle(document.documentElement).getPropertyValue("--cpu") },
+            { values: h.series.gpu_pct, color: getComputedStyle(document.documentElement).getPropertyValue("--gpu") },
+          ],
+          0,
+          100,
+          "%",
+        );
+
+        const allTemps = [...h.series.cpu_temp_c, ...h.series.gpu_temp_c].filter(v => v !== null);
+        const minT = allTemps.length ? Math.min(...allTemps) - 2 : 20;
+        const maxT = allTemps.length ? Math.max(...allTemps) + 2 : 90;
+        drawSeries(
+          el.tempChart,
+          [
+            { values: h.series.cpu_temp_c, color: getComputedStyle(document.documentElement).getPropertyValue("--temp") },
+            { values: h.series.gpu_temp_c, color: "#f66151" },
+          ],
+          minT,
+          maxT,
+          "°",
+        );
+      }
+
+      async function tickDashboard() {
+        try {
+          await fetchDashboard();
+        } catch (e) {
+          el.status.innerHTML = `${statusDot("bad")}dashboard error: ${e.message}`;
+        }
+      }
+
+      async function tickHistory() {
+        try {
+          await fetchHistory();
+          if (lastHistoryTs !== null) {
+            el.status.innerHTML += ` | history ts=${lastHistoryTs} (window=300, step=1)`;
+          }
+        } catch (e) {
+          el.status.innerHTML += ` | history error: ${e.message}`;
+        }
+      }
+
+      tickDashboard();
+      tickHistory();
+      setInterval(tickDashboard, 1000);
+      setInterval(tickHistory, 5000);
+    </script>
+  </body>
+</html>

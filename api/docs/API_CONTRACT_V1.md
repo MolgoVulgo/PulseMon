@@ -36,8 +36,7 @@ Returns current snapshot:
   "host": "linux-main",
   "cpu": {
     "pct": 12.4,
-    "temp_c": 43.8,
-    "power_w": null
+    "temp_c": 43.8
   },
   "mem": {
     "used_b": 9123454976,
@@ -91,7 +90,6 @@ Response:
   "metrics": [
     "cpu.pct",
     "cpu.temp_c",
-    "cpu.power_w",
     "mem.used_b",
     "mem.total_b",
     "mem.pct",

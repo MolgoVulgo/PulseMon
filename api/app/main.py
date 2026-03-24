@@ -3,7 +3,7 @@ import logging
 import time
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from app.config import AppConfig, load_config
 from app.diagnostics.logging import configure_logging
@@ -18,6 +18,7 @@ from app.services import (
     build_meta,
 )
 from app.store import HistoryStore, SnapshotStore
+from app.ui import get_ui_html
 
 WINDOW_MIN = 10
 WINDOW_MAX = 600
@@ -73,6 +74,16 @@ async def api_key_middleware(request: Request, call_next):
             return JSONResponse(status_code=401, content=payload)
 
     return await call_next(request)
+
+
+@app.get("/", include_in_schema=False)
+def get_root() -> RedirectResponse:
+    return RedirectResponse(url="/ui")
+
+
+@app.get("/ui", include_in_schema=False)
+def get_ui() -> HTMLResponse:
+    return HTMLResponse(content=get_ui_html())
 
 
 @app.get("/api/v1/health", response_model=HealthResponse)

@@ -46,7 +46,6 @@ def test_build_dashboard_live_contract_minimal() -> None:
         "cpu": {
             "pct": 12.4,
             "temp_c": 43.8,
-            "power_w": None,
         },
         "mem": {
             "used_b": 9123454976,

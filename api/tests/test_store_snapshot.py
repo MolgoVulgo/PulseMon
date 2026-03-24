@@ -7,7 +7,7 @@ def _snapshot(ts: int) -> DashboardResponse:
         v=1,
         ts=ts,
         host="linux-main",
-        cpu=CpuSnapshot(pct=10.0, temp_c=40.0, power_w=None),
+        cpu=CpuSnapshot(pct=10.0, temp_c=40.0),
         mem=MemSnapshot(used_b=100, total_b=200, pct=50.0),
         gpu=GpuSnapshot(pct=None, temp_c=None, power_w=None),
         state=SnapshotState(ok=True, stale_ms=0),

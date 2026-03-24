@@ -4,8 +4,7 @@
   "host": "linux-main",
   "cpu": {
     "pct": 12.4,
-    "temp_c": 43.8,
-    "power_w": null
+    "temp_c": 43.8
   },
   "mem": {
     "used_b": 9123454976,

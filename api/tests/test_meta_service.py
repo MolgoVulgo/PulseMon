@@ -16,7 +16,6 @@ def test_build_meta_contract() -> None:
     assert payload["metrics"] == [
         "cpu.pct",
         "cpu.temp_c",
-        "cpu.power_w",
         "mem.used_b",
         "mem.total_b",
         "mem.pct",

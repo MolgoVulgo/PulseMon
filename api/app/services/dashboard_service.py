@@ -38,7 +38,6 @@ def build_dashboard_live() -> DashboardResponse:
         cpu=CpuSnapshot(
             pct=cpu_pct,
             temp_c=cpu_temp_c,
-            power_w=None,
         ),
         mem=MemSnapshot(
             used_b=mem_used_b,

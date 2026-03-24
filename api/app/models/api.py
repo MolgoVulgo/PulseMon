@@ -15,7 +15,6 @@ class CpuSnapshot(BaseModel):
 
     pct: float
     temp_c: float | None
-    power_w: float | None
 
 
 class MemSnapshot(BaseModel):
@@ -92,7 +91,6 @@ class ErrorResponse(BaseModel):
 V1_METRICS = [
     "cpu.pct",
     "cpu.temp_c",
-    "cpu.power_w",
     "mem.used_b",
     "mem.total_b",
     "mem.pct",
