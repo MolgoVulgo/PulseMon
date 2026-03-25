@@ -10,27 +10,40 @@ class HealthResponse(BaseModel):
     service: str
 
 
+class MetricValue(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    value_raw: float | int | None
+    value_display: float | int | None
+    source: str
+    unit: str
+    sampled_at: int | None
+    estimated: bool
+    valid: bool
+
+
 class CpuSnapshot(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    pct: float
-    temp_c: float | None
+    pct: MetricValue
+    temp_c: MetricValue
+    power_w: MetricValue
 
 
 class MemSnapshot(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    used_b: int
-    total_b: int
-    pct: float
+    used_b: MetricValue
+    total_b: MetricValue
+    pct: MetricValue
 
 
 class GpuSnapshot(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    pct: float | None
-    temp_c: float | None
-    power_w: float | None
+    pct: MetricValue
+    temp_c: MetricValue
+    power_w: MetricValue
 
 
 class SnapshotState(BaseModel):
@@ -66,6 +79,7 @@ class HistoryResponse(BaseModel):
 
     v: int
     ts: int
+    ts_ms: list[int]
     window_s: int
     step_s: int
     series: HistorySeries
@@ -91,6 +105,7 @@ class ErrorResponse(BaseModel):
 V1_METRICS = [
     "cpu.pct",
     "cpu.temp_c",
+    "cpu.power_w",
     "mem.used_b",
     "mem.total_b",
     "mem.pct",

@@ -7,5 +7,9 @@ def test_ui_html_contains_expected_hooks() -> None:
     assert "Stats Linux Monitor (V1)" in html
     assert "id=\"cpu-pct\"" in html
     assert "id=\"usage-chart\"" in html
+    assert "const HISTORY_WINDOW_S =" in html
+    assert "const DASHBOARD_POLL_MS = 1000" in html
+    assert "const HISTORY_POLL_MS = 1000" in html
     assert "fetch(`${API}/dashboard`" in html
-    assert "fetch(`${API}/history?window=300&step=1`" in html
+    assert "fetch(`${API}/history?window=${HISTORY_WINDOW_S}&step=${HISTORY_STEP_S}`" in html
+    assert "h.ts_ms" in html

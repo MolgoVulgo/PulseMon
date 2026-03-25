@@ -34,6 +34,44 @@ def test_gpu_temp_reads_temp1_input_mc(tmp_path: Path) -> None:
         gpu_mod.DRM_CLASS_PATH = original
 
 
+def test_gpu_temp_prefers_edge_by_default(tmp_path: Path) -> None:
+    drm = tmp_path / "drm"
+    _write(drm / "card0" / "device" / "vendor", "0x1002\n")
+    _write(drm / "card0" / "device" / "hwmon" / "hwmon2" / "temp1_label", "edge\n")
+    _write(drm / "card0" / "device" / "hwmon" / "hwmon2" / "temp1_input", "64000\n")
+    _write(drm / "card0" / "device" / "hwmon" / "hwmon2" / "temp2_label", "junction\n")
+    _write(drm / "card0" / "device" / "hwmon" / "hwmon2" / "temp2_input", "88000\n")
+
+    original = gpu_mod.DRM_CLASS_PATH
+    gpu_mod.DRM_CLASS_PATH = drm
+    try:
+        assert gpu_mod.read_gpu_temp_c() == 64.0
+    finally:
+        gpu_mod.DRM_CLASS_PATH = original
+
+
+def test_gpu_temp_priority_can_be_overridden(tmp_path: Path) -> None:
+    drm = tmp_path / "drm"
+    _write(drm / "card0" / "device" / "vendor", "0x1002\n")
+    _write(drm / "card0" / "device" / "hwmon" / "hwmon2" / "temp1_label", "edge\n")
+    _write(drm / "card0" / "device" / "hwmon" / "hwmon2" / "temp1_input", "64000\n")
+    _write(drm / "card0" / "device" / "hwmon" / "hwmon2" / "temp2_label", "junction\n")
+    _write(drm / "card0" / "device" / "hwmon" / "hwmon2" / "temp2_input", "88000\n")
+
+    original_drm = gpu_mod.DRM_CLASS_PATH
+    original_env = gpu_mod.os.getenv("STATS_GPU_TEMP_LABEL_PRIORITY")
+    gpu_mod.DRM_CLASS_PATH = drm
+    gpu_mod.os.environ["STATS_GPU_TEMP_LABEL_PRIORITY"] = "junction,edge"
+    try:
+        assert gpu_mod.read_gpu_temp_c() == 88.0
+    finally:
+        gpu_mod.DRM_CLASS_PATH = original_drm
+        if original_env is None:
+            gpu_mod.os.environ.pop("STATS_GPU_TEMP_LABEL_PRIORITY", None)
+        else:
+            gpu_mod.os.environ["STATS_GPU_TEMP_LABEL_PRIORITY"] = original_env
+
+
 def test_gpu_power_reads_power1_average_uw(tmp_path: Path) -> None:
     drm = tmp_path / "drm"
     _write(drm / "card0" / "device" / "vendor", "0x1002\n")

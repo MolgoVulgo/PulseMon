@@ -2,6 +2,7 @@ from fastapi import HTTPException
 
 from app import main as main_mod
 from app.models import CpuSnapshot, DashboardResponse, GpuSnapshot, MemSnapshot, SnapshotState
+from _helpers import metric
 
 
 def _snapshot(ts: int) -> DashboardResponse:
@@ -9,16 +10,28 @@ def _snapshot(ts: int) -> DashboardResponse:
         v=1,
         ts=ts,
         host="linux-main",
-        cpu=CpuSnapshot(pct=10.0, temp_c=40.0),
-        mem=MemSnapshot(used_b=100, total_b=200, pct=50.0),
-        gpu=GpuSnapshot(pct=1.0, temp_c=30.0, power_w=20.0),
+        cpu=CpuSnapshot(
+            pct=metric(10.0, unit="percent"),
+            temp_c=metric(40.0, unit="celsius"),
+            power_w=metric(None, unit="watt", valid=False),
+        ),
+        mem=MemSnapshot(
+            used_b=metric(100, unit="bytes"),
+            total_b=metric(200, unit="bytes"),
+            pct=metric(50.0, unit="percent"),
+        ),
+        gpu=GpuSnapshot(
+            pct=metric(1.0, unit="percent"),
+            temp_c=metric(30.0, unit="celsius"),
+            power_w=metric(20.0, unit="watt"),
+        ),
         state=SnapshotState(ok=True, stale_ms=0),
     )
 
 
 def test_get_history_invalid_window_raises_400_contract() -> None:
     try:
-        main_mod.get_history(window=5, step=1)
+        main_mod.get_history(window=0, step=1)
     except HTTPException as exc:
         assert exc.status_code == 400
         assert exc.detail == {
@@ -58,7 +71,9 @@ def test_get_history_valid_returns_model() -> None:
         main_mod.history_store = original_store
 
     assert payload["v"] == 1
+    assert "ts_ms" in payload
     assert "series" in payload
+    assert len(payload["ts_ms"]) == len(payload["series"]["cpu_pct"])
 
 
 def test_get_meta_returns_model() -> None:

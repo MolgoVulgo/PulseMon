@@ -17,6 +17,7 @@ from app.models import (
 )
 from app.services.history_service import build_history
 from app.store import HistoryStore
+from _helpers import metric
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -35,9 +36,21 @@ def test_dashboard_fixture_regression() -> None:
         v=1,
         ts=1774256402,
         host="linux-main",
-        cpu=CpuSnapshot(pct=12.4, temp_c=43.8),
-        mem=MemSnapshot(used_b=9123454976, total_b=34359738368, pct=26.6),
-        gpu=GpuSnapshot(pct=7.0, temp_c=39.0, power_w=36.4),
+        cpu=CpuSnapshot(
+            pct=metric(12.4, unit="percent"),
+            temp_c=metric(43.8, unit="celsius"),
+            power_w=metric(None, unit="watt", valid=False),
+        ),
+        mem=MemSnapshot(
+            used_b=metric(9123454976, unit="bytes"),
+            total_b=metric(34359738368, unit="bytes"),
+            pct=metric(26.6, unit="percent"),
+        ),
+        gpu=GpuSnapshot(
+            pct=metric(7.0, unit="percent"),
+            temp_c=metric(39.0, unit="celsius"),
+            power_w=metric(36.4, unit="watt"),
+        ),
         state=SnapshotState(ok=True, stale_ms=0),
     ).model_dump()
     assert payload == _fixture("dashboard_v1.json")
@@ -47,6 +60,7 @@ def test_history_fixture_regression() -> None:
     payload = HistoryResponse(
         v=1,
         ts=1774256402,
+        ts_ms=[1774256399000, 1774256400000, 1774256401000, 1774256402000],
         window_s=300,
         step_s=1,
         series=HistorySeries(
@@ -66,7 +80,7 @@ def test_meta_fixture_regression() -> None:
 
 def test_error_fixture_regression() -> None:
     try:
-        main_mod.get_history(window=1, step=1)
+        main_mod.get_history(window=0, step=1)
     except Exception as exc:  # FastAPI HTTPException
         detail = getattr(exc, "detail", None)
         assert detail == _fixture("error_invalid_window_v1.json")
@@ -88,9 +102,21 @@ def test_history_service_fixture_regression() -> None:
                 v=1,
                 ts=1774256399 + i,
                 host="linux-main",
-                cpu=CpuSnapshot(pct=cpu, temp_c=cpu_t),
-                mem=MemSnapshot(used_b=1, total_b=1, pct=1.0),
-                gpu=GpuSnapshot(pct=gpu, temp_c=gpu_t, power_w=1.0),
+                cpu=CpuSnapshot(
+                    pct=metric(cpu, unit="percent"),
+                    temp_c=metric(cpu_t, unit="celsius"),
+                    power_w=metric(None, unit="watt", valid=False),
+                ),
+                mem=MemSnapshot(
+                    used_b=metric(1, unit="bytes"),
+                    total_b=metric(1, unit="bytes"),
+                    pct=metric(1.0, unit="percent"),
+                ),
+                gpu=GpuSnapshot(
+                    pct=metric(gpu, unit="percent"),
+                    temp_c=metric(gpu_t, unit="celsius"),
+                    power_w=metric(1.0, unit="watt"),
+                ),
                 state=SnapshotState(ok=True, stale_ms=0),
             )
         )

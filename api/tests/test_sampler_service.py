@@ -1,6 +1,7 @@
 from app.models import CpuSnapshot, DashboardResponse, GpuSnapshot, MemSnapshot, SnapshotState
 from app.services import SamplerService
 from app.store import HistoryStore, SnapshotStore
+from _helpers import metric
 
 
 def _snapshot(ts: int) -> DashboardResponse:
@@ -8,9 +9,21 @@ def _snapshot(ts: int) -> DashboardResponse:
         v=1,
         ts=ts,
         host="linux-main",
-        cpu=CpuSnapshot(pct=10.0, temp_c=40.0),
-        mem=MemSnapshot(used_b=100, total_b=200, pct=50.0),
-        gpu=GpuSnapshot(pct=1.0, temp_c=30.0, power_w=20.0),
+        cpu=CpuSnapshot(
+            pct=metric(10.0, unit="percent"),
+            temp_c=metric(40.0, unit="celsius"),
+            power_w=metric(None, unit="watt", valid=False),
+        ),
+        mem=MemSnapshot(
+            used_b=metric(100, unit="bytes"),
+            total_b=metric(200, unit="bytes"),
+            pct=metric(50.0, unit="percent"),
+        ),
+        gpu=GpuSnapshot(
+            pct=metric(1.0, unit="percent"),
+            temp_c=metric(30.0, unit="celsius"),
+            power_w=metric(20.0, unit="watt"),
+        ),
         state=SnapshotState(ok=True, stale_ms=0),
     )
 
@@ -52,3 +65,31 @@ def test_sampler_sample_once_swallow_errors() -> None:
 
     assert snapshot_store.get_snapshot() is None
     assert len(history_store) == 0
+
+
+def test_sampler_decouples_acquire_and_publish() -> None:
+    import app.services.sampler as sampler_mod
+
+    snapshot_store = SnapshotStore()
+    history_store = HistoryStore(capacity=10)
+    ticks = iter([10.0, 10.1, 10.2, 10.6])
+
+    original_monotonic = sampler_mod.time.monotonic
+    sampler_mod.time.monotonic = lambda: next(ticks)
+    try:
+        sampler = SamplerService(
+            snapshot_store=snapshot_store,
+            history_store=history_store,
+            sample_func=lambda: _snapshot(100),
+            interval_s=0.1,
+            publish_interval_s=0.5,
+        )
+
+        sampler.sample_once(force_publish=True)  # publish at t=10.0
+        sampler.sample_once()  # acquire at t=10.1, no publish
+        sampler.sample_once()  # acquire at t=10.2, no publish
+        sampler.sample_once()  # acquire at t=10.6, publish
+    finally:
+        sampler_mod.time.monotonic = original_monotonic
+
+    assert len(history_store) == 2

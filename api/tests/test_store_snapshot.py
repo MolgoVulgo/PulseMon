@@ -1,5 +1,6 @@
 from app.models import CpuSnapshot, DashboardResponse, GpuSnapshot, MemSnapshot, SnapshotState
 from app.store import SnapshotStore
+from _helpers import metric
 
 
 def _snapshot(ts: int) -> DashboardResponse:
@@ -7,9 +8,21 @@ def _snapshot(ts: int) -> DashboardResponse:
         v=1,
         ts=ts,
         host="linux-main",
-        cpu=CpuSnapshot(pct=10.0, temp_c=40.0),
-        mem=MemSnapshot(used_b=100, total_b=200, pct=50.0),
-        gpu=GpuSnapshot(pct=None, temp_c=None, power_w=None),
+        cpu=CpuSnapshot(
+            pct=metric(10.0, unit="percent"),
+            temp_c=metric(40.0, unit="celsius"),
+            power_w=metric(None, unit="watt", valid=False),
+        ),
+        mem=MemSnapshot(
+            used_b=metric(100, unit="bytes"),
+            total_b=metric(200, unit="bytes"),
+            pct=metric(50.0, unit="percent"),
+        ),
+        gpu=GpuSnapshot(
+            pct=metric(None, unit="percent", valid=False),
+            temp_c=metric(None, unit="celsius", valid=False),
+            power_w=metric(None, unit="watt", valid=False),
+        ),
         state=SnapshotState(ok=True, stale_ms=0),
     )
 

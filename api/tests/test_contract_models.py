@@ -12,6 +12,7 @@ from app.models import (
     V1_HISTORY_SERIES,
     V1_METRICS,
 )
+from _helpers import metric
 
 
 def test_health_contract_snapshot() -> None:
@@ -30,27 +31,35 @@ def test_dashboard_contract_snapshot() -> None:
         v=1,
         ts=1774256402,
         host="linux-main",
-        cpu=CpuSnapshot(pct=12.4, temp_c=43.8),
-        mem=MemSnapshot(used_b=9123454976, total_b=34359738368, pct=26.6),
-        gpu=GpuSnapshot(pct=7.0, temp_c=39.0, power_w=36.4),
+        cpu=CpuSnapshot(
+            pct=metric(12.4, unit="percent"),
+            temp_c=metric(43.8, unit="celsius"),
+            power_w=metric(None, unit="watt", valid=False),
+        ),
+        mem=MemSnapshot(
+            used_b=metric(9123454976, unit="bytes"),
+            total_b=metric(34359738368, unit="bytes"),
+            pct=metric(26.6, unit="percent"),
+        ),
+        gpu=GpuSnapshot(
+            pct=metric(7.0, unit="percent"),
+            temp_c=metric(39.0, unit="celsius"),
+            power_w=metric(36.4, unit="watt"),
+        ),
         state=SnapshotState(ok=True, stale_ms=0),
     ).model_dump()
 
-    assert payload == {
-        "v": 1,
-        "ts": 1774256402,
-        "host": "linux-main",
-        "cpu": {"pct": 12.4, "temp_c": 43.8},
-        "mem": {"used_b": 9123454976, "total_b": 34359738368, "pct": 26.6},
-        "gpu": {"pct": 7.0, "temp_c": 39.0, "power_w": 36.4},
-        "state": {"ok": True, "stale_ms": 0},
-    }
+    assert payload["cpu"]["pct"]["value_raw"] == 12.4
+    assert payload["cpu"]["power_w"]["valid"] is False
+    assert payload["gpu"]["power_w"]["value_display"] == 36.4
+    assert payload["mem"]["used_b"]["unit"] == "bytes"
 
 
 def test_history_contract_snapshot() -> None:
     payload = HistoryResponse(
         v=1,
         ts=1774256402,
+        ts_ms=[1774256399000, 1774256400000, 1774256401000, 1774256402000],
         window_s=300,
         step_s=1,
         series=HistorySeries(
@@ -64,6 +73,7 @@ def test_history_contract_snapshot() -> None:
     assert payload == {
         "v": 1,
         "ts": 1774256402,
+        "ts_ms": [1774256399000, 1774256400000, 1774256401000, 1774256402000],
         "window_s": 300,
         "step_s": 1,
         "series": {
@@ -84,6 +94,7 @@ def test_meta_contract_snapshot() -> None:
         "metrics": [
             "cpu.pct",
             "cpu.temp_c",
+            "cpu.power_w",
             "mem.used_b",
             "mem.total_b",
             "mem.pct",

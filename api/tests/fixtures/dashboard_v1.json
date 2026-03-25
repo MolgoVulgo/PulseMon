@@ -3,18 +3,91 @@
   "ts": 1774256402,
   "host": "linux-main",
   "cpu": {
-    "pct": 12.4,
-    "temp_c": 43.8
+    "pct": {
+      "value_raw": 12.4,
+      "value_display": 12.4,
+      "source": "test-source",
+      "unit": "percent",
+      "sampled_at": 1774256402000,
+      "estimated": false,
+      "valid": true
+    },
+    "temp_c": {
+      "value_raw": 43.8,
+      "value_display": 43.8,
+      "source": "test-source",
+      "unit": "celsius",
+      "sampled_at": 1774256402000,
+      "estimated": false,
+      "valid": true
+    },
+    "power_w": {
+      "value_raw": null,
+      "value_display": null,
+      "source": "test-source",
+      "unit": "watt",
+      "sampled_at": 1774256402000,
+      "estimated": false,
+      "valid": false
+    }
   },
   "mem": {
-    "used_b": 9123454976,
-    "total_b": 34359738368,
-    "pct": 26.6
+    "used_b": {
+      "value_raw": 9123454976,
+      "value_display": 9123454976,
+      "source": "test-source",
+      "unit": "bytes",
+      "sampled_at": 1774256402000,
+      "estimated": false,
+      "valid": true
+    },
+    "total_b": {
+      "value_raw": 34359738368,
+      "value_display": 34359738368,
+      "source": "test-source",
+      "unit": "bytes",
+      "sampled_at": 1774256402000,
+      "estimated": false,
+      "valid": true
+    },
+    "pct": {
+      "value_raw": 26.6,
+      "value_display": 26.6,
+      "source": "test-source",
+      "unit": "percent",
+      "sampled_at": 1774256402000,
+      "estimated": false,
+      "valid": true
+    }
   },
   "gpu": {
-    "pct": 7.0,
-    "temp_c": 39.0,
-    "power_w": 36.4
+    "pct": {
+      "value_raw": 7.0,
+      "value_display": 7.0,
+      "source": "test-source",
+      "unit": "percent",
+      "sampled_at": 1774256402000,
+      "estimated": false,
+      "valid": true
+    },
+    "temp_c": {
+      "value_raw": 39.0,
+      "value_display": 39.0,
+      "source": "test-source",
+      "unit": "celsius",
+      "sampled_at": 1774256402000,
+      "estimated": false,
+      "valid": true
+    },
+    "power_w": {
+      "value_raw": 36.4,
+      "value_display": 36.4,
+      "source": "test-source",
+      "unit": "watt",
+      "sampled_at": 1774256402000,
+      "estimated": false,
+      "valid": true
+    }
   },
   "state": {
     "ok": true,
