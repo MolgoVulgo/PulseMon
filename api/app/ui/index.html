@@ -212,6 +212,9 @@
       const API = "/api/v1";
       const HISTORY_WINDOW_S = 10;
       const HISTORY_STEP_S = 1;
+      const HISTORY_MODE = "display";
+      const HISTORY_RESYNC_MS = 30000;
+      const HISTORY_DEBUG = false;
       const DASHBOARD_POLL_MS = 1000;
       const HISTORY_POLL_MS = 1000;
 
@@ -232,9 +235,18 @@
 
       let lastDashboardTs = null;
       let lastHistoryTs = null;
-      let lastHistoryKey = null;
       let dashboardInFlight = false;
       let historyInFlight = false;
+      const historyState = {
+        ts_ms: [],
+        series: {
+          cpu_pct: [],
+          cpu_temp_c: [],
+          gpu_pct: [],
+          gpu_temp_c: [],
+        },
+        lastResyncAtMs: 0,
+      };
 
       function fmtPct(v) {
         return v === null || v === undefined ? "null" : `${v.toFixed(1)}%`;
@@ -270,6 +282,132 @@
           return Boolean(metric.valid);
         }
         return metric !== null && metric !== undefined;
+      }
+
+      function historyDebug(message, extra = {}) {
+        if (!HISTORY_DEBUG) return;
+        console.debug(`[history] ${message}`, extra);
+      }
+
+      function maxHistoryPoints() {
+        return Math.max(1, Math.floor(HISTORY_WINDOW_S / HISTORY_STEP_S) + 1);
+      }
+
+      function normalizeHistoryPayload(historyPayload) {
+        const tsMs = Array.isArray(historyPayload?.ts_ms) ? historyPayload.ts_ms : [];
+        const cpuPct = Array.isArray(historyPayload?.series?.cpu_pct) ? historyPayload.series.cpu_pct : [];
+        const cpuTemp = Array.isArray(historyPayload?.series?.cpu_temp_c) ? historyPayload.series.cpu_temp_c : [];
+        const gpuPct = Array.isArray(historyPayload?.series?.gpu_pct) ? historyPayload.series.gpu_pct : [];
+        const gpuTemp = Array.isArray(historyPayload?.series?.gpu_temp_c) ? historyPayload.series.gpu_temp_c : [];
+
+        const n = Math.min(tsMs.length, cpuPct.length, cpuTemp.length, gpuPct.length, gpuTemp.length);
+        return {
+          ts_ms: tsMs.slice(0, n),
+          series: {
+            cpu_pct: cpuPct.slice(0, n),
+            cpu_temp_c: cpuTemp.slice(0, n),
+            gpu_pct: gpuPct.slice(0, n),
+            gpu_temp_c: gpuTemp.slice(0, n),
+          },
+        };
+      }
+
+      function replaceHistoryState(historyPayload, reason) {
+        const normalized = normalizeHistoryPayload(historyPayload);
+        historyState.ts_ms = normalized.ts_ms;
+        historyState.series.cpu_pct = normalized.series.cpu_pct;
+        historyState.series.cpu_temp_c = normalized.series.cpu_temp_c;
+        historyState.series.gpu_pct = normalized.series.gpu_pct;
+        historyState.series.gpu_temp_c = normalized.series.gpu_temp_c;
+        historyState.lastResyncAtMs = Date.now();
+        trimHistoryState();
+        historyDebug("state replaced", { reason, points: historyState.ts_ms.length });
+      }
+
+      function trimHistoryState() {
+        const keep = maxHistoryPoints();
+        if (historyState.ts_ms.length <= keep) return;
+        const start = historyState.ts_ms.length - keep;
+        historyState.ts_ms = historyState.ts_ms.slice(start);
+        historyState.series.cpu_pct = historyState.series.cpu_pct.slice(start);
+        historyState.series.cpu_temp_c = historyState.series.cpu_temp_c.slice(start);
+        historyState.series.gpu_pct = historyState.series.gpu_pct.slice(start);
+        historyState.series.gpu_temp_c = historyState.series.gpu_temp_c.slice(start);
+      }
+
+      function appendHistoryDelta(historyPayload) {
+        const normalized = normalizeHistoryPayload(historyPayload);
+        if (normalized.ts_ms.length === 0) {
+          return 0;
+        }
+
+        const lastTs = historyState.ts_ms.length > 0 ? historyState.ts_ms[historyState.ts_ms.length - 1] : null;
+        if (lastTs !== null && normalized.ts_ms[0] <= lastTs) {
+          replaceHistoryState(historyPayload, "server_full_fallback");
+          return historyState.ts_ms.length;
+        }
+
+        let appended = 0;
+        for (let i = 0; i < normalized.ts_ms.length; i++) {
+          const ts = normalized.ts_ms[i];
+          const currentLastTs = historyState.ts_ms.length > 0 ? historyState.ts_ms[historyState.ts_ms.length - 1] : null;
+          if (currentLastTs !== null && ts <= currentLastTs) {
+            continue;
+          }
+          historyState.ts_ms.push(ts);
+          historyState.series.cpu_pct.push(normalized.series.cpu_pct[i]);
+          historyState.series.cpu_temp_c.push(normalized.series.cpu_temp_c[i]);
+          historyState.series.gpu_pct.push(normalized.series.gpu_pct[i]);
+          historyState.series.gpu_temp_c.push(normalized.series.gpu_temp_c[i]);
+          appended++;
+        }
+        trimHistoryState();
+        historyDebug("delta appended", { appended, total: historyState.ts_ms.length });
+        return appended;
+      }
+
+      function drawHistoryCharts() {
+        drawSeries(
+          el.usageChart,
+          historyState.ts_ms,
+          [
+            { values: historyState.series.cpu_pct, color: getComputedStyle(document.documentElement).getPropertyValue("--cpu") },
+            { values: historyState.series.gpu_pct, color: getComputedStyle(document.documentElement).getPropertyValue("--gpu") },
+          ],
+          0,
+          100,
+          "%",
+        );
+
+        const allTemps = [...historyState.series.cpu_temp_c, ...historyState.series.gpu_temp_c].filter(v => v !== null);
+        const minT = allTemps.length ? Math.min(...allTemps) - 2 : 20;
+        const maxT = allTemps.length ? Math.max(...allTemps) + 2 : 90;
+        drawSeries(
+          el.tempChart,
+          historyState.ts_ms,
+          [
+            { values: historyState.series.cpu_temp_c, color: getComputedStyle(document.documentElement).getPropertyValue("--temp") },
+            { values: historyState.series.gpu_temp_c, color: "#f66151" },
+          ],
+          minT,
+          maxT,
+          "°",
+        );
+      }
+
+      function buildHistoryUrl(forceFull) {
+        const params = new URLSearchParams({
+          window: String(HISTORY_WINDOW_S),
+          step: String(HISTORY_STEP_S),
+          mode: HISTORY_MODE,
+        });
+        if (!forceFull) {
+          const lastTs = historyState.ts_ms.length > 0 ? historyState.ts_ms[historyState.ts_ms.length - 1] : null;
+          if (lastTs !== null) {
+            params.set("since_ts_ms", String(lastTs));
+          }
+        }
+        return `${API}/history?${params.toString()}`;
       }
 
       function drawSeries(canvas, tsMs, seriesList, minY, maxY, unitLabel) {
@@ -388,45 +526,27 @@
       }
 
       async function fetchHistory() {
-        const r = await fetch(`${API}/history?window=${HISTORY_WINDOW_S}&step=${HISTORY_STEP_S}`, { cache: "no-store" });
+        const needPeriodicResync =
+          historyState.lastResyncAtMs === 0 || (Date.now() - historyState.lastResyncAtMs) >= HISTORY_RESYNC_MS;
+        const forceFull = historyState.ts_ms.length === 0 || needPeriodicResync;
+        const historyUrl = buildHistoryUrl(forceFull);
+        historyDebug("fetch", { forceFull, historyUrl });
+
+        const r = await fetch(historyUrl, { cache: "no-store" });
         if (!r.ok) throw new Error(`history ${r.status}`);
         const h = await r.json();
-        const seriesLength = Array.isArray(h.ts_ms) ? h.ts_ms.length : 0;
-        const lastPointTs = seriesLength > 0 ? h.ts_ms[seriesLength - 1] : 0;
-        const historyKey = `${h.ts}|${seriesLength}|${lastPointTs}`;
+        lastHistoryTs = h.ts;
 
-        if (lastHistoryKey !== null && historyKey === lastHistoryKey) {
+        if (forceFull) {
+          replaceHistoryState(h, "periodic_or_initial");
+          drawHistoryCharts();
           return;
         }
-        lastHistoryTs = h.ts;
-        lastHistoryKey = historyKey;
 
-        drawSeries(
-          el.usageChart,
-          h.ts_ms,
-          [
-            { values: h.series.cpu_pct, color: getComputedStyle(document.documentElement).getPropertyValue("--cpu") },
-            { values: h.series.gpu_pct, color: getComputedStyle(document.documentElement).getPropertyValue("--gpu") },
-          ],
-          0,
-          100,
-          "%",
-        );
-
-        const allTemps = [...h.series.cpu_temp_c, ...h.series.gpu_temp_c].filter(v => v !== null);
-        const minT = allTemps.length ? Math.min(...allTemps) - 2 : 20;
-        const maxT = allTemps.length ? Math.max(...allTemps) + 2 : 90;
-        drawSeries(
-          el.tempChart,
-          h.ts_ms,
-          [
-            { values: h.series.cpu_temp_c, color: getComputedStyle(document.documentElement).getPropertyValue("--temp") },
-            { values: h.series.gpu_temp_c, color: "#f66151" },
-          ],
-          minT,
-          maxT,
-          "°",
-        );
+        const appended = appendHistoryDelta(h);
+        if (appended > 0) {
+          drawHistoryCharts();
+        }
       }
 
       async function tickDashboard() {
@@ -447,7 +567,7 @@
         try {
           await fetchHistory();
           if (lastHistoryTs !== null) {
-            el.status.innerHTML += ` | history ts=${lastHistoryTs} (window=${HISTORY_WINDOW_S}, step=${HISTORY_STEP_S})`;
+            el.status.innerHTML += ` | history ts=${lastHistoryTs} (window=${HISTORY_WINDOW_S}, step=${HISTORY_STEP_S}, mode=${HISTORY_MODE})`;
           }
         } catch (e) {
           el.status.innerHTML += ` | history error: ${e.message}`;

@@ -59,6 +59,36 @@ def test_get_history_invalid_step_raises_400_contract() -> None:
     raise AssertionError("HTTPException not raised")
 
 
+def test_get_history_invalid_mode_raises_400_contract() -> None:
+    try:
+        main_mod.get_history(window=300, step=1, mode="invalid")
+    except HTTPException as exc:
+        assert exc.status_code == 400
+        assert exc.detail == {
+            "v": 1,
+            "error": "invalid_parameter",
+            "field": "mode",
+        }
+        return
+
+    raise AssertionError("HTTPException not raised")
+
+
+def test_get_history_invalid_since_ts_ms_raises_400_contract() -> None:
+    try:
+        main_mod.get_history(window=300, step=1, since_ts_ms=-1)
+    except HTTPException as exc:
+        assert exc.status_code == 400
+        assert exc.detail == {
+            "v": 1,
+            "error": "invalid_parameter",
+            "field": "since_ts_ms",
+        }
+        return
+
+    raise AssertionError("HTTPException not raised")
+
+
 def test_get_history_valid_returns_model() -> None:
     original_store = main_mod.history_store
     try:

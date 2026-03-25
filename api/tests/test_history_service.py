@@ -87,3 +87,92 @@ def test_build_history_timeline_is_stable_without_new_points() -> None:
     assert first["ts_ms"] == [100000, 101000, 102000]
     assert second["ts_ms"] == first["ts_ms"]
     assert second["series"] == first["series"]
+
+
+def test_build_history_since_ts_ms_returns_delta_only() -> None:
+    store = HistoryStore(capacity=10)
+    store.push_snapshot(_snapshot(100, 10.0), tick_ms=100_000)
+    store.push_snapshot(_snapshot(101, 20.0), tick_ms=101_000)
+    store.push_snapshot(_snapshot(102, 30.0), tick_ms=102_000)
+
+    payload = build_history(
+        history_store=store,
+        window_s=10,
+        step_s=1,
+        since_ts_ms=101_000,
+    ).model_dump()
+
+    assert payload["ts_ms"] == [102000]
+    assert payload["series"]["cpu_pct"] == [30.0]
+
+
+def test_build_history_since_ts_ms_older_than_buffer_returns_full_window() -> None:
+    store = HistoryStore(capacity=3)
+    store.push_snapshot(_snapshot(100, 10.0), tick_ms=100_000)
+    store.push_snapshot(_snapshot(101, 20.0), tick_ms=101_000)
+    store.push_snapshot(_snapshot(102, 30.0), tick_ms=102_000)
+    store.push_snapshot(_snapshot(103, 40.0), tick_ms=103_000)
+
+    payload = build_history(
+        history_store=store,
+        window_s=10,
+        step_s=1,
+        since_ts_ms=100_000,
+    ).model_dump()
+
+    assert payload["ts_ms"] == [101000, 102000, 103000]
+    assert payload["series"]["cpu_pct"] == [20.0, 30.0, 40.0]
+
+
+def test_build_history_mode_raw_exposes_raw_values() -> None:
+    snapshot = DashboardResponse(
+        v=1,
+        ts=10,
+        host="linux-main",
+        cpu=CpuSnapshot(
+            pct=metric(90.0, value_display=60.0, unit="percent"),
+            temp_c=metric(42.0, value_display=41.0, unit="celsius"),
+            power_w=metric(None, unit="watt", valid=False),
+        ),
+        mem=MemSnapshot(
+            used_b=metric(100, unit="bytes"),
+            total_b=metric(200, unit="bytes"),
+            pct=metric(50.0, unit="percent"),
+        ),
+        gpu=GpuSnapshot(
+            pct=metric(70.0, value_display=55.0, unit="percent"),
+            temp_c=metric(62.0, value_display=61.0, unit="celsius"),
+            power_w=metric(20.0, unit="watt"),
+        ),
+        state=SnapshotState(ok=True, stale_ms=0),
+    )
+
+    store = HistoryStore(capacity=10)
+    store.push_snapshot(snapshot, tick_ms=10_000)
+
+    payload = build_history(
+        history_store=store,
+        window_s=10,
+        step_s=1,
+        mode="raw",
+    ).model_dump()
+
+    assert payload["series"]["cpu_pct"] == [90.0]
+    assert payload["series"]["gpu_pct"] == [70.0]
+
+
+def test_build_history_delta_empty_keeps_latest_store_ts() -> None:
+    store = HistoryStore(capacity=10)
+    store.push_snapshot(_snapshot(100, 10.0), tick_ms=100_000)
+    store.push_snapshot(_snapshot(101, 20.0), tick_ms=101_000)
+
+    payload = build_history(
+        history_store=store,
+        window_s=10,
+        step_s=1,
+        since_ts_ms=101_000,
+    ).model_dump()
+
+    assert payload["ts"] == 101
+    assert payload["ts_ms"] == []
+    assert payload["series"]["cpu_pct"] == []

@@ -159,12 +159,14 @@ Returns current snapshot:
 }
 ```
 
-### `GET /api/v1/history?window=300&step=1`
+### `GET /api/v1/history?window=300&step=1&mode=display`
 
 Parameter bounds:
 
 - `window`: `1..600`
 - `step`: `1..10`
+- `mode`: `display|raw` (default `display`)
+- `since_ts_ms`: optional unix timestamp in milliseconds (`>=0`)
 
 History rules:
 
@@ -173,6 +175,10 @@ History rules:
 - `ts_ms` carries the explicit X axis timeline (one timestamp per point);
 - missing buckets are returned as `null` (no synthetic interpolation);
 - `ts` corresponds to the latest available history point timestamp (seconds).
+- default behavior (without `since_ts_ms`) returns the full window series;
+- with `since_ts_ms`, response returns only points with `ts_ms > since_ts_ms`;
+- if `since_ts_ms` is older than the retained in-memory timeline, backend falls back to full-window output (client resync path);
+- `mode=display` uses filtered values (`value_display`), `mode=raw` uses raw values (`value_raw`).
 
 Response:
 

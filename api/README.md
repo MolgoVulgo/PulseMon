@@ -34,15 +34,17 @@ The mini UI polls:
 
 - `GET /api/v1/health`
 - `GET /api/v1/dashboard`
-- `GET /api/v1/history?window=300&step=1`
+- `GET /api/v1/history?window=300&step=1&mode=display`
 - `GET /api/v1/meta`
 
 ### History params
 
 - `window`: min `1`, max `600`, default `300`
 - `step`: min `1`, max `10`, default `1`
+- `mode`: `display|raw`, default `display`
+- `since_ts_ms`: optional unix ms (`>=0`), returns only points newer than this timestamp
 
-Invalid `window` or `step` returns HTTP `400` with:
+Invalid `window`, `step`, `mode` or `since_ts_ms` returns HTTP `400` with:
 
 ```json
 {
@@ -80,7 +82,9 @@ History behavior:
 - `/api/v1/history` series are bucketed by `step` on an absolute time grid;
 - `/api/v1/history` exposes `ts_ms` timeline aligned with each Y-series point;
 - missing buckets are exposed as `null` (no synthetic values);
-- repeated calls without new sample keep the same history payload.
+- default call (without `since_ts_ms`) returns the full window;
+- `since_ts_ms` enables incremental fetch (`ts_ms > since_ts_ms`);
+- if `since_ts_ms` is older than the in-memory window, backend falls back to full-window response.
 
 When `STATS_API_KEY` is set, all `/api/v1/*` routes require the configured header.
 

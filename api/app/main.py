@@ -168,16 +168,27 @@ def get_dashboard() -> DashboardResponse:
 
 
 @app.get("/api/v1/history", response_model=HistoryResponse)
-def get_history(window: int = WINDOW_DEFAULT, step: int = STEP_DEFAULT) -> HistoryResponse:
+def get_history(
+    window: int = WINDOW_DEFAULT,
+    step: int = STEP_DEFAULT,
+    mode: str = "display",
+    since_ts_ms: int | None = None,
+) -> HistoryResponse:
     if window < WINDOW_MIN or window > WINDOW_MAX:
         _raise_api_error(400, "invalid_parameter", "window")
     if step < STEP_MIN or step > STEP_MAX:
         _raise_api_error(400, "invalid_parameter", "step")
+    if mode not in {"display", "raw"}:
+        _raise_api_error(400, "invalid_parameter", "mode")
+    if since_ts_ms is not None and since_ts_ms < 0:
+        _raise_api_error(400, "invalid_parameter", "since_ts_ms")
 
     return build_history(
         history_store=history_store,
         window_s=window,
         step_s=step,
+        mode=mode,
+        since_ts_ms=since_ts_ms,
     )
 
 

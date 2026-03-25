@@ -3,13 +3,13 @@ from app.store import HistoryStore
 from _helpers import metric
 
 
-def _snapshot(ts: int, cpu_pct: float) -> DashboardResponse:
+def _snapshot(ts: int, cpu_pct: float, *, cpu_pct_display: float | None = None) -> DashboardResponse:
     return DashboardResponse(
         v=1,
         ts=ts,
         host="linux-main",
         cpu=CpuSnapshot(
-            pct=metric(cpu_pct, unit="percent"),
+            pct=metric(cpu_pct, value_display=cpu_pct_display, unit="percent"),
             temp_c=metric(40.0, unit="celsius"),
             power_w=metric(None, unit="watt", valid=False),
         ),
@@ -66,3 +66,25 @@ def test_history_store_explicit_gap_returns_null_bucket() -> None:
     points = store.get_points(window_s=2, step_s=1, now_ts=12)
     assert [p.ts for p in points] == [10, 11, 12]
     assert [p.cpu_pct for p in points] == [1.0, None, 3.0]
+
+
+def test_history_store_mode_raw_vs_display() -> None:
+    store = HistoryStore(capacity=10)
+    store.push_snapshot(_snapshot(10, 70.0, cpu_pct_display=55.0), tick_ms=10_000)
+
+    display_points = store.get_points(window_s=10, step_s=1, now_ts=10, mode="display")
+    raw_points = store.get_points(window_s=10, step_s=1, now_ts=10, mode="raw")
+
+    assert [p.cpu_pct for p in display_points] == [55.0]
+    assert [p.cpu_pct for p in raw_points] == [70.0]
+
+
+def test_history_store_since_ts_ms_returns_delta_only() -> None:
+    store = HistoryStore(capacity=10)
+    store.push_snapshot(_snapshot(10, 10.0), tick_ms=10_000)
+    store.push_snapshot(_snapshot(11, 20.0), tick_ms=11_000)
+    store.push_snapshot(_snapshot(12, 30.0), tick_ms=12_000)
+
+    delta = store.get_points(window_s=10, step_s=1, now_ts=12, since_ts_ms=11_000)
+    assert [p.ts_ms for p in delta] == [12000]
+    assert [p.cpu_pct for p in delta] == [30.0]
