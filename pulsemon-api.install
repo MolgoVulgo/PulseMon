@@ -1,0 +1,25 @@
+post_install() {
+  cat <<'EOF'
+PulseMon API installed.
+
+Service management:
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now pulsemon-api.service
+
+Configuration file:
+  /etc/pulsemon/pulsemon-api.conf
+EOF
+}
+
+post_upgrade() {
+  post_install
+}
+
+post_remove() {
+  cat <<'EOF'
+PulseMon API removed.
+
+If still enabled:
+  sudo systemctl disable --now pulsemon-api.service
+EOF
+}

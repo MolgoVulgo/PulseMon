@@ -1,0 +1,23 @@
+[Unit]
+Description=PulseMon Linux Stats API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/pulsemon/pulsemon-api.conf
+WorkingDirectory=/var/lib/pulsemon-api
+ExecStart=/usr/bin/pulsemon-api
+Restart=on-failure
+RestartSec=2
+DynamicUser=yes
+StateDirectory=pulsemon-api
+RuntimeDirectory=pulsemon-api
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=true
+ProtectSystem=full
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
