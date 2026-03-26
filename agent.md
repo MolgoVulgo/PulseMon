@@ -32,9 +32,9 @@ Le système cible est structuré autour de :
 ## Sources de vérité du projet
 
 Lire d’abord, dans cet ordre :
-1. `cahier_des_charges_stats_linux_esp_32.md`
-2. `cahier_fonctionnel_stats_linux_esp_32.md`
-3. `plan_implementation_api_stats_linux.md`
+1. `docs/specs/cahier_des_charges_stats_linux_esp_32.md`
+2. `docs/specs/cahier_fonctionnel_stats_linux_esp_32.md`
+3. `docs/plans/plan_implementation_api_stats_linux.md`
 4. la zone réellement touchée dans le dépôt
 5. les fichiers de configuration et d’entrée du module modifié
 
