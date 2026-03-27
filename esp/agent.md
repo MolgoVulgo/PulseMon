@@ -32,13 +32,13 @@ Le système cible est structuré autour de :
 ## Sources de vérité du projet
 
 Lire d’abord, dans cet ordre :
-1. `docs/specs/cahier_des_charges_stats_linux_esp_32.md`
-2. `docs/specs/cahier_fonctionnel_stats_linux_esp_32.md`
-3. `docs/plans/plan_implementation_api_stats_linux.md`
+1. `../docs/specs/cahier_des_charges_stats_linux_esp_32.md`
+2. `../docs/specs/cahier_fonctionnel_stats_linux_esp_32.md`
+3. `../docs/plans/plan_implementation_api_stats_linux.md`
 4. `platformio.ini` (racine)
-5. `esp/src/`
-6. `esp/sdkconfig.defaults`
-7. `esp/boards/`
+5. `src/`
+6. `sdkconfig.defaults`
+7. `boards/`
 8. la zone réellement touchée dans le dépôt
 9. les fichiers de configuration et d’entrée du module modifié
 
@@ -203,7 +203,6 @@ Le principe directeur du projet est simple :
 - ESP32-S3.
 - ESP-IDF natif.
 - UI via LVGL.
-- Interdiction explicite: ne jamais lancer de build, flash ou monitor ESP (`idf.py`/`pio`) sauf demande explicite contraire de l’utilisateur.
 - Polling `dashboard` cible : **1 Hz**.
 - Polling `history` cible : **5 à 10 s**.
 - Conserver le dernier snapshot valide en cas d’échec.
@@ -290,7 +289,7 @@ Avant de conclure :
 - vérification de `state.ok` et `state.stale_ms`.
 
 ### Pour le firmware
-- ne pas exécuter de build/flash/monitor ESP sans demande explicite de l’utilisateur ;
+- build de la cible concernée si l’environnement le permet ;
 - validation du parsing JSON ;
 - validation de la résilience sur perte réseau ;
 - vérification rapide de non-régression UI si la zone LVGL est touchée.

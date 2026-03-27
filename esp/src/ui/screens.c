@@ -205,6 +205,16 @@ void create_screen_main() {
                     lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_label_set_text(obj, "");
                 }
+                {
+                    // gpu_pct
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.gpu_pct = obj;
+                    lv_obj_set_pos(obj, -4, 16);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xffd8deea), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "");
+                }
             }
         }
         {
@@ -314,6 +324,15 @@ void tick_screen_main() {
         if (strcmp(new_val, cur_val) != 0) {
             tick_value_change_obj = objects.gpu_power;
             lv_label_set_text(objects.gpu_power, new_val);
+            tick_value_change_obj = NULL;
+        }
+    }
+    {
+        const char *new_val = get_var_gpu_pct();
+        const char *cur_val = lv_label_get_text(objects.gpu_pct);
+        if (strcmp(new_val, cur_val) != 0) {
+            tick_value_change_obj = objects.gpu_pct;
+            lv_label_set_text(objects.gpu_pct, new_val);
             tick_value_change_obj = NULL;
         }
     }

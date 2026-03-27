@@ -1,0 +1,171 @@
+I (1331) heap_init: Initializing. RAM available for dynamic allocation:
+I (1339) heap_init: At 3FC9DAE8 len 0004BC28 (303 KiB): RAM
+I (1345) heap_init: At 3FCE9710 len 00005724 (21 KiB): RAM
+I (1351) heap_init: At 3FCF0000 len 00008000 (32 KiB): DRAM
+I (1357) heap_init: At 600FE010 len 00001FD8 (7 KiB): RTCRAM
+I (1364) esp_psram: Adding pool of 7680K of PSRAM memory to heap allocator
+I (1372) spi_flash: detected chip: boya
+I (1376) spi_flash: flash io: qio
+W (1380) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`
+I (1390) sleep: Configure to isolate all GPIO pins in sleep state
+I (1397) sleep: Enable automatic switching of GPIO sleep configuration
+I (1405) main_task: Started on CPU0
+I (1409) main_task: Calling app_main()
+I (1413) pulsemon: app_main start
+I (1418) LVGL: Starting LVGL task
+I (1422) example: Initialize SPI bus
+I (1426) example: Install panel IO
+I (1430) example: Install LCD driver of axs15231b
+I (1435) lcd_panel.axs15231b: LCD panel create success, version: 1.0.0
+I (1787) lcd_panel.axs15231b: send init commands success
+I (1787) gpio: GPIO[38]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:2 
+I (1796) example: Setting LCD backlight: 100%
+I (1818) pulsemon: ui started
+I (1858) pulsemon_poller: poller start target=192.168.0.10:8000
+E (1860) esp-tls: [sock=54] connect() error: Host is unreachable
+E (1861) transport_base: Failed to open a new connection: 32772
+E (1867) HTTP_CLIENT: Connection failed, sock < 0
+Guru Meditation Error: Core  0 panic'ed (InstrFetchProhibited). Exception was unhandled.
+
+Core  0 register dump:
+PC      : 0x8200466c  PS      : 0x00050033  A0      : 0x8200466c  A1      : 0x3fcb9390  
+A2      : 0x3fcb93d0  A3      : 0x3fcbb954  A4      : 0x00000000  A5      : 0x00000004  
+A6      : 0x00000000  A7      : 0x00000050  A8      : 0x00000001  A9      : 0x820049be  
+A10     : 0x3fcb9400  A11     : 0x3fcbb570  A12     : 0x3fcbb628  A13     : 0x3fcbb954  
+A14     : 0x0000000b  A15     : 0xb33fffff  SAR     : 0x00000000  EXCCAUSE: 0x00000014  
+EXCVADDR: 0x8200466c  LBEG    : 0x3fcbb520  LEND    : 0x00000009  LCOUNT  : 0x803812d8  
+
+
+Backtrace: 0x42004669:0x3fcb9390 0x42004669:0x00000004 |<-CORRUPTED
+
+  #0  0x42004669:0x3fcb9390 in pulsemon_fetch_dashboard at src/pulsemon_api_client.c:143
+  #1  0x42004669:0x00000004 in pulsemon_fetch_dashboard at src/pulsemon_api_client.c:143
+
+
+
+
+ELF file SHA256: bc93b42361e4cfd8
+
+Rebooting...
+ESP-ROM:esp32s3-20210327
+Build:Mar 27 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x28 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x40377fc0
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fce3820,len:0x265c
+load:0x403c9700,len:0x4
+load:0x403c9704,len:0x10b4
+load:0x403cc700,len:0x3524
+entry 0x403c99a8
+I (26) boot: ESP-IDF 5.2.1 2nd stage bootloader
+I (26) boot: compile time Mar 27 2026 02:59:47
+I (27) boot: Multicore bootloader
+D (29) bootloader_flash: non-XMC chip detected by SFDP Read (68), skip.
+D (36) bootloader_flash: mmu set block paddr=0x00000000 (was 0xffffffff)
+I (43) boot: chip revision: v0.2
+D (47) qio_mode: Probing for QIO mode enable...
+D (51) qio_mode: Raw SPI flash chip id 0x684018
+D (56) qio_mode: Manufacturer ID 0x68 chip ID 0x4018
+I (61) qio_mode: Enabling default flash chip QIO
+D (66) qio_mode: Initial flash chip status 0x2
+D (71) qio_mode: QIO mode already enabled in flash
+D (75) qio_mode: Enabling QIO mode...
+D (79) boot.esp32s3: magic e9
+D (82) boot.esp32s3: segments 04
+D (85) boot.esp32s3: spi_mode 02
+D (89) boot.esp32s3: spi_speed 0f
+D (92) boot.esp32s3: spi_size 04
+I (95) boot.esp32s3: Boot SPI Speed : 80MHz
+I (100) boot.esp32s3: SPI Mode       : QIO
+I (105) boot.esp32s3: SPI Flash Size : 16MB
+D (110) boot: Enabling RTCWDT(9000 ms)
+I (114) boot: Enabling RNG early entropy source...
+D (119) bootloader_flash: rodata starts from paddr=0x00008000, size=0xc00, will be mapped to vaddr=0x3c000000
+V (129) bootloader_flash: after mapping, starting from paddr=0x00000000 and vaddr=0x3c000000, 0x10000 bytes are mapped
+D (140) boot: mapped partition table 0x8000 at 0x3c008000
+D (145) flash_parts: partition table verified, 4 entries
+I (151) boot: Partition Table:
+I (155) boot: ## Label            Usage          Type ST Offset   Length
+D (162) boot: load partition table entry 0x3c008000
+D (167) boot: type=1 subtype=2
+I (170) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+D (178) boot: load partition table entry 0x3c008020
+D (183) boot: type=1 subtype=1
+I (186) boot:  1 phy_init         RF data          01 01 0000f000 00001000
+D (193) boot: load partition table entry 0x3c008040
+D (198) boot: type=0 subtype=0
+I (201) boot:  2 factory          factory app      00 00 00010000 00100000
+I (209) boot: End of partition table
+D (213) boot: Trying partition index -1 offs 0x10000 size 0x100000
+D (219) esp_image: reading image header @ 0x10000
+D (224) bootloader_flash: mmu set block paddr=0x00010000 (was 0xffffffff)
+D (231) esp_image: image header: 0xe9 0x05 0x02 0x04 40377634
+V (237) esp_image: loading segment header 0 at offset 0x10018
+V (243) esp_image: segment data length 0x30bdc data starts 0x10020
+V (249) esp_image: segment 0 map_segment 1 segment_data_offs 0x10020 load_addr 0x3c0a0020
+I (257) esp_image: segment 0: paddr=00010020 vaddr=3c0a0020 size=30bdch (199644) map
+D (265) esp_image: free data page_count 0x00000200
+D (270) bootloader_flash: rodata starts from paddr=0x00010020, size=0x30bdc, will be mapped to vaddr=0x3c000000
+V (281) bootloader_flash: after mapping, starting from paddr=0x00010000 and vaddr=0x3c000000, 0x40000 bytes are mapped
+V (322) esp_image: loading segment header 1 at offset 0x40bfc
+D (323) bootloader_flash: mmu set block paddr=0x00040000 (was 0xffffffff)
+V (324) esp_image: segment data length 0x3630 data starts 0x40c04
+V (330) esp_image: segment 1 map_segment 0 segment_data_offs 0x40c04 load_addr 0x3fc98200
+I (338) esp_image: segment 1: paddr=00040c04 vaddr=3fc98200 size=03630h ( 13872) load
+D (347) esp_image: free data page_count 0x00000200
+D (351) bootloader_flash: rodata starts from paddr=0x00040c04, size=0x3630, will be mapped to vaddr=0x3c000000
+V (362) bootloader_flash: after mapping, starting from paddr=0x00040000 and vaddr=0x3c000000, 0x10000 bytes are mapped
+V (375) esp_image: loading segment header 2 at offset 0x44234
+D (378) bootloader_flash: mmu set block paddr=0x00040000 (was 0xffffffff)
+V (385) esp_image: segment data length 0xbddc data starts 0x4423c
+V (391) esp_image: segment 2 map_segment 0 segment_data_offs 0x4423c load_addr 0x40374000
+I (399) esp_image: segment 2: paddr=0004423c vaddr=40374000 size=0bddch ( 48604) load
+D (408) esp_image: free data page_count 0x00000200
+D (413) bootloader_flash: rodata starts from paddr=0x0004423c, size=0xbddc, will be mapped to vaddr=0x3c000000
+V (423) bootloader_flash: after mapping, starting from paddr=0x00040000 and vaddr=0x3c000000, 0x20000 bytes are mapped
+V (443) esp_image: loading segment header 3 at offset 0x50018
+D (444) bootloader_flash: mmu set block paddr=0x00050000 (was 0xffffffff)
+V (446) esp_image: segment data length 0x9bbec data starts 0x50020
+V (452) esp_image: segment 3 map_segment 1 segment_data_offs 0x50020 load_addr 0x42000020
+I (461) esp_image: segment 3: paddr=00050020 vaddr=42000020 size=9bbech (637932) map
+D (469) esp_image: free data page_count 0x00000200
+D (474) bootloader_flash: rodata starts from paddr=0x00050020, size=0x9bbec, will be mapped to vaddr=0x3c000000
+V (484) bootloader_flash: after mapping, starting from paddr=0x00050000 and vaddr=0x3c000000, 0xa0000 bytes are mapped
+V (594) esp_image: loading segment header 4 at offset 0xebc0c
+D (594) bootloader_flash: mmu set block paddr=0x000e0000 (was 0xffffffff)
+V (595) esp_image: segment data length 0x8324 data starts 0xebc14
+V (601) esp_image: segment 4 map_segment 0 segment_data_offs 0xebc14 load_addr 0x4037fddc
+I (609) esp_image: segment 4: paddr=000ebc14 vaddr=4037fddc size=08324h ( 33572) load
+D (618) esp_image: free data page_count 0x00000200
+D (623) bootloader_flash: rodata starts from paddr=0x000ebc14, size=0x8324, will be mapped to vaddr=0x3c000000
+V (633) bootloader_flash: after mapping, starting from paddr=0x000e0000 and vaddr=0x3c000000, 0x20000 bytes are mapped
+V (650) esp_image: image start 0x00010000 end of last section 0x000f3f38
+D (651) bootloader_flash: mmu set block paddr=0x000f0000 (was 0xffffffff)
+I (665) boot: Loaded app from partition at offset 0x10000
+I (666) boot: Disabling RNG early entropy source...
+D (669) boot: Mapping segment 0 as DROM
+D (673) boot: Mapping segment 3 as IROM
+D (677) boot: calling set_cache_and_start_app
+D (681) boot: configure drom and irom and start
+V (686) boot: rodata starts from paddr=0x00010020, vaddr=0x3c0a0020, size=0x30bdc
+V (693) boot: after mapping rodata, starting from paddr=0x00010000 and vaddr=0x3c0a0000, 0x40000 bytes are mapped
+V (704) boot: text starts from paddr=0x00050020, vaddr=0x42000020, size=0x9bbec
+V (711) boot: after mapping text, starting from paddr=0x00050000 and vaddr=0x42000000, 0xa0000 bytes are mapped
+D (721) boot: start: 0x40377634
+I (736) cpu_start: Multicore app
+I (736) octal_psram: ECC is enabled
+I (736) octal_psram: vendor id    : 0x0d (AP)
+I (737) octal_psram: dev id       : 0x02 (generation 3)
+I (743) octal_psram: density      : 0x03 (64 Mbit)
+I (749) octal_psram: good-die     : 0x01 (Pass)
+I (754) octal_psram: Latency      : 0x01 (Fixed)
+I (759) octal_psram: VCC          : 0x01 (3V)
+I (764) octal_psram: SRF          : 0x01 (Fast Refresh)
+I (770) octal_psram: BurstType    : 0x00 ( Wrap)
+I (776) octal_psram: BurstLen     : 0x03 (1024 Byte)
+I (781) octal_psram: Readlatency  : 0x02 (10 cycles@Fixed)
+I (787) octal_psram: DriveStrength: 0x00 (1/1)
+I (793) MSPI Timing: PSRAM timing tuning index: 5
+I (798) esp_psram: Found 8MB PSRAM device
+I (802) esp_psram: Speed: 80MHz

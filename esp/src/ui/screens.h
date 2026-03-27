@@ -34,6 +34,7 @@ typedef struct _objects_t {
     lv_obj_t *gpu_temp;
     lv_obj_t *obj8;
     lv_obj_t *gpu_power;
+    lv_obj_t *gpu_pct;
     lv_obj_t *obj9;
     lv_obj_t *host_meta;
     lv_obj_t *cpu_pct;

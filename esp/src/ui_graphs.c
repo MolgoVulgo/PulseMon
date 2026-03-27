@@ -13,12 +13,18 @@ static bool s_initialized;
 static void init_chart_common(lv_obj_t *chart)
 {
     lv_obj_set_size(chart, lv_pct(100), lv_pct(100));
-    lv_obj_set_style_bg_opa(chart, LV_OPA_TRANSP, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_width(chart, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_all(chart, 6, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(chart, lv_color_hex(0x0f131d), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(chart, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(chart, lv_color_hex(0x232a38), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(chart, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_line_color(chart, lv_color_hex(0x2a3140), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(chart, lv_color_hex(0x90a0bc), LV_PART_TICKS | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_all(chart, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_line_width(chart, 2, LV_PART_ITEMS | LV_STATE_DEFAULT);
+    lv_obj_set_style_size(chart, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
     lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
     lv_chart_set_update_mode(chart, LV_CHART_UPDATE_MODE_SHIFT);
-    lv_chart_set_div_line_count(chart, 4, 6);
+    lv_chart_set_div_line_count(chart, 5, 6);
     lv_chart_set_point_count(chart, 90);
 }
 
@@ -39,14 +45,14 @@ void ui_graphs_init(lv_obj_t *usage_panel, lv_obj_t *temp_panel)
     s_usage_chart = lv_chart_create(usage_panel);
     init_chart_common(s_usage_chart);
     lv_chart_set_range(s_usage_chart, LV_CHART_AXIS_PRIMARY_Y, 0, 100);
-    s_usage_cpu_series = lv_chart_add_series(s_usage_chart, lv_palette_main(LV_PALETTE_LIGHT_BLUE), LV_CHART_AXIS_PRIMARY_Y);
-    s_usage_gpu_series = lv_chart_add_series(s_usage_chart, lv_palette_main(LV_PALETTE_ORANGE), LV_CHART_AXIS_PRIMARY_Y);
+    s_usage_cpu_series = lv_chart_add_series(s_usage_chart, lv_color_hex(0x62a0ea), LV_CHART_AXIS_PRIMARY_Y);
+    s_usage_gpu_series = lv_chart_add_series(s_usage_chart, lv_color_hex(0xf66151), LV_CHART_AXIS_PRIMARY_Y);
 
     s_temp_chart = lv_chart_create(temp_panel);
     init_chart_common(s_temp_chart);
-    lv_chart_set_range(s_temp_chart, LV_CHART_AXIS_PRIMARY_Y, 20, 100);
-    s_temp_cpu_series = lv_chart_add_series(s_temp_chart, lv_palette_main(LV_PALETTE_CYAN), LV_CHART_AXIS_PRIMARY_Y);
-    s_temp_gpu_series = lv_chart_add_series(s_temp_chart, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
+    lv_chart_set_range(s_temp_chart, LV_CHART_AXIS_PRIMARY_Y, 20, 90);
+    s_temp_cpu_series = lv_chart_add_series(s_temp_chart, lv_color_hex(0xffb84d), LV_CHART_AXIS_PRIMARY_Y);
+    s_temp_gpu_series = lv_chart_add_series(s_temp_chart, lv_color_hex(0xf66151), LV_CHART_AXIS_PRIMARY_Y);
 
     for (uint16_t i = 0; i < lv_chart_get_point_count(s_usage_chart); ++i) {
         s_usage_cpu_series->y_points[i] = LV_CHART_POINT_NONE;
