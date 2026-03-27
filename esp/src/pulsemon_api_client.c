@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "cJSON.h"
+#include "esp_timer.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
 
@@ -12,6 +13,20 @@
 
 static const char *TAG = "pulsemon_api";
 static const size_t DASHBOARD_BODY_CAP = 8192;
+
+#ifndef PULSEMON_LATENCY_DEBUG
+#define PULSEMON_LATENCY_DEBUG 0
+#endif
+
+#ifndef PULSEMON_HTTP_WARN_MS
+#define PULSEMON_HTTP_WARN_MS 400
+#endif
+
+#if PULSEMON_LATENCY_DEBUG
+#define LAT_DEBUG(fmt, ...) ESP_LOGI(TAG, fmt, ##__VA_ARGS__)
+#else
+#define LAT_DEBUG(fmt, ...) ((void)0)
+#endif
 
 typedef struct {
     char *buf;
@@ -122,6 +137,7 @@ static void parse_metric_u64(cJSON *metric, unsigned long long *value, bool *val
 
 bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_len)
 {
+    int64_t t_total_start_us = esp_timer_get_time();
     if (out == NULL) {
         set_err(err, err_len, "out=null");
         return false;
@@ -160,7 +176,9 @@ bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_l
         return false;
     }
 
+    int64_t t_http_start_us = esp_timer_get_time();
     esp_err_t rc = esp_http_client_perform(client);
+    int64_t http_ms = (esp_timer_get_time() - t_http_start_us) / 1000;
     if (rc != ESP_OK) {
         ESP_LOGW(TAG, "dashboard request failed: %s", esp_err_to_name(rc));
         set_err(err, err_len, "http_perform_failed");
@@ -177,7 +195,9 @@ bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_l
         return false;
     }
 
+    int64_t t_parse_start_us = esp_timer_get_time();
     cJSON *root = cJSON_Parse(body);
+    int64_t parse_ms = (esp_timer_get_time() - t_parse_start_us) / 1000;
     if (!cJSON_IsObject(root)) {
         set_err(err, err_len, "json_parse_failed");
         if (root) {
@@ -228,5 +248,16 @@ bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_l
 
     cJSON_Delete(root);
     free(body);
+
+    int64_t total_ms = (esp_timer_get_time() - t_total_start_us) / 1000;
+    LAT_DEBUG("dashboard latency http=%lldms parse=%lldms total=%lldms body=%uB status=%d",
+              (long long)http_ms,
+              (long long)parse_ms,
+              (long long)total_ms,
+              (unsigned int)acc.len,
+              status);
+    if (http_ms > PULSEMON_HTTP_WARN_MS) {
+        ESP_LOGW(TAG, "dashboard http latency high=%lldms", (long long)http_ms);
+    }
     return true;
 }

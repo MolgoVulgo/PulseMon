@@ -6,6 +6,7 @@
 #include "freertos/task.h"
 
 #include "esp_log.h"
+#include "esp_timer.h"
 
 #include "esp_bsp.h"
 #include "pulsemon_api_client.h"
@@ -13,6 +14,20 @@
 #include "vars.h"
 
 static const char *TAG = "pulsemon_poller";
+
+#ifndef PULSEMON_LATENCY_DEBUG
+#define PULSEMON_LATENCY_DEBUG 0
+#endif
+
+#ifndef PULSEMON_UI_WARN_MS
+#define PULSEMON_UI_WARN_MS 120
+#endif
+
+#if PULSEMON_LATENCY_DEBUG
+#define LAT_DEBUG(fmt, ...) ESP_LOGI(TAG, fmt, ##__VA_ARGS__)
+#else
+#define LAT_DEBUG(fmt, ...) ((void)0)
+#endif
 
 static void set_float_or_dash(void (*setter)(const char *), float value, bool valid, const char *fmt)
 {
@@ -77,24 +92,67 @@ static void mark_backend_offline(const char *why)
 static void poller_task(void *arg)
 {
     (void)arg;
+    uint32_t tick_seq = 0;
 
     ESP_LOGI(TAG, "poller start target=%s:%d", PULSEMON_API_HOST, PULSEMON_API_PORT);
 
     while (1) {
+        int64_t t_cycle_start_us = esp_timer_get_time();
+        tick_seq++;
+
         pulsemon_dashboard_t dashboard;
         char err[64];
         bool ok = pulsemon_fetch_dashboard(&dashboard, err, sizeof(err));
+        int64_t fetch_ms = (esp_timer_get_time() - t_cycle_start_us) / 1000;
+        int64_t lock_wait_ms = -1;
+        int64_t ui_apply_ms = -1;
+        bool got_lock = false;
+        bool ui_updated = false;
+
         if (!ok) {
             ESP_LOGW(TAG, "dashboard fetch failed: %s", err);
+            int64_t t_lock_wait_start_us = esp_timer_get_time();
             if (bsp_display_lock(100)) {
+                lock_wait_ms = (esp_timer_get_time() - t_lock_wait_start_us) / 1000;
+                got_lock = true;
+                int64_t t_ui_apply_start_us = esp_timer_get_time();
                 mark_backend_offline("backend offline");
+                ui_apply_ms = (esp_timer_get_time() - t_ui_apply_start_us) / 1000;
                 bsp_display_unlock();
             }
         } else {
+            int64_t t_lock_wait_start_us = esp_timer_get_time();
             if (bsp_display_lock(100)) {
+                lock_wait_ms = (esp_timer_get_time() - t_lock_wait_start_us) / 1000;
+                got_lock = true;
+                int64_t t_ui_apply_start_us = esp_timer_get_time();
                 update_ui_from_dashboard(&dashboard);
+                ui_apply_ms = (esp_timer_get_time() - t_ui_apply_start_us) / 1000;
+                ui_updated = true;
                 bsp_display_unlock();
             }
+        }
+
+        int64_t cycle_ms = (esp_timer_get_time() - t_cycle_start_us) / 1000;
+        LAT_DEBUG("tick=%lu ok=%d fetch=%lldms lock=%lldms ui=%lldms cycle=%lldms stale=%ld",
+                  (unsigned long)tick_seq,
+                  ok ? 1 : 0,
+                  (long long)fetch_ms,
+                  (long long)lock_wait_ms,
+                  (long long)ui_apply_ms,
+                  (long long)cycle_ms,
+                  (ok && dashboard.stale_ms_valid) ? dashboard.stale_ms : -1L);
+        if (!got_lock) {
+            ESP_LOGW(TAG, "ui lock timeout tick=%lu", (unsigned long)tick_seq);
+        }
+        if (got_lock && lock_wait_ms > PULSEMON_UI_WARN_MS) {
+            ESP_LOGW(TAG, "ui lock wait high=%lldms tick=%lu", (long long)lock_wait_ms, (unsigned long)tick_seq);
+        }
+        if (ui_updated && ui_apply_ms > PULSEMON_UI_WARN_MS) {
+            ESP_LOGW(TAG, "ui apply high=%lldms tick=%lu", (long long)ui_apply_ms, (unsigned long)tick_seq);
+        }
+        if (cycle_ms > PULSEMON_DASHBOARD_POLL_MS) {
+            ESP_LOGW(TAG, "poll cycle overrun=%lldms tick=%lu", (long long)cycle_ms, (unsigned long)tick_seq);
         }
 
         vTaskDelay(pdMS_TO_TICKS(PULSEMON_DASHBOARD_POLL_MS));

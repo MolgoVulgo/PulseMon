@@ -58,3 +58,20 @@ pio run -e LVGL-320-480
 - Ne pas modifier directement `src/ui/` (fichiers generes).
 - Conserver la separation reseau / parsing / cache / UI.
 - Limiter les allocations dynamiques et les blocages longs dans les taches critiques.
+
+## Debug latence affichage
+Les logs de latence sont controls par flags de build:
+- `PULSEMON_LATENCY_DEBUG` (`1` pour activer les `ESP_LOGD` de timings HTTP/UI, `0` pour desactiver)
+- `PULSEMON_UI_WARN_MS` (seuil d'alerte attente lock et application UI)
+- `PULSEMON_HTTP_WARN_MS` (seuil d'alerte requete HTTP dashboard)
+
+Les points traces en debug couvrent:
+- requete HTTP dashboard (`http`, `parse`, `total`);
+- boucle poller (`fetch`, attente lock LVGL, application UI, cycle complet).
+
+Capture 60 s de reference cote backend (diagnostic compare):
+
+```bash
+cd api
+.venv/bin/python -m app.diagnostics.raw_capture --mode compare --duration-s 60 --sample-hz 10 --ema-alpha 0.25 --output ../diagnostics/raw_vs_display_gpu_pct_YYYYMMDD.jsonl
+```
