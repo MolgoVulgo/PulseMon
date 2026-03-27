@@ -35,8 +35,12 @@ Lire d’abord, dans cet ordre :
 1. `docs/specs/cahier_des_charges_stats_linux_esp_32.md`
 2. `docs/specs/cahier_fonctionnel_stats_linux_esp_32.md`
 3. `docs/plans/plan_implementation_api_stats_linux.md`
-4. la zone réellement touchée dans le dépôt
-5. les fichiers de configuration et d’entrée du module modifié
+4. `platformio.ini` (racine)
+5. `esp/src/`
+6. `esp/sdkconfig.defaults`
+7. `esp/boards/`
+8. la zone réellement touchée dans le dépôt
+9. les fichiers de configuration et d’entrée du module modifié
 
 Les décisions déjà figées sont les suivantes :
 - backend Linux en Python ;
@@ -203,6 +207,25 @@ Le principe directeur du projet est simple :
 - Polling `history` cible : **5 à 10 s**.
 - Conserver le dernier snapshot valide en cas d’échec.
 - Signaler explicitement les données obsolètes.
+- Ressources embarquées contraintes (RAM/Flash/CPU) : privilégier les modifications sobres.
+- Éviter les allocations dynamiques inutiles.
+- Éviter les blocages longs dans les tâches critiques (latence et WDT).
+- Prioriser la stabilité runtime (pas de reset/WDT).
+- Gérer explicitement les erreurs matérielles.
+
+### Logs firmware
+
+- Utiliser `ESP_LOGI`, `ESP_LOGW`, `ESP_LOGE` avec des tags par module.
+- Les logs doivent être activables/désactivables via flags de build, sans modifier la logique métier.
+- Limiter le bruit des logs en fonctionnement nominal.
+
+### Règles UI générée (ESP)
+
+- Vérifier la cohérence des types entre `src/ui/vars.h` et `src/ui/screens.c` (même type attendu pour chaque `get_var_*`) avant toute analyse.
+- Exigence: types `get_var_*` cohérents entre `src/ui/vars.h` et `src/ui/screens.c`.
+- Aucune modification directe dans `src/ui/` (fichiers générés).
+- Interdiction absolue de modifier les fichiers dans `src/ui/` (générés).
+- Si un problème est détecté dans `src/ui/`, l’expliquer clairement sans modifier ces fichiers.
 
 ### Interdits V1
 
@@ -238,6 +261,12 @@ Si un projet ESP-IDF est présent :
 idf.py build
 idf.py flash
 idf.py monitor
+```
+
+Si la compilation est pilotée via PlatformIO (configuration actuelle du dépôt) :
+
+```bash
+pio run -e LVGL-320-480
 ```
 
 ### Principe
