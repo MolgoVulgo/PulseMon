@@ -4,3 +4,5 @@
 /sdkconfig.*
 esp/libraries/lvgl-v8/
 .pio-core/
+erreur.txt
+esp/sdkconfig.*.old
