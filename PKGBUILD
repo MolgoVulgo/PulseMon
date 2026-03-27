@@ -3,7 +3,7 @@ pkgver=0.1.0
 pkgrel=1
 pkgdesc="Local Linux metrics API for PulseMon (FastAPI)"
 arch=("x86_64" "aarch64")
-url="https://example.invalid/PulseMon"
+url="https://github.com/MolgoVulgo/PulseMon"
 license=("custom")
 depends=(
   "python"

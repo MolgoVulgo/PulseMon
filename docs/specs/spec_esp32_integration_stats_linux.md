@@ -26,7 +26,7 @@ Si divergence, le contrat HTTP de reference est `api/docs/API_CONTRACT_V1.md`.
 - `GET /api/v1/health` (etat service)
 - `GET /api/v1/meta` (capacites exposees)
 
-Le firmware ne consomme pas d'endpoint `/api/stats` en V1.
+Le firmware consomme exclusivement les endpoints versionnes `/api/v1/*`.
 
 ---
 
