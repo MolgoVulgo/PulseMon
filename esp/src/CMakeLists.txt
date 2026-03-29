@@ -9,5 +9,5 @@ endif()
 idf_component_register(
     SRCS ${app_sources}
     INCLUDE_DIRS ${app_include_dirs}
-    REQUIRES esp_http_client json esp_wifi
+    REQUIRES esp_http_client json esp_wifi fatfs sdmmc
 )

@@ -16,6 +16,8 @@
 #include "ui_screen.h"
 #include "vars.h"
 #include "wifi_config.h"
+#include "lcd_capture.h"
+#include "capture_config.h"
 
 static const char *TAG = "pulsemon";
 static EventGroupHandle_t s_wifi_event_group;
@@ -162,6 +164,17 @@ void app_main(void)
 
     ui_init();
     ui_screen_start();
+
+    const lcd_capture_cfg_t capture_cfg = {
+        .width = EXAMPLE_LCD_QSPI_H_RES,
+        .height = EXAMPLE_LCD_QSPI_V_RES,
+        .interval_ms = PULSEMON_SCREENSHOT_INTERVAL_MS,
+        .output_dir = PULSEMON_SCREENSHOT_DIR,
+    };
+    esp_err_t cap_ret = lcd_capture_start(&capture_cfg);
+    if (cap_ret != ESP_OK) {
+        ESP_LOGE(TAG, "lcd capture init failed: %s", esp_err_to_name(cap_ret));
+    }
 
     bsp_display_unlock();
 

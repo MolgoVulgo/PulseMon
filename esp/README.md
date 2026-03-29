@@ -69,6 +69,24 @@ Les points traces en debug couvrent:
 - requete HTTP dashboard (`http`, `parse`, `total`);
 - boucle poller (`fetch`, attente lock LVGL, application UI, cycle complet).
 
+## Capture LCD periodique vers SD (debug)
+- Objectif: capturer l'image effectivement flushee vers le LCD toutes les 30 s et ecrire un BMP sur SD.
+- Activation: `PULSEMON_SCREENSHOT_DEBUG=1` (dans `platformio.ini`).
+- Intervalle: `PULSEMON_SCREENSHOT_INTERVAL_MS` (defaut 30000).
+- Dossier cible: `PULSEMON_SCREENSHOT_DIR` (defaut `/sdcard/pulsemon/captures`).
+
+Implementation:
+- hook de capture dans `src/lv_port.c` au niveau `lvgl_port_flush_callback`;
+- reconstruction framebuffer complet RGB565 en PSRAM (`src/lcd_capture.c`);
+- task FreeRTOS periodique (30 s) qui snapshot le framebuffer puis exporte en BMP;
+- ecriture SD via SDSPI (`src/sd_storage.c`) avec creation auto du dossier destination.
+
+Contraintes et limites:
+- aucun fichier `src/ui/` n'est modifie;
+- pas d'ecriture SD dans le thread UI/LVGL (copie memoire uniquement dans le flush);
+- mode SD par defaut: SDMMC 1-bit (`CLK=GPIO12`, `CMD=GPIO11`, `D0=GPIO13`) pour cette carte;
+- mode SDSPI possible via macros build (`PULSEMON_SD_PIN_MOSI/MISO/SCLK/CS`) si necessaire.
+
 Capture 60 s de reference cote backend (diagnostic compare):
 
 ```bash

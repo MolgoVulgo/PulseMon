@@ -1,0 +1,53 @@
+#pragma once
+
+#ifndef PULSEMON_SCREENSHOT_DEBUG
+#define PULSEMON_SCREENSHOT_DEBUG 0
+#endif
+
+#ifndef PULSEMON_SCREENSHOT_INTERVAL_MS
+#define PULSEMON_SCREENSHOT_INTERVAL_MS 30000
+#endif
+
+#ifndef PULSEMON_SCREENSHOT_DIR
+#define PULSEMON_SCREENSHOT_DIR "/sdcard/pulsemon/captures"
+#endif
+
+#ifndef PULSEMON_SD_MOUNT_POINT
+#define PULSEMON_SD_MOUNT_POINT "/sdcard"
+#endif
+
+#ifndef PULSEMON_SD_USE_SDMMC
+#define PULSEMON_SD_USE_SDMMC 1
+#endif
+
+#ifndef PULSEMON_SDMMC_PIN_CLK
+#define PULSEMON_SDMMC_PIN_CLK 12
+#endif
+
+#ifndef PULSEMON_SDMMC_PIN_CMD
+#define PULSEMON_SDMMC_PIN_CMD 11
+#endif
+
+#ifndef PULSEMON_SDMMC_PIN_D0
+#define PULSEMON_SDMMC_PIN_D0 13
+#endif
+
+#ifndef PULSEMON_SD_SPI_HOST
+#define PULSEMON_SD_SPI_HOST SPI3_HOST
+#endif
+
+#ifndef PULSEMON_SD_PIN_MOSI
+#define PULSEMON_SD_PIN_MOSI -1
+#endif
+
+#ifndef PULSEMON_SD_PIN_MISO
+#define PULSEMON_SD_PIN_MISO -1
+#endif
+
+#ifndef PULSEMON_SD_PIN_SCLK
+#define PULSEMON_SD_PIN_SCLK -1
+#endif
+
+#ifndef PULSEMON_SD_PIN_CS
+#define PULSEMON_SD_PIN_CS -1
+#endif
