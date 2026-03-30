@@ -9,6 +9,7 @@ extern "C" {
 
 void ui_screen_start(void);
 void ui_screen_set_active(enum ScreensEnum screen_id);
+enum ScreensEnum ui_screen_get_active(void);
 
 #ifdef __cplusplus
 }

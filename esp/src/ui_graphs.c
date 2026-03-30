@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "esp_log.h"
+
 #define GRAPH_POINT_COUNT 90
 #define AXIS_LABEL_COUNT 5
 #define USAGE_RANGE_MIN 0
@@ -13,19 +15,42 @@
 #define TEMP_RANGE_MIN 20
 #define TEMP_RANGE_MAX 90
 
+#ifndef UI_GRAPHS_SCALE_DEBUG
+#define UI_GRAPHS_SCALE_DEBUG 1
+#endif
+
+#if UI_GRAPHS_SCALE_DEBUG
+#define SCALE_DEBUG(fmt, ...) ESP_LOGI(TAG, fmt, ##__VA_ARGS__)
+#else
+#define SCALE_DEBUG(fmt, ...) ((void)0)
+#endif
+
+static const char *TAG = "ui_graphs";
+
 static lv_obj_t *s_usage_chart;
 static lv_obj_t *s_temp_chart;
+static lv_obj_t *s_gpu_pct_chart;
+static lv_obj_t *s_gpu_temp_chart;
 static lv_chart_series_t *s_usage_cpu_series;
 static lv_chart_series_t *s_usage_gpu_series;
 static lv_chart_series_t *s_temp_cpu_series;
 static lv_chart_series_t *s_temp_gpu_series;
+static lv_chart_series_t *s_gpu_pct_series;
+static lv_chart_series_t *s_gpu_temp_series;
 static lv_obj_t *s_usage_axis_labels[AXIS_LABEL_COUNT];
 static lv_obj_t *s_temp_axis_labels[AXIS_LABEL_COUNT];
+static lv_obj_t *s_gpu_pct_axis_labels[AXIS_LABEL_COUNT];
+static lv_obj_t *s_gpu_temp_axis_labels[AXIS_LABEL_COUNT];
 static lv_coord_t s_usage_cpu_points[GRAPH_POINT_COUNT];
 static lv_coord_t s_usage_gpu_points[GRAPH_POINT_COUNT];
 static lv_coord_t s_temp_cpu_points[GRAPH_POINT_COUNT];
 static lv_coord_t s_temp_gpu_points[GRAPH_POINT_COUNT];
+static lv_coord_t s_gpu_pct_points[GRAPH_POINT_COUNT];
+static lv_coord_t s_gpu_temp_points[GRAPH_POINT_COUNT];
 static bool s_initialized;
+static bool s_gpu_initialized;
+static int s_gpu_temp_range_min = TEMP_RANGE_MIN;
+static int s_gpu_temp_range_max = TEMP_RANGE_MAX;
 
 static void set_text_if_changed(lv_obj_t *label, const char *next_text)
 {
@@ -114,12 +139,70 @@ static void init_chart_common(lv_obj_t *chart)
     lv_chart_set_point_count(chart, GRAPH_POINT_COUNT);
 }
 
+static void init_chart_common_for_panel(lv_obj_t *chart, lv_coord_t panel_h)
+{
+    if (panel_h <= 90) {
+        lv_obj_set_pos(chart, 30, 11);
+        lv_obj_set_size(chart, 186, 53);
+    } else {
+        lv_obj_set_pos(chart, 30, 18);
+        lv_obj_set_size(chart, 186, 114);
+    }
+    lv_obj_clear_flag(chart, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_bg_color(chart, lv_color_hex(0x0f131d), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(chart, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(chart, lv_color_hex(0x232a38), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(chart, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_line_color(chart, lv_color_hex(0x2a3140), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(chart, lv_color_hex(0x90a0bc), LV_PART_TICKS | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_all(chart, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_line_width(chart, 2, LV_PART_ITEMS | LV_STATE_DEFAULT);
+    lv_obj_set_style_size(chart, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
+    lv_chart_set_update_mode(chart, LV_CHART_UPDATE_MODE_SHIFT);
+    lv_chart_set_div_line_count(chart, 5, 6);
+    lv_chart_set_point_count(chart, GRAPH_POINT_COUNT);
+}
+
 static int16_t chart_value_or_none(float value, bool valid)
 {
     if (!valid) {
         return LV_CHART_POINT_NONE;
     }
     return (int16_t)value;
+}
+
+static void ensure_valid_range(int *min_v, int *max_v)
+{
+    if (min_v == NULL || max_v == NULL) {
+        return;
+    }
+    if (*max_v <= *min_v) {
+        *max_v = *min_v + 1;
+    }
+}
+
+static bool set_chart_range_if_changed(
+    lv_obj_t *chart,
+    lv_obj_t *axis_labels[AXIS_LABEL_COUNT],
+    int *current_min,
+    int *current_max,
+    int next_min,
+    int next_max
+)
+{
+    if (chart == NULL || current_min == NULL || current_max == NULL) {
+        return false;
+    }
+    ensure_valid_range(&next_min, &next_max);
+    if (*current_min == next_min && *current_max == next_max) {
+        return false;
+    }
+    *current_min = next_min;
+    *current_max = next_max;
+    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, *current_min, *current_max);
+    update_chart_axis_labels(chart, axis_labels, *current_min, *current_max);
+    return true;
 }
 
 void ui_graphs_init(lv_obj_t *usage_panel, lv_obj_t *temp_panel)
@@ -166,19 +249,91 @@ void ui_graphs_init(lv_obj_t *usage_panel, lv_obj_t *temp_panel)
     s_initialized = true;
 }
 
-void ui_graphs_push_sample(const vars_graph_sample_t *sample)
+void ui_graphs_init_gpu(lv_obj_t *gpu_pct_panel, lv_obj_t *gpu_temp_panel)
 {
-    if (!s_initialized || sample == NULL) {
+    if (s_gpu_initialized || gpu_pct_panel == NULL || gpu_temp_panel == NULL) {
         return;
     }
 
-    lv_chart_set_next_value(s_usage_chart, s_usage_cpu_series, chart_value_or_none(sample->cpu_pct, sample->cpu_pct_valid));
-    lv_chart_set_next_value(s_usage_chart, s_usage_gpu_series, chart_value_or_none(sample->gpu_pct, sample->gpu_pct_valid));
+    lv_obj_clear_flag(gpu_pct_panel, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(gpu_temp_panel, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_chart_set_next_value(s_temp_chart, s_temp_cpu_series, chart_value_or_none(sample->cpu_temp_c, sample->cpu_temp_c_valid));
-    lv_chart_set_next_value(s_temp_chart, s_temp_gpu_series, chart_value_or_none(sample->gpu_temp_c, sample->gpu_temp_c_valid));
-    update_chart_axis_labels(s_usage_chart, s_usage_axis_labels, USAGE_RANGE_MIN, USAGE_RANGE_MAX);
-    update_chart_axis_labels(s_temp_chart, s_temp_axis_labels, TEMP_RANGE_MIN, TEMP_RANGE_MAX);
-    lv_chart_refresh(s_usage_chart);
-    lv_chart_refresh(s_temp_chart);
+    s_gpu_pct_chart = lv_chart_create(gpu_pct_panel);
+    init_chart_common(s_gpu_pct_chart);
+    lv_chart_set_range(s_gpu_pct_chart, LV_CHART_AXIS_PRIMARY_Y, USAGE_RANGE_MIN, USAGE_RANGE_MAX);
+    s_gpu_pct_series = lv_chart_add_series(s_gpu_pct_chart, lv_color_hex(0xf66151), LV_CHART_AXIS_PRIMARY_Y);
+    lv_chart_set_ext_y_array(s_gpu_pct_chart, s_gpu_pct_series, s_gpu_pct_points);
+    for (size_t i = 0; i < AXIS_LABEL_COUNT; ++i) {
+        s_gpu_pct_axis_labels[i] = create_axis_value_label(gpu_pct_panel);
+    }
+    update_chart_axis_labels(s_gpu_pct_chart, s_gpu_pct_axis_labels, USAGE_RANGE_MIN, USAGE_RANGE_MAX);
+
+    s_gpu_temp_chart = lv_chart_create(gpu_temp_panel);
+    init_chart_common_for_panel(s_gpu_temp_chart, lv_obj_get_height(gpu_temp_panel));
+    s_gpu_temp_range_min = TEMP_RANGE_MIN;
+    s_gpu_temp_range_max = TEMP_RANGE_MAX;
+    lv_chart_set_range(s_gpu_temp_chart, LV_CHART_AXIS_PRIMARY_Y, s_gpu_temp_range_min, s_gpu_temp_range_max);
+    s_gpu_temp_series = lv_chart_add_series(s_gpu_temp_chart, lv_color_hex(0xf66151), LV_CHART_AXIS_PRIMARY_Y);
+    lv_chart_set_ext_y_array(s_gpu_temp_chart, s_gpu_temp_series, s_gpu_temp_points);
+    for (size_t i = 0; i < AXIS_LABEL_COUNT; ++i) {
+        s_gpu_temp_axis_labels[i] = create_axis_value_label(gpu_temp_panel);
+    }
+    update_chart_axis_labels(s_gpu_temp_chart, s_gpu_temp_axis_labels, s_gpu_temp_range_min, s_gpu_temp_range_max);
+
+    for (uint16_t i = 0; i < GRAPH_POINT_COUNT; ++i) {
+        s_gpu_pct_series->y_points[i] = LV_CHART_POINT_NONE;
+        s_gpu_temp_series->y_points[i] = LV_CHART_POINT_NONE;
+    }
+    lv_chart_refresh(s_gpu_pct_chart);
+    lv_chart_refresh(s_gpu_temp_chart);
+
+    s_gpu_initialized = true;
+}
+
+void ui_graphs_push_sample(const vars_graph_sample_t *sample)
+{
+    if (sample == NULL) {
+        return;
+    }
+
+    if (s_initialized) {
+        lv_chart_set_next_value(s_usage_chart, s_usage_cpu_series, chart_value_or_none(sample->cpu_pct, sample->cpu_pct_valid));
+        lv_chart_set_next_value(s_usage_chart, s_usage_gpu_series, chart_value_or_none(sample->gpu_pct, sample->gpu_pct_valid));
+
+        lv_chart_set_next_value(s_temp_chart, s_temp_cpu_series, chart_value_or_none(sample->cpu_temp_c, sample->cpu_temp_c_valid));
+        lv_chart_set_next_value(s_temp_chart, s_temp_gpu_series, chart_value_or_none(sample->gpu_temp_c, sample->gpu_temp_c_valid));
+        update_chart_axis_labels(s_usage_chart, s_usage_axis_labels, USAGE_RANGE_MIN, USAGE_RANGE_MAX);
+        update_chart_axis_labels(s_temp_chart, s_temp_axis_labels, TEMP_RANGE_MIN, TEMP_RANGE_MAX);
+        lv_chart_refresh(s_usage_chart);
+        lv_chart_refresh(s_temp_chart);
+    }
+
+    if (s_gpu_initialized) {
+        if (sample->gpu_temp_c_valid) {
+            int tmin = (int)sample->gpu_temp_c - 10;
+            int tmax = (int)sample->gpu_temp_c + 10;
+            bool changed = set_chart_range_if_changed(
+                s_gpu_temp_chart,
+                s_gpu_temp_axis_labels,
+                &s_gpu_temp_range_min,
+                &s_gpu_temp_range_max,
+                tmin,
+                tmax
+            );
+            if (changed) {
+                SCALE_DEBUG(
+                    "scale gpu_temp sample=%.1f range=[%d..%d]",
+                    (double)sample->gpu_temp_c,
+                    s_gpu_temp_range_min,
+                    s_gpu_temp_range_max
+                );
+            }
+        }
+        lv_chart_set_next_value(s_gpu_pct_chart, s_gpu_pct_series, chart_value_or_none(sample->gpu_pct, sample->gpu_pct_valid));
+        lv_chart_set_next_value(s_gpu_temp_chart, s_gpu_temp_series, chart_value_or_none(sample->gpu_temp_c, sample->gpu_temp_c_valid));
+        update_chart_axis_labels(s_gpu_pct_chart, s_gpu_pct_axis_labels, USAGE_RANGE_MIN, USAGE_RANGE_MAX);
+        update_chart_axis_labels(s_gpu_temp_chart, s_gpu_temp_axis_labels, s_gpu_temp_range_min, s_gpu_temp_range_max);
+        lv_chart_refresh(s_gpu_pct_chart);
+        lv_chart_refresh(s_gpu_temp_chart);
+    }
 }

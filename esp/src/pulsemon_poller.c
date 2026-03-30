@@ -11,6 +11,7 @@
 #include "esp_bsp.h"
 #include "pulsemon_api_client.h"
 #include "pulsemon_api_config.h"
+#include "ui_screen.h"
 #include "vars.h"
 
 static const char *TAG = "pulsemon_poller";
@@ -109,6 +110,9 @@ static void update_ui_from_gpu_dashboard(const pulsemon_gpu_dashboard_t *g)
         return;
     }
 
+    set_float_or_dash(set_var_gpu_pct, g->pct, g->pct_valid, "%.1f%%");
+    set_float_or_dash(set_var_gpu_temp, g->temp_c, g->temp_c_valid, "%.1fC");
+    set_float_or_dash(set_var_gpu_power, g->power_w, g->power_w_valid, "%.0fW");
     set_bytes_gib_or_dash(set_var_gpu_vram_total, g->vram_total_b, g->vram_total_b_valid);
     set_clock_or_dash(set_var_gpu_mem_clock, g->mem_clock_mhz, g->mem_clock_mhz_valid);
 
@@ -155,12 +159,20 @@ static void poller_task(void *arg)
         int64_t t_cycle_start_us = esp_timer_get_time();
         tick_seq++;
 
-        pulsemon_dashboard_t dashboard;
+        bool gpu_page_active = (ui_screen_get_active() == SCREEN_ID_GPU);
+        bool ok = false;
+        pulsemon_dashboard_t dashboard = {0};
+        pulsemon_gpu_dashboard_t gpu_dashboard = {0};
         char err[64];
-        bool ok = pulsemon_fetch_dashboard(&dashboard, err, sizeof(err));
-        pulsemon_gpu_dashboard_t gpu_dashboard;
         char gpu_err[64];
-        bool gpu_ok = pulsemon_fetch_gpu_dashboard(&gpu_dashboard, gpu_err, sizeof(gpu_err));
+        err[0] = '\0';
+        gpu_err[0] = '\0';
+
+        if (gpu_page_active) {
+            ok = pulsemon_fetch_gpu_dashboard(&gpu_dashboard, gpu_err, sizeof(gpu_err));
+        } else {
+            ok = pulsemon_fetch_dashboard(&dashboard, err, sizeof(err));
+        }
         int64_t fetch_ms = (esp_timer_get_time() - t_cycle_start_us) / 1000;
         int64_t lock_wait_ms = -1;
         int64_t ui_apply_ms = -1;
@@ -168,7 +180,11 @@ static void poller_task(void *arg)
         bool ui_updated = false;
 
         if (!ok) {
-            ESP_LOGW(TAG, "dashboard fetch failed: %s", err);
+            if (gpu_page_active) {
+                ESP_LOGW(TAG, "gpu dashboard fetch failed: %s", gpu_err);
+            } else {
+                ESP_LOGW(TAG, "dashboard fetch failed: %s", err);
+            }
             int64_t t_lock_wait_start_us = esp_timer_get_time();
             if (bsp_display_lock(100)) {
                 lock_wait_ms = (esp_timer_get_time() - t_lock_wait_start_us) / 1000;
@@ -184,11 +200,10 @@ static void poller_task(void *arg)
                 lock_wait_ms = (esp_timer_get_time() - t_lock_wait_start_us) / 1000;
                 got_lock = true;
                 int64_t t_ui_apply_start_us = esp_timer_get_time();
-                update_ui_from_dashboard(&dashboard);
-                if (gpu_ok) {
+                if (gpu_page_active) {
                     update_ui_from_gpu_dashboard(&gpu_dashboard);
                 } else {
-                    ESP_LOGW(TAG, "gpu dashboard fetch failed: %s", gpu_err);
+                    update_ui_from_dashboard(&dashboard);
                 }
                 ui_apply_ms = (esp_timer_get_time() - t_ui_apply_start_us) / 1000;
                 ui_updated = true;
@@ -197,14 +212,15 @@ static void poller_task(void *arg)
         }
 
         int64_t cycle_ms = (esp_timer_get_time() - t_cycle_start_us) / 1000;
-        LAT_DEBUG("tick=%lu ok=%d fetch=%lldms lock=%lldms ui=%lldms cycle=%lldms stale=%ld",
+        LAT_DEBUG("tick=%lu screen=%s ok=%d fetch=%lldms lock=%lldms ui=%lldms cycle=%lldms stale=%ld",
                   (unsigned long)tick_seq,
+                  gpu_page_active ? "gpu" : "main",
                   ok ? 1 : 0,
                   (long long)fetch_ms,
                   (long long)lock_wait_ms,
                   (long long)ui_apply_ms,
                   (long long)cycle_ms,
-                  (ok && dashboard.stale_ms_valid) ? dashboard.stale_ms : -1L);
+                  (!gpu_page_active && ok && dashboard.stale_ms_valid) ? dashboard.stale_ms : -1L);
         if (!got_lock) {
             ESP_LOGW(TAG, "ui lock timeout tick=%lu", (unsigned long)tick_seq);
         }

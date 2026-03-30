@@ -36,11 +36,11 @@ static void ui_prepare_screen_roots(void)
     if (objects.gpu != NULL) {
         lv_obj_clear_flag(objects.gpu, LV_OBJ_FLAG_SCROLLABLE);
     }
+    if (objects.obj21 != NULL) {
+        lv_obj_clear_flag(objects.obj21, LV_OBJ_FLAG_SCROLLABLE);
+    }
     if (objects.obj23 != NULL) {
         lv_obj_clear_flag(objects.obj23, LV_OBJ_FLAG_SCROLLABLE);
-    }
-    if (objects.obj25 != NULL) {
-        lv_obj_clear_flag(objects.obj25, LV_OBJ_FLAG_SCROLLABLE);
     }
 }
 
@@ -54,6 +54,7 @@ void ui_screen_start(void)
         s_active_screen = SCREEN_ID_MAIN;
         ui_prepare_screen_roots();
         ui_graphs_init(objects.usage_panel, objects.temp_panel);
+        ui_graphs_init_gpu(objects.graph_gpu_pct, objects.graph_gpu_temp);
 
         s_ui_tick_timer = lv_timer_create(ui_labels_tick, 250, NULL);
         s_graph_timer = lv_timer_create(ui_graphs_tick, 1000, NULL);
@@ -72,4 +73,9 @@ void ui_screen_set_active(enum ScreensEnum screen_id)
         return;
     }
     s_active_screen = screen_id;
+}
+
+enum ScreensEnum ui_screen_get_active(void)
+{
+    return s_active_screen;
 }

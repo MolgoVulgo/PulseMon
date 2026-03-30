@@ -432,16 +432,6 @@ void create_screen_gpu() {
             lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
         }
         {
-            // graph_gpu_temp
-            lv_obj_t *obj = lv_obj_create(parent_obj);
-            objects.graph_gpu_temp = obj;
-            lv_obj_set_pos(obj, 242, 160);
-            lv_obj_set_size(obj, 232, 78);
-            lv_obj_set_style_bg_color(obj, lv_color_hex(0xff0f131d), LV_PART_MAIN | LV_STATE_DEFAULT);
-            lv_obj_set_style_border_color(obj, lv_color_hex(0xff232a38), LV_PART_MAIN | LV_STATE_DEFAULT);
-            lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-        }
-        {
             lv_obj_t *obj = lv_obj_create(parent_obj);
             objects.obj13 = obj;
             lv_obj_set_pos(obj, 163, 47);
@@ -606,11 +596,11 @@ void create_screen_gpu() {
             }
         }
         {
-            // graph_gpu_power
+            // graph_gpu_temp
             lv_obj_t *obj = lv_obj_create(parent_obj);
-            objects.graph_gpu_power = obj;
-            lv_obj_set_pos(obj, 242, 240);
-            lv_obj_set_size(obj, 232, 78);
+            objects.graph_gpu_temp = obj;
+            lv_obj_set_pos(obj, 242, 160);
+            lv_obj_set_size(obj, 232, 160);
             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff0f131d), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_color(obj, lv_color_hex(0xff232a38), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);

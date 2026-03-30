@@ -48,7 +48,6 @@ typedef struct _objects_t {
     lv_obj_t *obj12;
     lv_obj_t *host_meta_1;
     lv_obj_t *graph_gpu_pct;
-    lv_obj_t *graph_gpu_temp;
     lv_obj_t *obj13;
     lv_obj_t *obj14;
     lv_obj_t *gpu_temp_1;
@@ -63,7 +62,7 @@ typedef struct _objects_t {
     lv_obj_t *obj21;
     lv_obj_t *obj22;
     lv_obj_t *gpu_vram_total;
-    lv_obj_t *graph_gpu_power;
+    lv_obj_t *graph_gpu_temp;
     lv_obj_t *obj23;
 } objects_t;
 

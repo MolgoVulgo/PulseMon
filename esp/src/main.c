@@ -131,7 +131,7 @@ void app_main(void)
     const bsp_display_cfg_t bsp_cfg = {
         .lvgl_port_cfg = ESP_LVGL_PORT_INIT_CONFIG(),
         .buffer_size = EXAMPLE_LCD_QSPI_H_RES * EXAMPLE_LCD_QSPI_V_RES,
-        .rotate = LV_DISP_ROT_90,
+        .rotate = LV_DISP_ROT_270,
     };
 
     lv_disp_t *disp = bsp_display_start_with_config(&bsp_cfg);

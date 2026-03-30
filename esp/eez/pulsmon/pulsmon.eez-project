@@ -1802,55 +1802,6 @@
               "groupIndex": 0
             },
             {
-              "objID": "74c2bbb5-401b-4527-b901-0658ae24e0b6",
-              "type": "LVGLPanelWidget",
-              "left": 242,
-              "top": 159.5,
-              "width": 232,
-              "height": 78,
-              "customInputs": [],
-              "customOutputs": [],
-              "style": {
-                "objID": "35a038ba-49e7-47a3-eb8e-158744719905",
-                "useStyle": "default",
-                "conditionalStyles": [],
-                "childStyles": []
-              },
-              "timeline": [],
-              "eventHandlers": [],
-              "identifier": "graph_gpu_temp",
-              "leftUnit": "px",
-              "topUnit": "px",
-              "widthUnit": "px",
-              "heightUnit": "px",
-              "children": [],
-              "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
-              "hiddenFlagType": "literal",
-              "clickableFlag": true,
-              "clickableFlagType": "literal",
-              "flagScrollbarMode": "",
-              "flagScrollDirection": "",
-              "scrollSnapX": "",
-              "scrollSnapY": "",
-              "checkedStateType": "literal",
-              "disabledStateType": "literal",
-              "states": "",
-              "localStyles": {
-                "objID": "e35320bb-1ff5-4f1f-ffb3-27c53fbd614f",
-                "definition": {
-                  "MAIN": {
-                    "DEFAULT": {
-                      "bg_color": "#0f131d",
-                      "border_color": "#232a38",
-                      "border_width": 1
-                    }
-                  }
-                }
-              },
-              "group": "",
-              "groupIndex": 0
-            },
-            {
               "objID": "50ba816f-c326-4366-fd96-b535c03a1a16",
               "type": "LVGLPanelWidget",
               "left": 163,
@@ -2618,23 +2569,23 @@
               "groupIndex": 0
             },
             {
-              "objID": "4220ebfd-ca42-4c71-f666-f40d85bf336e",
+              "objID": "38b2dfb9-7108-4ec2-c205-e24f3b2ce3c1",
               "type": "LVGLPanelWidget",
               "left": 242,
-              "top": 240,
+              "top": 160,
               "width": 232,
-              "height": 78,
+              "height": 160,
               "customInputs": [],
               "customOutputs": [],
               "style": {
-                "objID": "efc592a6-9061-4d76-a2da-a8016061cb4b",
+                "objID": "ebfc6fb7-df22-4a89-bf0e-9485eb0efaec",
                 "useStyle": "default",
                 "conditionalStyles": [],
                 "childStyles": []
               },
               "timeline": [],
               "eventHandlers": [],
-              "identifier": "graph_gpu_power",
+              "identifier": "graph_gpu_temp",
               "leftUnit": "px",
               "topUnit": "px",
               "widthUnit": "px",
@@ -2652,7 +2603,7 @@
               "disabledStateType": "literal",
               "states": "",
               "localStyles": {
-                "objID": "fe66de3a-0240-4ea6-bf53-1b1e8b7594a1",
+                "objID": "b3237254-8003-4dec-ff8e-9821ec068a9d",
                 "definition": {
                   "MAIN": {
                     "DEFAULT": {
