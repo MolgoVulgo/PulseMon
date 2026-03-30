@@ -158,6 +158,10 @@ void app_main(void)
     set_var_gpu_pct("--");
     set_var_gpu_temp("--");
     set_var_gpu_power("--");
+    set_var_gpu_vram_total("--");
+    set_var_gpu_mem_clock("--");
+    set_var_gpu_fan_rpm("--");
+    set_var_gpu_vram_used(0);
     set_var_host_meta("waiting backend");
 
     ui_init();

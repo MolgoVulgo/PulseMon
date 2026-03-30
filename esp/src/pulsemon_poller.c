@@ -60,6 +60,25 @@ static void set_bytes_gib_or_dash(void (*setter)(const char *), unsigned long lo
     setter(buf);
 }
 
+static void set_clock_or_dash(void (*setter)(const char *), float mhz, bool valid)
+{
+    if (setter == NULL) {
+        return;
+    }
+    if (!valid) {
+        setter("--");
+        return;
+    }
+    char buf[32];
+    if (mhz >= 1000.0f) {
+        snprintf(buf, sizeof(buf), "%.2f GHz", (double)(mhz / 1000.0f));
+    } else {
+        snprintf(buf, sizeof(buf), "%.0f MHz", (double)mhz);
+    }
+    buf[sizeof(buf) - 1] = '\0';
+    setter(buf);
+}
+
 static void update_ui_from_dashboard(const pulsemon_dashboard_t *d)
 {
     if (d == NULL) {
@@ -84,6 +103,42 @@ static void update_ui_from_dashboard(const pulsemon_dashboard_t *d)
     set_var_host_meta(meta);
 }
 
+static void update_ui_from_gpu_dashboard(const pulsemon_gpu_dashboard_t *g)
+{
+    if (g == NULL) {
+        return;
+    }
+
+    set_bytes_gib_or_dash(set_var_gpu_vram_total, g->vram_total_b, g->vram_total_b_valid);
+    set_clock_or_dash(set_var_gpu_mem_clock, g->mem_clock_mhz, g->mem_clock_mhz_valid);
+
+    if (g->fan_rpm_valid) {
+        char fan_buf[32];
+        if (g->fan_pct_valid) {
+            snprintf(fan_buf, sizeof(fan_buf), "%.0f RPM (%.0f%%)", (double)g->fan_rpm, (double)g->fan_pct);
+        } else {
+            snprintf(fan_buf, sizeof(fan_buf), "%.0f RPM", (double)g->fan_rpm);
+        }
+        fan_buf[sizeof(fan_buf) - 1] = '\0';
+        set_var_gpu_fan_rpm(fan_buf);
+    } else {
+        set_var_gpu_fan_rpm("--");
+    }
+
+    if (g->vram_pct_valid) {
+        int vram_pct = (int)(g->vram_pct + 0.5f);
+        if (vram_pct < 0) {
+            vram_pct = 0;
+        }
+        if (vram_pct > 100) {
+            vram_pct = 100;
+        }
+        set_var_gpu_vram_used(vram_pct);
+    } else {
+        set_var_gpu_vram_used(0);
+    }
+}
+
 static void mark_backend_offline(const char *why)
 {
     set_var_host_meta(why ? why : "backend offline");
@@ -103,6 +158,9 @@ static void poller_task(void *arg)
         pulsemon_dashboard_t dashboard;
         char err[64];
         bool ok = pulsemon_fetch_dashboard(&dashboard, err, sizeof(err));
+        pulsemon_gpu_dashboard_t gpu_dashboard;
+        char gpu_err[64];
+        bool gpu_ok = pulsemon_fetch_gpu_dashboard(&gpu_dashboard, gpu_err, sizeof(gpu_err));
         int64_t fetch_ms = (esp_timer_get_time() - t_cycle_start_us) / 1000;
         int64_t lock_wait_ms = -1;
         int64_t ui_apply_ms = -1;
@@ -127,6 +185,11 @@ static void poller_task(void *arg)
                 got_lock = true;
                 int64_t t_ui_apply_start_us = esp_timer_get_time();
                 update_ui_from_dashboard(&dashboard);
+                if (gpu_ok) {
+                    update_ui_from_gpu_dashboard(&gpu_dashboard);
+                } else {
+                    ESP_LOGW(TAG, "gpu dashboard fetch failed: %s", gpu_err);
+                }
                 ui_apply_ms = (esp_timer_get_time() - t_ui_apply_start_us) / 1000;
                 ui_updated = true;
                 bsp_display_unlock();

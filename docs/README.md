@@ -19,7 +19,9 @@ Cette arborescence est la source documentaire active du depot.
 - `docs/specs/cahier_fonctionnel_stats_linux_esp_32.md`
 - `docs/plans/plan_implementation_api_stats_linux.md`
 - `docs/specs/spec_esp32_integration_stats_linux.md`
+- `docs/specs/cahier_gpu_amd_v1.md`
 - `api/docs/API_CONTRACT_V1.md` (contrat HTTP effectivement implemente)
+- `api/docs/API_GPU_CONTRACT_V1.md` (extension GPU dediee)
 
 ## Regle pratique
 
