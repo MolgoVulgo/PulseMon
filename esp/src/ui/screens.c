@@ -581,8 +581,8 @@ void create_screen_gpu() {
                     // gpu_vram_total
                     lv_obj_t *obj = lv_label_create(parent_obj);
                     objects.gpu_vram_total = obj;
-                    lv_obj_set_pos(obj, 96, 0);
-                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_pos(obj, 65, 0);
+                    lv_obj_set_size(obj, 70, LV_SIZE_CONTENT);
                     lv_obj_set_style_text_color(obj, lv_color_hex(0xffd8deea), LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_label_set_text(obj, "");

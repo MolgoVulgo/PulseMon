@@ -80,6 +80,30 @@ static void set_clock_or_dash(void (*setter)(const char *), float mhz, bool vali
     setter(buf);
 }
 
+static void set_gpu_vram_used_total_or_dash(
+    void (*setter)(const char *),
+    unsigned long long used_b,
+    bool used_valid,
+    unsigned long long total_b,
+    bool total_valid)
+{
+    if (setter == NULL) {
+        return;
+    }
+    if (!used_valid || !total_valid) {
+        setter("--");
+        return;
+    }
+
+    const double gib_div = 1024.0 * 1024.0 * 1024.0;
+    double used_go = (double)used_b / gib_div;
+    double total_go = (double)total_b / gib_div;
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.0f / %.0f Go", used_go, total_go);
+    buf[sizeof(buf) - 1] = '\0';
+    setter(buf);
+}
+
 static void update_ui_from_dashboard(const pulsemon_dashboard_t *d)
 {
     if (d == NULL) {
@@ -113,7 +137,12 @@ static void update_ui_from_gpu_dashboard(const pulsemon_gpu_dashboard_t *g)
     set_float_or_dash(set_var_gpu_pct, g->pct, g->pct_valid, "%.1f%%");
     set_float_or_dash(set_var_gpu_temp, g->temp_c, g->temp_c_valid, "%.1fC");
     set_float_or_dash(set_var_gpu_power, g->power_w, g->power_w_valid, "%.0fW");
-    set_bytes_gib_or_dash(set_var_gpu_vram_total, g->vram_total_b, g->vram_total_b_valid);
+    set_gpu_vram_used_total_or_dash(
+        set_var_gpu_vram_total,
+        g->vram_used_b,
+        g->vram_used_b_valid,
+        g->vram_total_b,
+        g->vram_total_b_valid);
     set_clock_or_dash(set_var_gpu_mem_clock, g->mem_clock_mhz, g->mem_clock_mhz_valid);
 
     if (g->fan_rpm_valid) {

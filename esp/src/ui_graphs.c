@@ -14,6 +14,12 @@
 #define USAGE_RANGE_MAX 100
 #define TEMP_RANGE_MIN 20
 #define TEMP_RANGE_MAX 90
+#define TEMP_FIXED_MIN 0
+#define TEMP_FIXED_MAX 120
+#define TEMP_WINDOW_SPAN 20
+#define TEMP_SHIFT_STEP 2
+#define TEMP_HYST_UP_OFFSET 14
+#define TEMP_HYST_DOWN_OFFSET 6
 
 #ifndef UI_GRAPHS_SCALE_DEBUG
 #define UI_GRAPHS_SCALE_DEBUG 1
@@ -182,6 +188,43 @@ static void ensure_valid_range(int *min_v, int *max_v)
     }
 }
 
+static void update_temp_window_hysteresis(float temp_c, int *io_min, int *io_max)
+{
+    if (io_min == NULL || io_max == NULL) {
+        return;
+    }
+
+    int min_v = *io_min;
+    int max_v = *io_max;
+    int sample = (int)temp_c;
+
+    if ((max_v - min_v) != TEMP_WINDOW_SPAN) {
+        min_v = sample - (TEMP_WINDOW_SPAN / 2);
+        max_v = min_v + TEMP_WINDOW_SPAN;
+    }
+
+    while (sample > (min_v + TEMP_HYST_UP_OFFSET) && max_v < TEMP_FIXED_MAX) {
+        min_v += TEMP_SHIFT_STEP;
+        max_v += TEMP_SHIFT_STEP;
+    }
+    while (sample < (min_v + TEMP_HYST_DOWN_OFFSET) && min_v > TEMP_FIXED_MIN) {
+        min_v -= TEMP_SHIFT_STEP;
+        max_v -= TEMP_SHIFT_STEP;
+    }
+
+    if (min_v < TEMP_FIXED_MIN) {
+        min_v = TEMP_FIXED_MIN;
+        max_v = min_v + TEMP_WINDOW_SPAN;
+    }
+    if (max_v > TEMP_FIXED_MAX) {
+        max_v = TEMP_FIXED_MAX;
+        min_v = max_v - TEMP_WINDOW_SPAN;
+    }
+
+    *io_min = min_v;
+    *io_max = max_v;
+}
+
 static bool set_chart_range_if_changed(
     lv_obj_t *chart,
     lv_obj_t *axis_labels[AXIS_LABEL_COUNT],
@@ -270,8 +313,8 @@ void ui_graphs_init_gpu(lv_obj_t *gpu_pct_panel, lv_obj_t *gpu_temp_panel)
 
     s_gpu_temp_chart = lv_chart_create(gpu_temp_panel);
     init_chart_common_for_panel(s_gpu_temp_chart, lv_obj_get_height(gpu_temp_panel));
-    s_gpu_temp_range_min = TEMP_RANGE_MIN;
-    s_gpu_temp_range_max = TEMP_RANGE_MAX;
+    s_gpu_temp_range_min = 40;
+    s_gpu_temp_range_max = s_gpu_temp_range_min + TEMP_WINDOW_SPAN;
     lv_chart_set_range(s_gpu_temp_chart, LV_CHART_AXIS_PRIMARY_Y, s_gpu_temp_range_min, s_gpu_temp_range_max);
     s_gpu_temp_series = lv_chart_add_series(s_gpu_temp_chart, lv_color_hex(0xf66151), LV_CHART_AXIS_PRIMARY_Y);
     lv_chart_set_ext_y_array(s_gpu_temp_chart, s_gpu_temp_series, s_gpu_temp_points);
@@ -310,8 +353,9 @@ void ui_graphs_push_sample(const vars_graph_sample_t *sample)
 
     if (s_gpu_initialized) {
         if (sample->gpu_temp_c_valid) {
-            int tmin = (int)sample->gpu_temp_c - 10;
-            int tmax = (int)sample->gpu_temp_c + 10;
+            int tmin = s_gpu_temp_range_min;
+            int tmax = s_gpu_temp_range_max;
+            update_temp_window_hysteresis(sample->gpu_temp_c, &tmin, &tmax);
             bool changed = set_chart_range_if_changed(
                 s_gpu_temp_chart,
                 s_gpu_temp_axis_labels,

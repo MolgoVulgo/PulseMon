@@ -2440,9 +2440,9 @@
                 {
                   "objID": "8bdb1ca8-3a4d-4ba0-daad-a79b573ea9b4",
                   "type": "LVGLLabelWidget",
-                  "left": 96,
+                  "left": 65,
                   "top": 0,
-                  "width": 33,
+                  "width": 70,
                   "height": 16,
                   "customInputs": [],
                   "customOutputs": [],
@@ -2457,7 +2457,7 @@
                   "identifier": "gpu_vram_total",
                   "leftUnit": "px",
                   "topUnit": "px",
-                  "widthUnit": "content",
+                  "widthUnit": "px",
                   "heightUnit": "content",
                   "children": [],
                   "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
@@ -2487,7 +2487,7 @@
                   "textType": "expression",
                   "longMode": "WRAP",
                   "recolor": false,
-                  "previewValue": "9 Go"
+                  "previewValue": "16 / 16 Go"
                 },
                 {
                   "objID": "818a5a53-2d22-4782-b297-3885a5bfff5a",
