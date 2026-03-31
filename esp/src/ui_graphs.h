@@ -6,6 +6,7 @@
 #include "vars.h"
 
 void ui_graphs_init(lv_obj_t *usage_panel, lv_obj_t *temp_panel);
+void ui_graphs_init_gpu(lv_obj_t *gpu_pct_panel, lv_obj_t *gpu_temp_panel);
 void ui_graphs_push_sample(const vars_graph_sample_t *sample);
 
 #endif

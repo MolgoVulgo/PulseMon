@@ -29,7 +29,7 @@ Configuration cible identifiée :
 
 Module cible :
 
-- ESP32-S3
+- ESP32-S3 (JC3248W535EN)
 - 16 Mo flash
 - 8 Mo PSRAM
 - connectivité Wi‑Fi

@@ -36,6 +36,9 @@ The mini UI polls:
 - `GET /api/v1/dashboard`
 - `GET /api/v1/history?window=300&step=1&mode=display`
 - `GET /api/v1/meta`
+- `GET /api/v1/gpu/dashboard`
+- `GET /api/v1/gpu/history?window=300&step=1&mode=display`
+- `GET /api/v1/gpu/meta`
 
 ### History params
 
@@ -126,3 +129,4 @@ Champs clés en mode `raw`:
 ## Contract reference
 
 - `api/docs/API_CONTRACT_V1.md`
+- `api/docs/API_GPU_CONTRACT_V1.md`

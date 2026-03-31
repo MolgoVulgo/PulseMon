@@ -27,7 +27,11 @@ class GpuMapping:
     has_gpu_busy_percent: bool
     has_mem_busy_percent: bool
     has_power1_average: bool
-
+    has_vram_used: bool
+    has_vram_total: bool
+    has_pp_dpm_sclk: bool
+    has_pp_dpm_mclk: bool
+    has_fan_input: bool
 
 
 def read_gpu_percent_metric() -> MetricReading:
@@ -38,14 +42,12 @@ def read_gpu_percent_metric() -> MetricReading:
     return _read_float_metric(Path(mapping.device_path) / "gpu_busy_percent", unit="percent")
 
 
-
 def read_gpu_mem_percent_metric() -> MetricReading:
     mapping = _select_amd_gpu_mapping()
     if mapping is None:
         return failed_reading(source="/sys/class/drm/card*/device/mem_busy_percent", unit="percent", error="no_amd_gpu")
 
     return _read_float_metric(Path(mapping.device_path) / "mem_busy_percent", unit="percent")
-
 
 
 def read_gpu_temp_metric() -> MetricReading:
@@ -75,7 +77,6 @@ def read_gpu_temp_metric() -> MetricReading:
     )
 
 
-
 def read_gpu_power_metric() -> MetricReading:
     mapping = _select_amd_gpu_mapping()
     if mapping is None:
@@ -96,11 +97,103 @@ def read_gpu_power_metric() -> MetricReading:
     return failed_reading(source=f"{hwmon_path}/power1_average", unit="watt", error="source_missing")
 
 
+def read_gpu_core_clock_metric() -> MetricReading:
+    mapping = _select_amd_gpu_mapping()
+    if mapping is None:
+        return failed_reading(source="/sys/class/drm/card*/device/pp_dpm_sclk", unit="mhz", error="no_amd_gpu")
+    return _read_active_dpm_clock_metric(Path(mapping.device_path) / "pp_dpm_sclk")
+
+
+def read_gpu_mem_clock_metric() -> MetricReading:
+    mapping = _select_amd_gpu_mapping()
+    if mapping is None:
+        return failed_reading(source="/sys/class/drm/card*/device/pp_dpm_mclk", unit="mhz", error="no_amd_gpu")
+    return _read_active_dpm_clock_metric(Path(mapping.device_path) / "pp_dpm_mclk")
+
+
+def read_gpu_vram_used_metric() -> MetricReading:
+    mapping = _select_amd_gpu_mapping()
+    if mapping is None:
+        return failed_reading(source="/sys/class/drm/card*/device/mem_info_vram_used", unit="bytes", error="no_amd_gpu")
+    return _read_int_metric(Path(mapping.device_path) / "mem_info_vram_used", unit="bytes")
+
+
+def read_gpu_vram_total_metric() -> MetricReading:
+    mapping = _select_amd_gpu_mapping()
+    if mapping is None:
+        return failed_reading(source="/sys/class/drm/card*/device/mem_info_vram_total", unit="bytes", error="no_amd_gpu")
+    return _read_int_metric(Path(mapping.device_path) / "mem_info_vram_total", unit="bytes")
+
+
+def read_gpu_vram_percent_metric() -> MetricReading:
+    used = read_gpu_vram_used_metric()
+    total = read_gpu_vram_total_metric()
+    if not used.valid or not total.valid:
+        source = f"{used.source}|{total.source}"
+        return failed_reading(source=source, unit="percent", error="source_missing")
+    assert used.raw_value is not None
+    assert total.raw_value is not None
+    total_value = float(total.raw_value)
+    if total_value <= 0.0:
+        return failed_reading(source=total.source, unit="percent", error="invalid_total")
+    pct = (float(used.raw_value) * 100.0) / total_value
+    return ok_reading(value=pct, source=f"{used.source}|{total.source}", unit="percent")
+
+
+def read_gpu_fan_rpm_metric() -> MetricReading:
+    mapping = _select_amd_gpu_mapping()
+    if mapping is None:
+        return failed_reading(source="/sys/class/drm/card*/device/hwmon/hwmon*/fan*_input", unit="rpm", error="no_amd_gpu")
+    hwmon_path = Path(mapping.hwmon_path) if mapping.hwmon_path else None
+    if hwmon_path is None:
+        return failed_reading(source=f"{mapping.device_path}/hwmon", unit="rpm", error="hwmon_missing")
+
+    for fan_input in sorted(hwmon_path.glob("fan*_input")):
+        reading = _read_int_metric(fan_input, unit="rpm")
+        if reading.valid:
+            return reading
+        if reading.read_error and reading.read_error != "source_missing":
+            return reading
+    return failed_reading(source=f"{hwmon_path}/fan*_input", unit="rpm", error="source_missing")
+
+
+def read_gpu_fan_percent_metric() -> MetricReading:
+    mapping = _select_amd_gpu_mapping()
+    if mapping is None:
+        return failed_reading(source="/sys/class/drm/card*/device/hwmon/hwmon*/pwm*", unit="percent", error="no_amd_gpu")
+    hwmon_path = Path(mapping.hwmon_path) if mapping.hwmon_path else None
+    if hwmon_path is None:
+        return failed_reading(source=f"{mapping.device_path}/hwmon", unit="percent", error="hwmon_missing")
+
+    pwm = _read_int_metric(hwmon_path / "pwm1", unit="raw")
+    if not pwm.valid:
+        return failed_reading(source=str(hwmon_path / "pwm1"), unit="percent", error=pwm.read_error or "source_missing")
+
+    pwm_max = _read_int_metric(hwmon_path / "pwm1_max", unit="raw")
+    max_value = float(pwm_max.raw_value) if pwm_max.valid and pwm_max.raw_value is not None else 255.0
+    if max_value <= 0.0:
+        return failed_reading(source=str(hwmon_path / "pwm1_max"), unit="percent", error="invalid_max")
+
+    assert pwm.raw_value is not None
+    fan_pct = (float(pwm.raw_value) * 100.0) / max_value
+    return ok_reading(value=fan_pct, source=f"{hwmon_path}/pwm1", unit="percent")
+
+
+def read_gpu_name() -> str:
+    mapping = _select_amd_gpu_mapping()
+    if mapping is None:
+        return "AMD GPU"
+    device = Path(mapping.device_path)
+    for name_file in ("product_name", "product_number"):
+        value = _read_text(device / name_file)
+        if value:
+            return value
+    return mapping.card_name
+
 
 def read_gpu_percent() -> float | None:
     metric = read_gpu_percent_metric()
     return float(metric.raw_value) if metric.raw_value is not None else None
-
 
 
 def read_gpu_temp_c() -> float | None:
@@ -108,11 +201,9 @@ def read_gpu_temp_c() -> float | None:
     return float(metric.raw_value) if metric.raw_value is not None else None
 
 
-
 def read_gpu_power_w() -> float | None:
     metric = read_gpu_power_metric()
     return float(metric.raw_value) if metric.raw_value is not None else None
-
 
 
 def probe_gpu_device_path() -> str | None:
@@ -122,10 +213,8 @@ def probe_gpu_device_path() -> str | None:
     return mapping.device_path
 
 
-
 def probe_gpu_mappings() -> list[dict[str, object]]:
     return [asdict(mapping) for mapping in list_amd_gpu_mappings()]
-
 
 
 def list_amd_gpu_mappings() -> list[GpuMapping]:
@@ -153,6 +242,10 @@ def list_amd_gpu_mappings() -> list[GpuMapping]:
             if hwmon_entries:
                 hwmon_path = str(hwmon_entries[0].resolve())
 
+        has_fan_input = False
+        if hwmon_path:
+            has_fan_input = any(Path(hwmon_path).glob("fan*_input"))
+
         mapping = GpuMapping(
             card_name=card.name,
             card_path=str(card),
@@ -166,11 +259,15 @@ def list_amd_gpu_mappings() -> list[GpuMapping]:
             has_gpu_busy_percent=(device / "gpu_busy_percent").exists(),
             has_mem_busy_percent=(device / "mem_busy_percent").exists(),
             has_power1_average=(Path(hwmon_path) / "power1_average").exists() if hwmon_path else False,
+            has_vram_used=(device / "mem_info_vram_used").exists(),
+            has_vram_total=(device / "mem_info_vram_total").exists(),
+            has_pp_dpm_sclk=(device / "pp_dpm_sclk").exists(),
+            has_pp_dpm_mclk=(device / "pp_dpm_mclk").exists(),
+            has_fan_input=has_fan_input,
         )
         mappings.append(mapping)
 
     return mappings
-
 
 
 def _select_amd_gpu_mapping() -> GpuMapping | None:
@@ -191,7 +288,6 @@ def _select_amd_gpu_mapping() -> GpuMapping | None:
     return mappings[0]
 
 
-
 def _read_text(path: Path) -> str | None:
     if not path.exists():
         return None
@@ -199,7 +295,6 @@ def _read_text(path: Path) -> str | None:
         return path.read_text(encoding="utf-8").strip()
     except OSError:
         return None
-
 
 
 def _read_driver_module(device: Path) -> str | None:
@@ -210,7 +305,6 @@ def _read_driver_module(device: Path) -> str | None:
         return module_link.resolve().name
     except OSError:
         return None
-
 
 
 def _read_pci_slot(device: Path) -> str | None:
@@ -229,7 +323,6 @@ def _read_pci_slot(device: Path) -> str | None:
     return device.name if ":" in device.name else None
 
 
-
 def _read_float_metric(path: Path, unit: str) -> MetricReading:
     if not path.exists():
         return failed_reading(source=str(path), unit=unit, error="source_missing")
@@ -241,6 +334,46 @@ def _read_float_metric(path: Path, unit: str) -> MetricReading:
     except OSError as exc:
         return failed_reading(source=str(path), unit=unit, error=f"read_error:{type(exc).__name__}:{exc}")
 
+
+def _read_int_metric(path: Path, unit: str) -> MetricReading:
+    if not path.exists():
+        return failed_reading(source=str(path), unit=unit, error="source_missing")
+
+    try:
+        return ok_reading(value=int(path.read_text(encoding="utf-8").strip()), source=str(path), unit=unit)
+    except ValueError:
+        return failed_reading(source=str(path), unit=unit, error="invalid_value")
+    except OSError as exc:
+        return failed_reading(source=str(path), unit=unit, error=f"read_error:{type(exc).__name__}:{exc}")
+
+
+def _read_active_dpm_clock_metric(path: Path) -> MetricReading:
+    if not path.exists():
+        return failed_reading(source=str(path), unit="mhz", error="source_missing")
+
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        return failed_reading(source=str(path), unit="mhz", error=f"read_error:{type(exc).__name__}:{exc}")
+
+    active_line = None
+    for line in lines:
+        if "*" in line:
+            active_line = line
+            break
+    if active_line is None and lines:
+        active_line = lines[-1]
+    if active_line is None:
+        return failed_reading(source=str(path), unit="mhz", error="empty_source")
+
+    match = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*([mMgG][hH][zZ])", active_line)
+    if not match:
+        return failed_reading(source=str(path), unit="mhz", error="invalid_value")
+
+    value = float(match.group(1))
+    unit = match.group(2).lower()
+    value_mhz = value * 1000.0 if unit == "ghz" else value
+    return ok_reading(value=int(round(value_mhz)), source=str(path), unit="mhz")
 
 
 def _find_temp_candidates(hwmon_path: Path) -> list[dict[str, object]]:
@@ -257,7 +390,6 @@ def _find_temp_candidates(hwmon_path: Path) -> list[dict[str, object]]:
             label = "unknown"
         candidates.append({"path": temp_input, "label": label})
     return candidates
-
 
 
 def _choose_preferred_temp_candidate(candidates: list[dict[str, object]]) -> dict[str, object]:

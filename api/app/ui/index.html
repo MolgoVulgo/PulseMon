@@ -55,6 +55,34 @@
         font-size: 13px;
       }
 
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .tab-btn {
+        border: 1px solid var(--line);
+        background: #111826;
+        color: var(--text);
+        border-radius: 999px;
+        padding: 6px 12px;
+        cursor: pointer;
+      }
+
+      .tab-btn.active {
+        border-color: #4b86d8;
+        color: #b9d5ff;
+      }
+
+      .tab {
+        display: none;
+      }
+
+      .tab.active {
+        display: block;
+      }
+
       .grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(220px, 1fr));
@@ -164,6 +192,12 @@
         <div class="meta" id="host-meta">host: -</div>
       </div>
 
+      <div class="tabs">
+        <button class="tab-btn active" id="tab-btn-main" type="button">General</button>
+        <button class="tab-btn" id="tab-btn-gpu" type="button">GPU AMD</button>
+      </div>
+
+      <section class="tab active" id="tab-main">
       <div class="grid">
         <div class="panel">
           <div class="label">CPU usage</div>
@@ -204,6 +238,30 @@
           </div>
         </div>
       </div>
+      </section>
+
+      <section class="tab" id="tab-gpu">
+        <div class="grid">
+          <div class="panel">
+            <div class="label">GPU usage</div>
+            <div class="value" id="gpu2-pct">-</div>
+            <div class="row"><span>Core clock</span><span id="gpu2-core">-</span></div>
+            <div class="row"><span>VRAM clock</span><span id="gpu2-memclock">-</span></div>
+          </div>
+          <div class="panel">
+            <div class="label">VRAM</div>
+            <div class="value" id="gpu2-vram-pct">-</div>
+            <div class="row"><span>Used</span><span id="gpu2-vram-used">-</span></div>
+            <div class="row"><span>Total</span><span id="gpu2-vram-total">-</span></div>
+          </div>
+          <div class="panel">
+            <div class="label">Thermals & Fan</div>
+            <div class="value" id="gpu2-temp">-</div>
+            <div class="row"><span>Power</span><span id="gpu2-power">-</span></div>
+            <div class="row"><span>Fan</span><span id="gpu2-fan">-</span></div>
+          </div>
+        </div>
+      </section>
 
       <div class="status" id="status-line">chargement...</div>
     </div>
@@ -231,10 +289,24 @@
         status: document.getElementById("status-line"),
         usageChart: document.getElementById("usage-chart"),
         tempChart: document.getElementById("temp-chart"),
+        tabBtnMain: document.getElementById("tab-btn-main"),
+        tabBtnGpu: document.getElementById("tab-btn-gpu"),
+        tabMain: document.getElementById("tab-main"),
+        tabGpu: document.getElementById("tab-gpu"),
+        gpu2Pct: document.getElementById("gpu2-pct"),
+        gpu2Core: document.getElementById("gpu2-core"),
+        gpu2MemClock: document.getElementById("gpu2-memclock"),
+        gpu2VramPct: document.getElementById("gpu2-vram-pct"),
+        gpu2VramUsed: document.getElementById("gpu2-vram-used"),
+        gpu2VramTotal: document.getElementById("gpu2-vram-total"),
+        gpu2Temp: document.getElementById("gpu2-temp"),
+        gpu2Power: document.getElementById("gpu2-power"),
+        gpu2Fan: document.getElementById("gpu2-fan"),
       };
 
       let lastDashboardTs = null;
       let lastHistoryTs = null;
+      let gpuDashboardInFlight = false;
       let dashboardInFlight = false;
       let historyInFlight = false;
       const historyState = {
@@ -264,6 +336,23 @@
         if (b === null || b === undefined) return "null";
         const gb = b / (1024 ** 3);
         return `${gb.toFixed(1)} GiB`;
+      }
+
+      function fmtMHz(v) {
+        if (v === null || v === undefined) return "null";
+        return v >= 1000 ? `${(v / 1000).toFixed(2)} GHz` : `${v.toFixed(0)} MHz`;
+      }
+
+      function fmtRPM(v) {
+        return v === null || v === undefined ? "null" : `${v.toFixed(0)} RPM`;
+      }
+
+      function setTab(tab) {
+        const gpu = tab === "gpu";
+        el.tabMain.classList.toggle("active", !gpu);
+        el.tabGpu.classList.toggle("active", gpu);
+        el.tabBtnMain.classList.toggle("active", !gpu);
+        el.tabBtnGpu.classList.toggle("active", gpu);
       }
 
       function statusDot(level) {
@@ -525,6 +614,25 @@
         el.status.innerHTML = `${statusDot(level)}dashboard ts=${d.ts} | stale=${stale} ms | valid=${validMetrics}/6`;
       }
 
+      async function fetchGpuDashboard() {
+        const r = await fetch(`${API}/gpu/dashboard`, { cache: "no-store" });
+        if (!r.ok) throw new Error(`gpu_dashboard ${r.status}`);
+        const d = await r.json();
+        const g = d.gpu;
+
+        const fanDisplay = metricValid(g.fan_rpm) ? fmtRPM(metricDisplay(g.fan_rpm)) : "N/A";
+
+        el.gpu2Pct.textContent = metricValid(g.pct) ? fmtPct(metricDisplay(g.pct)) : "N/A";
+        el.gpu2Core.textContent = metricValid(g.core_clock_mhz) ? fmtMHz(metricDisplay(g.core_clock_mhz)) : "N/A";
+        el.gpu2MemClock.textContent = metricValid(g.mem_clock_mhz) ? fmtMHz(metricDisplay(g.mem_clock_mhz)) : "N/A";
+        el.gpu2VramPct.textContent = metricValid(g.vram_pct) ? fmtPct(metricDisplay(g.vram_pct)) : "N/A";
+        el.gpu2VramUsed.textContent = metricValid(g.vram_used_b) ? fmtBytes(metricDisplay(g.vram_used_b)) : "N/A";
+        el.gpu2VramTotal.textContent = metricValid(g.vram_total_b) ? fmtBytes(metricDisplay(g.vram_total_b)) : "N/A";
+        el.gpu2Temp.textContent = metricValid(g.temp_c) ? fmtC(metricDisplay(g.temp_c)) : "N/A";
+        el.gpu2Power.textContent = metricValid(g.power_w) ? fmtW(metricDisplay(g.power_w)) : "N/A";
+        el.gpu2Fan.textContent = fanDisplay;
+      }
+
       async function fetchHistory() {
         const needPeriodicResync =
           historyState.lastResyncAtMs === 0 || (Date.now() - historyState.lastResyncAtMs) >= HISTORY_RESYNC_MS;
@@ -576,10 +684,27 @@
         }
       }
 
+      async function tickGpuDashboard() {
+        if (gpuDashboardInFlight) return;
+        gpuDashboardInFlight = true;
+        try {
+          await fetchGpuDashboard();
+        } catch (e) {
+          el.status.innerHTML += ` | gpu error: ${e.message}`;
+        } finally {
+          gpuDashboardInFlight = false;
+        }
+      }
+
+      setTab("main");
+      el.tabBtnMain.addEventListener("click", () => setTab("main"));
+      el.tabBtnGpu.addEventListener("click", () => setTab("gpu"));
       tickDashboard();
       tickHistory();
+      tickGpuDashboard();
       setInterval(tickDashboard, DASHBOARD_POLL_MS);
       setInterval(tickHistory, HISTORY_POLL_MS);
+      setInterval(tickGpuDashboard, DASHBOARD_POLL_MS);
     </script>
   </body>
 </html>

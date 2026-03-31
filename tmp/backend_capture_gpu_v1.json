@@ -1,0 +1,312 @@
+{
+  "/api/v1/health": {
+    "v": 1,
+    "ts": 1774835561,
+    "ok": true,
+    "service": "stats-linux-api"
+  },
+  "/api/v1/dashboard": {
+    "v": 1,
+    "ts": 1774835561,
+    "host": "Green-Kid",
+    "cpu": {
+      "pct": {
+        "value_raw": 17.8,
+        "value_display": 17.8,
+        "source": "psutil.cpu_percent(interval=None)",
+        "unit": "percent",
+        "sampled_at": 1774835561425,
+        "estimated": false,
+        "valid": true
+      },
+      "temp_c": {
+        "value_raw": 64.375,
+        "value_display": 64.375,
+        "source": "psutil.sensors_temperatures(fahrenheit=False):Tctl",
+        "unit": "celsius",
+        "sampled_at": 1774835561439,
+        "estimated": false,
+        "valid": true
+      },
+      "power_w": {
+        "value_raw": null,
+        "value_display": null,
+        "source": "/sys/class/powercap/*/energy_uj",
+        "unit": "watt",
+        "sampled_at": 1774835561439,
+        "estimated": false,
+        "valid": false
+      }
+    },
+    "mem": {
+      "used_b": {
+        "value_raw": 16063983616,
+        "value_display": 16063983616,
+        "source": "psutil.virtual_memory()",
+        "unit": "bytes",
+        "sampled_at": 1774835561439,
+        "estimated": false,
+        "valid": true
+      },
+      "total_b": {
+        "value_raw": 33535295488,
+        "value_display": 33535295488,
+        "source": "psutil.virtual_memory()",
+        "unit": "bytes",
+        "sampled_at": 1774835561439,
+        "estimated": false,
+        "valid": true
+      },
+      "pct": {
+        "value_raw": 51.3,
+        "value_display": 51.3,
+        "source": "psutil.virtual_memory()",
+        "unit": "percent",
+        "sampled_at": 1774835561439,
+        "estimated": false,
+        "valid": true
+      }
+    },
+    "gpu": {
+      "pct": {
+        "value_raw": 36.0,
+        "value_display": 36.0,
+        "source": "/sys/devices/pci0000:00/0000:00:03.1/0000:06:00.0/0000:07:00.0/0000:08:00.0/gpu_busy_percent",
+        "unit": "percent",
+        "sampled_at": 1774835561441,
+        "estimated": false,
+        "valid": true
+      },
+      "temp_c": {
+        "value_raw": 56.0,
+        "value_display": 56.0,
+        "source": "/sys/devices/pci0000:00/0000:00:03.1/0000:06:00.0/0000:07:00.0/0000:08:00.0/hwmon/hwmon3/temp1_input:edge",
+        "unit": "celsius",
+        "sampled_at": 1774835561442,
+        "estimated": false,
+        "valid": true
+      },
+      "power_w": {
+        "value_raw": 78.0,
+        "value_display": 78.0,
+        "source": "/sys/devices/pci0000:00/0000:00:03.1/0000:06:00.0/0000:07:00.0/0000:08:00.0/hwmon/hwmon3/power1_average",
+        "unit": "watt",
+        "sampled_at": 1774835561443,
+        "estimated": false,
+        "valid": true
+      }
+    },
+    "state": {
+      "ok": true,
+      "stale_ms": 25
+    }
+  },
+  "/api/v1/history?window=10&step=1&mode=display": {
+    "v": 1,
+    "ts": 1774835561,
+    "ts_ms": [
+      1774835561425
+    ],
+    "window_s": 10,
+    "step_s": 1,
+    "series": {
+      "cpu_pct": [
+        17.8
+      ],
+      "cpu_temp_c": [
+        64.375
+      ],
+      "gpu_pct": [
+        36.0
+      ],
+      "gpu_temp_c": [
+        56.0
+      ]
+    }
+  },
+  "/api/v1/meta": {
+    "v": 1,
+    "host": "Green-Kid",
+    "metrics": [
+      "cpu.pct",
+      "cpu.temp_c",
+      "cpu.power_w",
+      "mem.used_b",
+      "mem.total_b",
+      "mem.pct",
+      "gpu.pct",
+      "gpu.temp_c",
+      "gpu.power_w"
+    ],
+    "history_series": [
+      "cpu_pct",
+      "cpu_temp_c",
+      "gpu_pct",
+      "gpu_temp_c"
+    ]
+  },
+  "/api/v1/gpu/dashboard": {
+    "v": 1,
+    "ts": 1774835561,
+    "host": "Green-Kid",
+    "gpu": {
+      "pct": {
+        "value_raw": 54.0,
+        "value_display": 10.25,
+        "source": "/sys/devices/pci0000:00/0000:00:03.1/0000:06:00.0/0000:07:00.0/0000:08:00.0/gpu_busy_percent",
+        "unit": "percent",
+        "sampled_at": 1774835561451,
+        "estimated": false,
+        "valid": true
+      },
+      "core_clock_mhz": {
+        "value_raw": 1708,
+        "value_display": 1708,
+        "source": "/sys/devices/pci0000:00/0000:00:03.1/0000:06:00.0/0000:07:00.0/0000:08:00.0/pp_dpm_sclk",
+        "unit": "mhz",
+        "sampled_at": 1774835561452,
+        "estimated": false,
+        "valid": true
+      },
+      "mem_clock_mhz": {
+        "value_raw": 1258,
+        "value_display": 1258,
+        "source": "/sys/devices/pci0000:00/0000:00:03.1/0000:06:00.0/0000:07:00.0/0000:08:00.0/pp_dpm_mclk",
+        "unit": "mhz",
+        "sampled_at": 1774835561453,
+        "estimated": false,
+        "valid": true
+      },
+      "vram_used_b": {
+        "value_raw": 5544407040,
+        "value_display": 5544407040,
+        "source": "/sys/devices/pci0000:00/0000:00:03.1/0000:06:00.0/0000:07:00.0/0000:08:00.0/mem_info_vram_used",
+        "unit": "bytes",
+        "sampled_at": 1774835561453,
+        "estimated": false,
+        "valid": true
+      },
+      "vram_total_b": {
+        "value_raw": 17095983104,
+        "value_display": 17095983104,
+        "source": "/sys/devices/pci0000:00/0000:00:03.1/0000:06:00.0/0000:07:00.0/0000:08:00.0/mem_info_vram_total",
+        "unit": "bytes",
+        "sampled_at": 1774835561454,
+        "estimated": false,
+        "valid": true
+      },
+      "vram_pct": {
+        "value_raw": 32.431051237426395,
+        "value_display": 32.431051237426395,
+        "source": "/sys/devices/pci0000:00/0000:00:03.1/0000:06:00.0/0000:07:00.0/0000:08:00.0/mem_info_vram_used|/sys/devices/pci0000:00/0000:00:03.1/0000:06:00.0/0000:07:00.0/0000:08:00.0/mem_info_vram_total",
+        "unit": "percent",
+        "sampled_at": 1774835561455,
+        "estimated": false,
+        "valid": true
+      },
+      "temp_c": {
+        "value_raw": 56.0,
+        "value_display": 56.0,
+        "source": "/sys/devices/pci0000:00/0000:00:03.1/0000:06:00.0/0000:07:00.0/0000:08:00.0/hwmon/hwmon3/temp1_input:edge",
+        "unit": "celsius",
+        "sampled_at": 1774835561456,
+        "estimated": false,
+        "valid": true
+      },
+      "power_w": {
+        "value_raw": 92.0,
+        "value_display": 92.0,
+        "source": "/sys/devices/pci0000:00/0000:00:03.1/0000:06:00.0/0000:07:00.0/0000:08:00.0/hwmon/hwmon3/power1_average",
+        "unit": "watt",
+        "sampled_at": 1774835561456,
+        "estimated": false,
+        "valid": true
+      },
+      "fan_rpm": {
+        "value_raw": 0,
+        "value_display": 0,
+        "source": "/sys/devices/pci0000:00/0000:00:03.1/0000:06:00.0/0000:07:00.0/0000:08:00.0/hwmon/hwmon3/fan1_input",
+        "unit": "rpm",
+        "sampled_at": 1774835561457,
+        "estimated": false,
+        "valid": true
+      },
+      "fan_pct": {
+        "value_raw": 0.0,
+        "value_display": 0.0,
+        "source": "/sys/devices/pci0000:00/0000:00:03.1/0000:06:00.0/0000:07:00.0/0000:08:00.0/hwmon/hwmon3/pwm1",
+        "unit": "percent",
+        "sampled_at": 1774835561457,
+        "estimated": false,
+        "valid": true
+      }
+    },
+    "state": {
+      "ok": true,
+      "stale_ms": 0
+    }
+  },
+  "/api/v1/gpu/history?window=10&step=1&mode=display": {
+    "v": 1,
+    "ts": 1774835561,
+    "ts_ms": [
+      1774835561458
+    ],
+    "window_s": 10,
+    "step_s": 1,
+    "series": {
+      "gpu_pct": [
+        10.25
+      ],
+      "gpu_core_clock_mhz": [
+        1708.0
+      ],
+      "gpu_vram_used_b": [
+        5544407040.0
+      ],
+      "gpu_temp_c": [
+        56.0
+      ],
+      "gpu_power_w": [
+        92.0
+      ],
+      "gpu_mem_clock_mhz": [
+        1258.0
+      ],
+      "gpu_fan_rpm": [
+        0.0
+      ]
+    }
+  },
+  "/api/v1/gpu/meta": {
+    "v": 1,
+    "host": "Green-Kid",
+    "gpu_name": "card1",
+    "metrics": [
+      "gpu.pct",
+      "gpu.core_clock_mhz",
+      "gpu.mem_clock_mhz",
+      "gpu.vram_used_b",
+      "gpu.vram_total_b",
+      "gpu.vram_pct",
+      "gpu.temp_c",
+      "gpu.power_w",
+      "gpu.fan_rpm",
+      "gpu.fan_pct"
+    ],
+    "history_series": [
+      "gpu_pct",
+      "gpu_core_clock_mhz",
+      "gpu_vram_used_b",
+      "gpu_temp_c",
+      "gpu_power_w",
+      "gpu_mem_clock_mhz",
+      "gpu_fan_rpm"
+    ],
+    "caps": {
+      "fan_pct": true,
+      "hotspot_temp": false,
+      "mem_temp": false
+    }
+  }
+}

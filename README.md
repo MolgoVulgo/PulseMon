@@ -78,6 +78,12 @@ Responsabilites firmware:
 - cache local;
 - rendu LVGL et signalement etat stale/degrade.
 
+## Captures ESP32
+
+![Capture ESP32 1](esp/image/cap_000035.jpg)
+![Capture ESP32 2](esp/image/cap_000039.jpg)
+![Capture ESP32 3](esp/image/cap_000042.jpg)
+
 ## Contrat API et verite documentaire
 
 Contrat HTTP de reference:
@@ -107,4 +113,3 @@ Variables principales (voir aussi `pulsemon-api.conf`):
 - multi-machines
 - persistance longue duree
 - structure JSON variable selon la machine
-

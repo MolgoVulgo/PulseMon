@@ -1,6 +1,7 @@
 .pio/
 .vscode/
 /sdkconfig
+/tmp
 /sdkconfig.*
 esp/libraries/lvgl-v8/
 .pio-core/

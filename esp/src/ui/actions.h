@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+extern void action_ui_swipe(lv_event_t * e);
+
 #ifdef __cplusplus
 }
 #endif
