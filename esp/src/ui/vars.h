@@ -21,7 +21,11 @@ enum FlowGlobalVariables {
     FLOW_GLOBAL_VARIABLE_GPU_PCT = 5,
     FLOW_GLOBAL_VARIABLE_GPU_TEMP = 6,
     FLOW_GLOBAL_VARIABLE_GPU_POWER = 7,
-    FLOW_GLOBAL_VARIABLE_HOST_META = 8
+    FLOW_GLOBAL_VARIABLE_HOST_META = 8,
+    FLOW_GLOBAL_VARIABLE_GPU_VRAM_TOTAL = 9,
+    FLOW_GLOBAL_VARIABLE_GPU_MEM_CLOCK = 10,
+    FLOW_GLOBAL_VARIABLE_GPU_FAN_RPM = 11,
+    FLOW_GLOBAL_VARIABLE_GPU_VRAM_USED = 12
 };
 
 // Native global variables
@@ -44,6 +48,14 @@ extern const char *get_var_gpu_power();
 extern void set_var_gpu_power(const char *value);
 extern const char *get_var_host_meta();
 extern void set_var_host_meta(const char *value);
+extern const char *get_var_gpu_vram_total();
+extern void set_var_gpu_vram_total(const char *value);
+extern const char *get_var_gpu_mem_clock();
+extern void set_var_gpu_mem_clock(const char *value);
+extern const char *get_var_gpu_fan_rpm();
+extern void set_var_gpu_fan_rpm(const char *value);
+extern int32_t get_var_gpu_vram_used();
+extern void set_var_gpu_vram_used(int32_t value);
 
 #ifdef __cplusplus
 }

@@ -9,16 +9,30 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from app.config import AppConfig, load_config
 from app.diagnostics.logging import configure_logging
 from app.diagnostics.probe import capture_gpu_raw_vs_display, capture_raw_metrics, probe_sources
-from app.models import DashboardResponse, ErrorResponse, HealthResponse, HistoryResponse, MetaResponse
+from app.models import (
+    DashboardResponse,
+    ErrorResponse,
+    GpuDashboardResponse,
+    GpuHistoryResponse,
+    GpuMetaResponse,
+    HealthResponse,
+    HistoryResponse,
+    MetaResponse,
+)
 from app.services import (
+    GpuSnapshotUnavailableError,
     SamplerService,
     SnapshotUnavailableError,
     build_dashboard_from_store,
     build_dashboard_live,
+    build_gpu_dashboard_from_store,
+    build_gpu_dashboard_live,
+    build_gpu_history,
+    build_gpu_meta,
     build_history,
     build_meta,
 )
-from app.store import HistoryStore, SnapshotStore
+from app.store import GpuHistoryStore, GpuSnapshotStore, HistoryStore, SnapshotStore
 from app.ui import get_ui_html
 
 WINDOW_MIN = 1
@@ -34,6 +48,8 @@ logger = logging.getLogger(__name__)
 
 snapshot_store = SnapshotStore()
 history_store = HistoryStore(capacity=config.history_capacity)
+gpu_snapshot_store = GpuSnapshotStore()
+gpu_history_store = GpuHistoryStore(capacity=config.history_capacity)
 sampler_service = SamplerService(
     snapshot_store=snapshot_store,
     history_store=history_store,
@@ -195,6 +211,39 @@ def get_history(
 @app.get("/api/v1/meta", response_model=MetaResponse)
 def get_meta() -> MetaResponse:
     return build_meta()
+
+
+@app.get("/api/v1/gpu/dashboard", response_model=GpuDashboardResponse)
+def get_gpu_dashboard() -> GpuDashboardResponse:
+    snapshot = build_gpu_dashboard_live()
+    now_ms = int(time.time() * 1000)
+    gpu_snapshot_store.set_snapshot(snapshot, tick_ms=now_ms)
+    gpu_history_store.push_snapshot(snapshot, tick_ms=now_ms)
+    try:
+        return build_gpu_dashboard_from_store(gpu_snapshot_store)
+    except GpuSnapshotUnavailableError:
+        _raise_api_error(503, "snapshot_unavailable")
+
+
+@app.get("/api/v1/gpu/history", response_model=GpuHistoryResponse)
+def get_gpu_history(window: int = WINDOW_DEFAULT, step: int = STEP_DEFAULT, mode: str = "display") -> GpuHistoryResponse:
+    if window < WINDOW_MIN or window > WINDOW_MAX:
+        _raise_api_error(400, "invalid_parameter", "window")
+    if step < STEP_MIN or step > STEP_MAX:
+        _raise_api_error(400, "invalid_parameter", "step")
+    if mode not in {"display", "raw"}:
+        _raise_api_error(400, "invalid_parameter", "mode")
+    if len(gpu_history_store) == 0:
+        warmup = build_gpu_dashboard_live()
+        now_ms = int(time.time() * 1000)
+        gpu_snapshot_store.set_snapshot(warmup, tick_ms=now_ms)
+        gpu_history_store.push_snapshot(warmup, tick_ms=now_ms)
+    return build_gpu_history(history_store=gpu_history_store, window_s=window, step_s=step, mode=mode)
+
+
+@app.get("/api/v1/gpu/meta", response_model=GpuMetaResponse)
+def get_gpu_meta() -> GpuMetaResponse:
+    return build_gpu_meta()
 
 
 def _raise_api_error(status_code: int, error: str, field: str | None = None) -> None:

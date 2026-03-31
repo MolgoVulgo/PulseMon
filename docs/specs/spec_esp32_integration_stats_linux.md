@@ -25,6 +25,9 @@ Si divergence, le contrat HTTP de reference est `api/docs/API_CONTRACT_V1.md`.
 - `GET /api/v1/history?window=<1..600>&step=<1..10>&mode=display`
 - `GET /api/v1/health` (etat service)
 - `GET /api/v1/meta` (capacites exposees)
+- `GET /api/v1/gpu/dashboard`
+- `GET /api/v1/gpu/history?window=<1..600>&step=<1..10>&mode=display`
+- `GET /api/v1/gpu/meta`
 
 Le firmware consomme exclusivement les endpoints versionnes `/api/v1/*`.
 
@@ -130,6 +133,18 @@ Graphes:
 - CPU temp <- `series.cpu_temp_c`
 - GPU usage <- `series.gpu_pct`
 - GPU temp <- `series.gpu_temp_c`
+
+Page GPU dediee:
+- GPU usage <- `gpu.pct.value_display`
+- GPU core clock <- `gpu.core_clock_mhz.value_display`
+- GPU VRAM clock <- `gpu.mem_clock_mhz.value_display`
+- GPU VRAM used/total <- `gpu.vram_used_b.value_display` / `gpu.vram_total_b.value_display`
+- GPU VRAM pct <- `gpu.vram_pct.value_display`
+- GPU fan <- `gpu.fan_rpm.value_display` (+ `gpu.fan_pct.value_display` si dispo)
+
+Navigation tactile:
+- slide droite -> gauche: `Main` -> `GPU`
+- slide gauche -> droite: `GPU` -> `Main`
 
 ---
 

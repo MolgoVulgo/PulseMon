@@ -27,7 +27,8 @@ void create_screen_main() {
     objects.main = obj;
     lv_obj_set_pos(obj, 0, 0);
     lv_obj_set_size(obj, 480, 340);
-    lv_obj_set_style_bg_color(obj, lv_color_hex(0xff0f1115), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_add_event_cb(obj, action_ui_swipe, LV_EVENT_GESTURE, (void *)0);
+    add_style_defaut(obj);
     {
         lv_obj_t *parent_obj = obj;
         {
@@ -356,9 +357,329 @@ void tick_screen_main() {
     }
 }
 
+void create_screen_gpu() {
+    lv_obj_t *obj = lv_obj_create(0);
+    objects.gpu = obj;
+    lv_obj_set_pos(obj, 0, 0);
+    lv_obj_set_size(obj, 480, 340);
+    lv_obj_add_event_cb(obj, action_ui_swipe, LV_EVENT_GESTURE, (void *)0);
+    add_style_defaut(obj);
+    {
+        lv_obj_t *parent_obj = obj;
+        {
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            objects.obj10 = obj;
+            lv_obj_set_pos(obj, 6, 47);
+            lv_obj_set_size(obj, 153, 50);
+            lv_obj_set_style_bg_color(obj, lv_color_hex(0xff171a21), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_color(obj, lv_color_hex(0xff2a3140), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_radius(obj, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_top(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_left(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_bottom(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_right(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.obj11 = obj;
+                    lv_obj_set_pos(obj, -4, 0);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xff90a0bc), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "GPU Usage");
+                }
+                {
+                    // gpu_pct_1
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.gpu_pct_1 = obj;
+                    lv_obj_set_pos(obj, -4, 16);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xffd8deea), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "");
+                }
+            }
+        }
+        {
+            lv_obj_t *obj = lv_label_create(parent_obj);
+            objects.obj12 = obj;
+            lv_obj_set_pos(obj, 12, 21);
+            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+            lv_obj_set_style_text_color(obj, lv_color_hex(0xffd8deea), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(obj, &ui_font_font_18, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_label_set_text(obj, "Stats Linux Monitor [");
+        }
+        {
+            // host_meta_1
+            lv_obj_t *obj = lv_label_create(parent_obj);
+            objects.host_meta_1 = obj;
+            lv_obj_set_pos(obj, 240, 25);
+            lv_obj_set_size(obj, 228, LV_SIZE_CONTENT);
+            lv_obj_set_style_text_color(obj, lv_color_hex(0xff90a0bc), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(obj, &lv_font_montserrat_14, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_label_set_text(obj, "");
+        }
+        {
+            // graph_gpu_pct
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            objects.graph_gpu_pct = obj;
+            lv_obj_set_pos(obj, 6, 160);
+            lv_obj_set_size(obj, 232, 160);
+            lv_obj_set_style_bg_color(obj, lv_color_hex(0xff0f131d), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_color(obj, lv_color_hex(0xff232a38), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+        }
+        {
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            objects.obj13 = obj;
+            lv_obj_set_pos(obj, 163, 47);
+            lv_obj_set_size(obj, 154, 50);
+            lv_obj_set_style_bg_color(obj, lv_color_hex(0xff171a21), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_color(obj, lv_color_hex(0xff2a3140), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_radius(obj, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_top(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_left(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_bottom(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_right(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.obj14 = obj;
+                    lv_obj_set_pos(obj, -4, 0);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xff90a0bc), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "Temperature");
+                }
+                {
+                    // gpu_temp_1
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.gpu_temp_1 = obj;
+                    lv_obj_set_pos(obj, -4, 16);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xffd8deea), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "");
+                }
+            }
+        }
+        {
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            objects.obj15 = obj;
+            lv_obj_set_pos(obj, 321, 47);
+            lv_obj_set_size(obj, 153, 50);
+            lv_obj_set_style_bg_color(obj, lv_color_hex(0xff171a21), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_color(obj, lv_color_hex(0xff2a3140), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_radius(obj, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_top(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_left(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_bottom(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_right(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.obj16 = obj;
+                    lv_obj_set_pos(obj, -4, 0);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xff90a0bc), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "Power");
+                }
+                {
+                    // gpu_power_1
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.gpu_power_1 = obj;
+                    lv_obj_set_pos(obj, -4, 16);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xffd8deea), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "");
+                }
+            }
+        }
+        {
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            objects.obj17 = obj;
+            lv_obj_set_pos(obj, 163, 101);
+            lv_obj_set_size(obj, 153, 50);
+            lv_obj_set_style_bg_color(obj, lv_color_hex(0xff171a21), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_color(obj, lv_color_hex(0xff2a3140), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_radius(obj, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_top(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_left(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_bottom(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_right(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.obj18 = obj;
+                    lv_obj_set_pos(obj, -4, 0);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xff90a0bc), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "Fan");
+                }
+                {
+                    // gpu_pct_7
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.gpu_pct_7 = obj;
+                    lv_obj_set_pos(obj, -4, 16);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xffd8deea), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "");
+                }
+            }
+        }
+        {
+            lv_obj_t *obj = lv_label_create(parent_obj);
+            objects.obj19 = obj;
+            lv_obj_set_pos(obj, 202, 21);
+            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+            lv_obj_set_style_text_color(obj, lv_color_hex(0xffff6e39), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(obj, &ui_font_font_18, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_label_set_text(obj, "GPU");
+        }
+        {
+            lv_obj_t *obj = lv_label_create(parent_obj);
+            objects.obj20 = obj;
+            lv_obj_set_pos(obj, 231, 21);
+            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+            lv_obj_set_style_text_color(obj, lv_color_hex(0xffd8deea), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(obj, &ui_font_font_18, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_label_set_text(obj, "]");
+        }
+        {
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            objects.obj21 = obj;
+            lv_obj_set_pos(obj, 6, 100);
+            lv_obj_set_size(obj, 153, 50);
+            lv_obj_set_style_bg_color(obj, lv_color_hex(0xff171a21), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_color(obj, lv_color_hex(0xff2a3140), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_radius(obj, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_top(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_left(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_bottom(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_pad_right(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.obj22 = obj;
+                    lv_obj_set_pos(obj, -4, 0);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xff90a0bc), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "VRAM");
+                }
+                {
+                    // gpu_vram_total
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    objects.gpu_vram_total = obj;
+                    lv_obj_set_pos(obj, 65, 0);
+                    lv_obj_set_size(obj, 70, LV_SIZE_CONTENT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xffd8deea), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "");
+                }
+                {
+                    lv_obj_t *obj = lv_bar_create(parent_obj);
+                    objects.obj23 = obj;
+                    lv_obj_set_pos(obj, -4, 17);
+                    lv_obj_set_size(obj, 139, 15);
+                }
+            }
+        }
+        {
+            // graph_gpu_temp
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            objects.graph_gpu_temp = obj;
+            lv_obj_set_pos(obj, 242, 160);
+            lv_obj_set_size(obj, 232, 160);
+            lv_obj_set_style_bg_color(obj, lv_color_hex(0xff0f131d), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_color(obj, lv_color_hex(0xff232a38), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+        }
+    }
+    
+    tick_screen_gpu();
+}
+
+void tick_screen_gpu() {
+    {
+        const char *new_val = get_var_gpu_pct();
+        const char *cur_val = lv_label_get_text(objects.gpu_pct_1);
+        if (strcmp(new_val, cur_val) != 0) {
+            tick_value_change_obj = objects.gpu_pct_1;
+            lv_label_set_text(objects.gpu_pct_1, new_val);
+            tick_value_change_obj = NULL;
+        }
+    }
+    {
+        const char *new_val = get_var_host_meta();
+        const char *cur_val = lv_label_get_text(objects.host_meta_1);
+        if (strcmp(new_val, cur_val) != 0) {
+            tick_value_change_obj = objects.host_meta_1;
+            lv_label_set_text(objects.host_meta_1, new_val);
+            tick_value_change_obj = NULL;
+        }
+    }
+    {
+        const char *new_val = get_var_gpu_temp();
+        const char *cur_val = lv_label_get_text(objects.gpu_temp_1);
+        if (strcmp(new_val, cur_val) != 0) {
+            tick_value_change_obj = objects.gpu_temp_1;
+            lv_label_set_text(objects.gpu_temp_1, new_val);
+            tick_value_change_obj = NULL;
+        }
+    }
+    {
+        const char *new_val = get_var_gpu_power();
+        const char *cur_val = lv_label_get_text(objects.gpu_power_1);
+        if (strcmp(new_val, cur_val) != 0) {
+            tick_value_change_obj = objects.gpu_power_1;
+            lv_label_set_text(objects.gpu_power_1, new_val);
+            tick_value_change_obj = NULL;
+        }
+    }
+    {
+        const char *new_val = get_var_gpu_fan_rpm();
+        const char *cur_val = lv_label_get_text(objects.gpu_pct_7);
+        if (strcmp(new_val, cur_val) != 0) {
+            tick_value_change_obj = objects.gpu_pct_7;
+            lv_label_set_text(objects.gpu_pct_7, new_val);
+            tick_value_change_obj = NULL;
+        }
+    }
+    {
+        const char *new_val = get_var_gpu_vram_total();
+        const char *cur_val = lv_label_get_text(objects.gpu_vram_total);
+        if (strcmp(new_val, cur_val) != 0) {
+            tick_value_change_obj = objects.gpu_vram_total;
+            lv_label_set_text(objects.gpu_vram_total, new_val);
+            tick_value_change_obj = NULL;
+        }
+    }
+    {
+        int32_t new_val = get_var_gpu_vram_used();
+        int32_t cur_val = lv_bar_get_value(objects.obj23);
+        if (new_val != cur_val) {
+            tick_value_change_obj = objects.obj23;
+            lv_bar_set_value(objects.obj23, new_val, LV_ANIM_OFF);
+            tick_value_change_obj = NULL;
+        }
+    }
+}
+
 typedef void (*tick_screen_func_t)();
 tick_screen_func_t tick_screen_funcs[] = {
     tick_screen_main,
+    tick_screen_gpu,
 };
 void tick_screen(int screen_index) {
     tick_screen_funcs[screen_index]();
@@ -458,4 +779,5 @@ void create_screens() {
     // Initialize screens
     // Create screens
     create_screen_main();
+    create_screen_gpu();
 }

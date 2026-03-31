@@ -17,7 +17,11 @@ static char g_mem_total[VAR_BUF_LEN];
 static char g_gpu_pct[VAR_BUF_LEN];
 static char g_gpu_temp[VAR_BUF_LEN];
 static char g_gpu_power[VAR_BUF_LEN];
+static char g_gpu_vram_total[VAR_BUF_LEN];
+static char g_gpu_mem_clock[VAR_BUF_LEN];
+static char g_gpu_fan_rpm[VAR_BUF_LEN];
 static char g_host_meta[HOST_META_BUF_LEN];
+static int32_t g_gpu_vram_used;
 
 typedef struct {
     float value;
@@ -160,6 +164,54 @@ const char *get_var_gpu_power()
 void set_var_gpu_power(const char *value)
 {
     set_text(g_gpu_power, sizeof(g_gpu_power), value);
+}
+
+const char *get_var_gpu_vram_total()
+{
+    return g_gpu_vram_total;
+}
+
+void set_var_gpu_vram_total(const char *value)
+{
+    set_text(g_gpu_vram_total, sizeof(g_gpu_vram_total), value);
+}
+
+const char *get_var_gpu_mem_clock()
+{
+    return g_gpu_mem_clock;
+}
+
+void set_var_gpu_mem_clock(const char *value)
+{
+    set_text(g_gpu_mem_clock, sizeof(g_gpu_mem_clock), value);
+}
+
+const char *get_var_gpu_fan_rpm()
+{
+    return g_gpu_fan_rpm;
+}
+
+void set_var_gpu_fan_rpm(const char *value)
+{
+    set_text(g_gpu_fan_rpm, sizeof(g_gpu_fan_rpm), value);
+}
+
+int32_t get_var_gpu_vram_used()
+{
+    return g_gpu_vram_used;
+}
+
+void set_var_gpu_vram_used(int32_t value)
+{
+    if (value < 0) {
+        g_gpu_vram_used = 0;
+        return;
+    }
+    if (value > 100) {
+        g_gpu_vram_used = 100;
+        return;
+    }
+    g_gpu_vram_used = value;
 }
 
 const char *get_var_host_meta()

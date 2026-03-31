@@ -2,6 +2,8 @@
 
 Contract prefix: `/api/v1/`
 
+GPU extension reference: `api/docs/API_GPU_CONTRACT_V1.md`
+
 ## Guarantees
 
 - JSON contract version is always `"v": 1`.

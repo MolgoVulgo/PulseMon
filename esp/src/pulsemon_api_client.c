@@ -261,3 +261,88 @@ bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_l
     }
     return true;
 }
+
+bool pulsemon_fetch_gpu_dashboard(pulsemon_gpu_dashboard_t *out, char *err, size_t err_len)
+{
+    if (out == NULL) {
+        set_err(err, err_len, "out=null");
+        return false;
+    }
+    memset(out, 0, sizeof(*out));
+
+    char *body = (char *)calloc(1, DASHBOARD_BODY_CAP);
+    if (body == NULL) {
+        set_err(err, err_len, "oom_body");
+        return false;
+    }
+
+    http_acc_t acc = {
+        .buf = body,
+        .cap = DASHBOARD_BODY_CAP,
+        .len = 0,
+    };
+
+    char url[192];
+    snprintf(url, sizeof(url), "%s/gpu/dashboard", PULSEMON_API_BASE_URL);
+
+    esp_http_client_config_t cfg = {
+        .url = url,
+        .method = HTTP_METHOD_GET,
+        .timeout_ms = PULSEMON_HTTP_TIMEOUT_MS,
+        .event_handler = http_event_handler,
+        .user_data = &acc,
+        .buffer_size = 2048,
+        .buffer_size_tx = 1024,
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&cfg);
+    if (client == NULL) {
+        set_err(err, err_len, "http_init_failed");
+        free(body);
+        return false;
+    }
+
+    esp_err_t rc = esp_http_client_perform(client);
+    if (rc != ESP_OK) {
+        set_err(err, err_len, "http_perform_failed");
+        esp_http_client_cleanup(client);
+        free(body);
+        return false;
+    }
+
+    int status = esp_http_client_get_status_code(client);
+    esp_http_client_cleanup(client);
+    if (status != 200) {
+        set_err(err, err_len, "http_status_not_200");
+        free(body);
+        return false;
+    }
+
+    cJSON *root = cJSON_Parse(body);
+    if (!cJSON_IsObject(root)) {
+        set_err(err, err_len, "json_parse_failed");
+        if (root) {
+            cJSON_Delete(root);
+        }
+        free(body);
+        return false;
+    }
+
+    cJSON *gpu = obj_get(root, "gpu");
+    if (cJSON_IsObject(gpu)) {
+        parse_metric(obj_get(gpu, "pct"), &out->pct, &out->pct_valid);
+        parse_metric(obj_get(gpu, "core_clock_mhz"), &out->core_clock_mhz, &out->core_clock_mhz_valid);
+        parse_metric(obj_get(gpu, "mem_clock_mhz"), &out->mem_clock_mhz, &out->mem_clock_mhz_valid);
+        parse_metric_u64(obj_get(gpu, "vram_used_b"), &out->vram_used_b, &out->vram_used_b_valid);
+        parse_metric_u64(obj_get(gpu, "vram_total_b"), &out->vram_total_b, &out->vram_total_b_valid);
+        parse_metric(obj_get(gpu, "vram_pct"), &out->vram_pct, &out->vram_pct_valid);
+        parse_metric(obj_get(gpu, "temp_c"), &out->temp_c, &out->temp_c_valid);
+        parse_metric(obj_get(gpu, "power_w"), &out->power_w, &out->power_w_valid);
+        parse_metric(obj_get(gpu, "fan_rpm"), &out->fan_rpm, &out->fan_rpm_valid);
+        parse_metric(obj_get(gpu, "fan_pct"), &out->fan_pct, &out->fan_pct_valid);
+    }
+
+    cJSON_Delete(root);
+    free(body);
+    return true;
+}
