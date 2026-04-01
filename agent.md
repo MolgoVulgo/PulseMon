@@ -35,7 +35,7 @@ Lire d’abord, dans cet ordre :
 1. `docs/specs/cahier_des_charges_stats_linux_esp_32.md`
 2. `docs/specs/cahier_fonctionnel_stats_linux_esp_32.md`
 3. `docs/plans/plan_implementation_api_stats_linux.md`
-4. `platformio.ini` (racine)
+4. `platformio.ini` (racine si présent, sinon `esp/platformio.ini`)
 5. `esp/src/`
 6. `esp/sdkconfig.defaults`
 7. `esp/boards/`
@@ -115,6 +115,9 @@ Les endpoints V1 de référence sont :
 - `GET /api/v1/dashboard`
 - `GET /api/v1/history`
 - `GET /api/v1/meta`
+- `GET /api/v1/gpu/dashboard`
+- `GET /api/v1/gpu/history`
+- `GET /api/v1/gpu/meta`
 
 Contraintes impératives :
 - JSON versionné avec `"v": 1` ;
@@ -123,6 +126,7 @@ Contraintes impératives :
 - unités fixes ;
 - champs toujours présents ;
 - valeurs absentes à `null`, jamais supprimées ;
+- enveloppe métrique stable (`value_raw`, `value_display`, `source`, `unit`, `sampled_at`, `estimated`, `valid`) ;
 - tableaux d’historique plats et alignés ;
 - aucune reconstruction métier côté client ESP32.
 
@@ -195,7 +199,7 @@ Le principe directeur du projet est simple :
 - Collecte généraliste : psutil.
 - Collecte spécifique AMD : sysfs / hwmon / DRM / amdgpu.
 - Pas de lecture lourde à chaque requête HTTP.
-- Boucle d’échantillonnage interne cible : **1 Hz**.
+- Boucle d’échantillonnage interne cible : **acquisition 10 Hz / publication 2 Hz** (configurable).
 - Historique en ring buffer mémoire.
 
 ### Firmware
@@ -205,7 +209,7 @@ Le principe directeur du projet est simple :
 - UI via LVGL.
 - Interdiction explicite: ne jamais lancer de build, flash ou monitor ESP (`idf.py`/`pio`) sauf demande explicite contraire de l’utilisateur.
 - Polling `dashboard` cible : **1 Hz**.
-- Polling `history` cible : **5 à 10 s**.
+- Polling `history` : **optionnel** (non utilisé dans le firmware actuel, graphes locaux alimentés par snapshots).
 - Conserver le dernier snapshot valide en cas d’échec.
 - Signaler explicitement les données obsolètes.
 - Ressources embarquées contraintes (RAM/Flash/CPU) : privilégier les modifications sobres.
