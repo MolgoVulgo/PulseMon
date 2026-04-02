@@ -1,57 +1,71 @@
 # API GPU Contract V1
 
-Prefixe: `/api/v1/gpu`
+Prefixe contractuel: `/api/v1/gpu`
+
+Ce contrat decrit l'extension GPU exposee en V1 sans rupture du contrat general (`/api/v1/dashboard`, `/api/v1/history`, `/api/v1/meta`).
 
 ## Endpoints
-- `GET /dashboard`
-- `GET /history?window=300&step=1&mode=display`
-- `GET /meta`
 
-## Dashboard
+- `GET /api/v1/gpu/dashboard`
+- `GET /api/v1/gpu/history?window=300&step=1&mode=display`
+- `GET /api/v1/gpu/meta`
 
-```json
-{
-  "v": 1,
-  "ts": 1774256402,
-  "host": "linux-main",
-  "gpu": {
-    "pct": {"value_raw": 10.0, "value_display": 9.5, "source": "...", "unit": "percent", "sampled_at": 1774256402000, "estimated": false, "valid": true},
-    "core_clock_mhz": {"value_raw": 739, "value_display": 739, "source": "...", "unit": "mhz", "sampled_at": 1774256402000, "estimated": false, "valid": true},
-    "mem_clock_mhz": {"value_raw": 1300, "value_display": 1300, "source": "...", "unit": "mhz", "sampled_at": 1774256402000, "estimated": false, "valid": true},
-    "vram_used_b": {"value_raw": 2040109465, "value_display": 2040109465, "source": "...", "unit": "bytes", "sampled_at": 1774256402000, "estimated": false, "valid": true},
-    "vram_total_b": {"value_raw": 17080198144, "value_display": 17080198144, "source": "...", "unit": "bytes", "sampled_at": 1774256402000, "estimated": false, "valid": true},
-    "vram_pct": {"value_raw": 12.0, "value_display": 12.0, "source": "...", "unit": "percent", "sampled_at": 1774256402000, "estimated": false, "valid": true},
-    "temp_c": {"value_raw": 56.0, "value_display": 56.0, "source": "...", "unit": "celsius", "sampled_at": 1774256402000, "estimated": false, "valid": true},
-    "power_w": {"value_raw": 49.0, "value_display": 49.0, "source": "...", "unit": "watt", "sampled_at": 1774256402000, "estimated": false, "valid": true},
-    "fan_rpm": {"value_raw": 0, "value_display": 0, "source": "...", "unit": "rpm", "sampled_at": 1774256402000, "estimated": false, "valid": true},
-    "fan_pct": {"value_raw": null, "value_display": null, "source": "...", "unit": "percent", "sampled_at": 1774256402000, "estimated": false, "valid": false}
-  },
-  "state": {"ok": true, "stale_ms": 0}
-}
-```
+## `GET /api/v1/gpu/dashboard`
 
-## History
+Retourne un snapshot GPU etendu:
+- `v`, `ts`, `host`, `state`
+- `gpu.pct`
+- `gpu.core_clock_mhz`
+- `gpu.mem_clock_mhz`
+- `gpu.vram_used_b`
+- `gpu.vram_total_b`
+- `gpu.vram_pct`
+- `gpu.temp_c`
+- `gpu.power_w`
+- `gpu.fan_rpm`
+- `gpu.fan_pct`
 
-```json
-{
-  "v": 1,
-  "ts": 1774256402,
-  "ts_ms": [1774256399000, 1774256400000, 1774256401000],
-  "window_s": 300,
-  "step_s": 1,
-  "series": {
-    "gpu_pct": [7.0, 8.0, 10.0],
-    "gpu_core_clock_mhz": [650, 680, 739],
-    "gpu_vram_used_b": [1986422374, 2013265920, 2040109465],
-    "gpu_temp_c": [55.0, 55.0, 56.0],
-    "gpu_power_w": [47.0, 48.0, 49.0],
-    "gpu_mem_clock_mhz": [1300, 1300, 1300],
-    "gpu_fan_rpm": [0, 0, 0]
-  }
-}
-```
+Chaque champ GPU est une enveloppe metrique identique a celle du contrat principal (`value_raw`, `value_display`, `source`, `unit`, `sampled_at`, `estimated`, `valid`).
 
-## Meta
-- `metrics`: liste des metriques GPU exposees.
-- `history_series`: liste des series GPU exposees.
-- `caps`: capacites detectees (`fan_pct`, `hotspot_temp`, `mem_temp`).
+Comportement implementation:
+- l'endpoint lit les capteurs en direct a chaque requete;
+- puis met a jour le store GPU interne (snapshot + historique) pour coherence avec `/gpu/history`.
+
+## `GET /api/v1/gpu/history`
+
+Parametres:
+- `window`: `1..600` (defaut `300`)
+- `step`: `1..10` (defaut `1`)
+- `mode`: `display|raw` (defaut `display`)
+
+Reponse:
+- `v`, `ts`, `ts_ms`, `window_s`, `step_s`
+- `series.gpu_pct`
+- `series.gpu_core_clock_mhz`
+- `series.gpu_vram_used_b`
+- `series.gpu_temp_c`
+- `series.gpu_power_w`
+- `series.gpu_mem_clock_mhz`
+- `series.gpu_fan_rpm`
+
+Regles:
+- bucketisation temporelle comme pour `/api/v1/history`;
+- `mode=display` prend les valeurs display, `mode=raw` prend `gpu_pct` brut;
+- les series non disponibles retournent `null`;
+- si le store est vide, un warmup est fait via une lecture live avant de repondre.
+
+## `GET /api/v1/gpu/meta`
+
+Reponse:
+- `v`, `host`, `gpu_name`
+- `metrics` (liste des metriques GPU exposees)
+- `history_series` (liste des series GPU exposees)
+- `caps`:
+  - `fan_pct`
+  - `hotspot_temp`
+  - `mem_temp`
+
+Etat actuel des caps:
+- `fan_pct`: detecte dynamiquement (lecture `pwm1`)
+- `hotspot_temp`: `false`
+- `mem_temp`: `false`

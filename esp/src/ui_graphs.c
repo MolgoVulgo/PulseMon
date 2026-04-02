@@ -10,6 +10,8 @@
 
 #define GRAPH_POINT_COUNT 90
 #define AXIS_LABEL_COUNT 5
+#define AXIS_LABEL_MIN_WIDTH 30
+#define AXIS_LABEL_X_OFFSET -15
 #define USAGE_RANGE_MIN 0
 #define USAGE_RANGE_MAX 100
 #define TEMP_RANGE_MIN 20
@@ -104,7 +106,10 @@ static void update_chart_axis_labels(lv_obj_t *chart, lv_obj_t *labels[AXIS_LABE
         plot_h = chart_h;
         plot_top = chart_y;
     }
-    lv_coord_t label_w = (chart_x > 4) ? (chart_x - 4) : 10;
+    lv_coord_t label_w = chart_x;
+    if (label_w < AXIS_LABEL_MIN_WIDTH) {
+        label_w = AXIS_LABEL_MIN_WIDTH;
+    }
 
     char buf[12];
     float span = (float)(range_max - range_min);
@@ -121,13 +126,13 @@ static void update_chart_axis_labels(lv_obj_t *chart, lv_obj_t *labels[AXIS_LABE
         lv_obj_set_width(label, label_w);
         lv_obj_update_layout(label);
         lv_coord_t y = plot_top + (lv_coord_t)((float)(plot_h - 1) * ratio) - (lv_obj_get_height(label) / 2);
-        lv_obj_set_pos(label, 0, y);
+        lv_obj_set_pos(label, AXIS_LABEL_X_OFFSET, y);
     }
 }
 
 static void init_chart_common(lv_obj_t *chart)
 {
-    lv_obj_set_pos(chart, 30, 18);
+    lv_obj_set_pos(chart, 20, 8);
     lv_obj_set_size(chart, 186, 114);
     lv_obj_clear_flag(chart, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_bg_color(chart, lv_color_hex(0x0f131d), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -148,10 +153,10 @@ static void init_chart_common(lv_obj_t *chart)
 static void init_chart_common_for_panel(lv_obj_t *chart, lv_coord_t panel_h)
 {
     if (panel_h <= 90) {
-        lv_obj_set_pos(chart, 30, 11);
+        lv_obj_set_pos(chart, 30, 1);
         lv_obj_set_size(chart, 186, 53);
     } else {
-        lv_obj_set_pos(chart, 30, 18);
+        lv_obj_set_pos(chart, 30, 8);
         lv_obj_set_size(chart, 186, 114);
     }
     lv_obj_clear_flag(chart, LV_OBJ_FLAG_SCROLLABLE);

@@ -1,23 +1,36 @@
-# Cahier des charges GPU AMD V1 (adapte)
+# Cahier des charges GPU AMD V1
 
-## Portee
-- Extension GPU specialisee sans rupture du contrat V1 existant.
-- Backend Linux: API FastAPI + collecte amdgpu/sysfs/hwmon.
-- Client ESP32-S3: consommation HTTP + affichage LVGL.
+## 1. Portee
 
-## Regles de compatibilite
-- Les endpoints V1 existants restent inchanges:
-  - `GET /api/v1/dashboard`
-  - `GET /api/v1/history`
-  - `GET /api/v1/meta`
-- Extension GPU via endpoints dedies:
-  - `GET /api/v1/gpu/dashboard`
-  - `GET /api/v1/gpu/history`
-  - `GET /api/v1/gpu/meta`
-- JSON versionne `"v": 1`.
-- Champs stables, metrique absente = `null` + `valid=false`.
+Extension GPU dediee sans rupture du contrat V1 principal.
 
-## Metriques GPU V1
+Backend:
+- FastAPI
+- collecte amdgpu/sysfs/hwmon
+
+Firmware:
+- consommation HTTP
+- affichage LVGL
+
+## 2. Compatibilite V1
+
+Endpoints principaux conserves:
+- `GET /api/v1/dashboard`
+- `GET /api/v1/history`
+- `GET /api/v1/meta`
+
+Endpoints GPU dedies:
+- `GET /api/v1/gpu/dashboard`
+- `GET /api/v1/gpu/history`
+- `GET /api/v1/gpu/meta`
+
+Regles:
+- JSON versionne `"v": 1`;
+- metrique absente => enveloppe avec `value_raw/value_display = null` et `valid=false`;
+- pas de champ supprime selon la machine.
+
+## 3. Metriques GPU exposees
+
 - `gpu.pct`
 - `gpu.core_clock_mhz`
 - `gpu.mem_clock_mhz`
@@ -29,7 +42,8 @@
 - `gpu.fan_rpm`
 - `gpu.fan_pct`
 
-## Historique GPU V1
+## 4. Series history GPU exposees
+
 - `gpu_pct`
 - `gpu_core_clock_mhz`
 - `gpu_vram_used_b`
@@ -38,13 +52,21 @@
 - `gpu_mem_clock_mhz`
 - `gpu_fan_rpm`
 
-## UI ESP32
-- Page GPU dediee deja generee.
-- Navigation tactile: slide droite -> gauche pour passer Main -> GPU, slide inverse pour retour.
-- Pas de logique metier/capteur cote UI.
+## 5. Etat firmware actuel
 
-## Hors perimetre V1
+Le firmware consomme actuellement:
+- `/api/v1/gpu/dashboard`
+
+Le firmware ne consomme pas encore:
+- `/api/v1/gpu/history`
+- `/api/v1/gpu/meta`
+
+Les graphes GPU sont alimentees localement depuis les snapshots recus.
+
+## 6. Hors perimetre V1
+
 - MQTT
 - multi-GPU
 - controle OC/ventilateurs
-- cloud/persistance longue duree
+- cloud
+- persistance longue duree

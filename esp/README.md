@@ -1,77 +1,85 @@
-# Documentation technique firmware ESP32-S3
+# Firmware ESP32-S3 (PulseMon)
 
-## Objet
-Ce dossier contient le firmware ESP32-S3 (ESP-IDF + LVGL) du projet PulseMon.
+Firmware ESP-IDF + LVGL du projet PulseMon.
 
-## Arborescence de reference
+## Objectif
+
+Afficher les metriques backend sur ecran local:
+- page `Main`: CPU / RAM / GPU (snapshot global)
+- page `GPU`: details GPU AMD
+
+## Arborescence utile
 
 ```text
 esp/
 ├── platformio.ini
-├── README.md
-├── CMakeLists.txt
-├── boards/
-│   └── 320x480.json
-├── libraries/
-│   └── readme.txt
-├── src/
-│   ├── main.c
-│   ├── pulsemon_api_client.c
-│   ├── pulsemon_poller.c
-│   ├── ui_screen.c
-│   ├── ui_graphs.c
-│   ├── lv_port.c
-│   ├── esp_bsp.c
-│   ├── esp_lcd_axs15231b.c
-│   ├── esp_lcd_touch.c
-│   └── ui/ (genere)
+├── boards/320x480.json
 ├── sdkconfig.defaults
-└── sdkconfig.LVGL-320-480
+└── src/
+    ├── main.c
+    ├── pulsemon_api_client.c
+    ├── pulsemon_poller.c
+    ├── ui_screen.c
+    ├── ui_graphs.c
+    ├── vars.c
+    └── ui/   (genere, ne pas modifier)
 ```
 
-## Configuration PlatformIO
-Le fichier `platformio.ini` local configure:
-- `boards_dir = boards`
-- `lib_dir = libraries`
-- `src_dir = src`
-- `LV_CONF_PATH=${PROJECT_DIR}/src/lv_conf.h`
-- `lib_deps = lvgl/lvgl@^8.4.0`
+## Endpoints consommes actuellement
 
-## Roles des modules
-- `src/main.c`: demarrage systeme, Wi-Fi STA, initialisation UI, lancement poller.
-- `src/pulsemon_api_client.*`: client HTTP `GET /api/v1/dashboard` + parsing JSON.
-- `src/pulsemon_poller.*`: polling periodique backend et mise a jour UI.
-- `src/ui_screen.*`: logique ecran principal (bindings vars UI).
-- `src/ui_graphs.*`: gestion des graphes LVGL.
-- `src/esp_bsp.*`, `src/esp_lcd_*.*`: BSP, ecran et tactile.
-- `src/lv_port.*`: integration LVGL (tick, buffers, flush, input).
-- `src/ui/`: fichiers UI generes (pas de modification manuelle).
+Le firmware consomme en production:
+- `GET /api/v1/dashboard`
+- `GET /api/v1/gpu/dashboard`
 
-## Build firmware
-Depuis `esp/`:
+Important:
+- le code ne consomme pas encore `/api/v1/history` ni `/api/v1/gpu/history`;
+- les graphes LVGL sont alimentes localement (echantillonnage des variables affichees a 1 Hz).
+
+## Comportement runtime
+
+- Poller: `PULSEMON_DASHBOARD_POLL_MS` (defaut `1000` ms)
+- Si ecran actif = `Main`: fetch `/dashboard`
+- Si ecran actif = `GPU`: fetch `/gpu/dashboard`
+- En echec fetch: message `backend offline` et conservation implicite des dernieres valeurs UI
+- Parsing JSON tolerant:
+  - priorite `value_display`
+  - fallback `value_raw`
+  - fallback scalaire direct si necessaire
+
+## Configuration API firmware
+
+Definie dans `src/pulsemon_api_config.h`:
+- `PULSEMON_API_HOST`
+- `PULSEMON_API_PORT`
+- `PULSEMON_API_BASE_URL`
+- `PULSEMON_HTTP_TIMEOUT_MS`
+- `PULSEMON_DASHBOARD_POLL_MS`
+
+La valeur par defaut est une URL LAN statique (`192.168.0.10`).
+
+## Build
 
 ```bash
+cd esp
 pio run -e LVGL-320-480
 ```
 
 ## Regles de maintenance
-- Ne pas modifier directement `src/ui/` (fichiers generes).
-- Conserver la separation reseau / parsing / cache / UI.
-- Limiter les allocations dynamiques et les blocages longs dans les taches critiques.
 
-## Debug latence affichage
-Les logs de latence sont controls par flags de build:
-- `PULSEMON_LATENCY_DEBUG` (`1` pour activer les `ESP_LOGD` de timings HTTP/UI, `0` pour desactiver)
-- `PULSEMON_UI_WARN_MS` (seuil d'alerte attente lock et application UI)
-- `PULSEMON_HTTP_WARN_MS` (seuil d'alerte requete HTTP dashboard)
+- Ne jamais modifier `src/ui/` directement (fichiers generes).
+- Preserver le decouplage: reseau -> parsing -> vars -> rendu UI.
+- Eviter les allocations dynamiques non necessaires dans le chemin nominal.
 
-Les points traces en debug couvrent:
-- requete HTTP dashboard (`http`, `parse`, `total`);
-- boucle poller (`fetch`, attente lock LVGL, application UI, cycle complet).
+## Debug latence
 
-Capture 60 s de reference cote backend (diagnostic compare):
+Flags de build (dans `platformio.ini`):
+- `PULSEMON_LATENCY_DEBUG`
+- `PULSEMON_UI_WARN_MS`
+- `PULSEMON_HTTP_WARN_MS`
 
-```bash
-cd api
-.venv/bin/python -m app.diagnostics.raw_capture --mode compare --duration-s 60 --sample-hz 10 --ema-alpha 0.25 --output ../diagnostics/raw_vs_display_gpu_pct_YYYYMMDD.jsonl
-```
+## Capture LCD periodique (debug)
+
+Si `PULSEMON_SCREENSHOT_DEBUG=1`:
+- capture framebuffer RGB565 periodique;
+- ecriture BMP sur SD (`PULSEMON_SCREENSHOT_DIR`);
+- intervalle: `PULSEMON_SCREENSHOT_INTERVAL_MS`.

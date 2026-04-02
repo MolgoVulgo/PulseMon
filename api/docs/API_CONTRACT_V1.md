@@ -1,25 +1,22 @@
 # API Contract V1
 
-Contract prefix: `/api/v1/`
+Prefixe contractuel: `/api/v1`
 
-GPU extension reference: `api/docs/API_GPU_CONTRACT_V1.md`
+Extension GPU dediee: `api/docs/API_GPU_CONTRACT_V1.md`
 
-## Guarantees
+## Portee
 
-- JSON contract version is always `"v": 1`.
-- Field names are fixed.
-- Units are fixed.
-- Missing metrics are returned as `null` and never removed.
-- History series are flat arrays with aligned lengths.
-- History series are generated from real sample timestamps (ms) and bucketed by `step`.
-- Each metric payload exposes raw/display/source metadata.
-- Acquisition and publication are decoupled:
-  - sensor acquisition target: 10 Hz
-  - API publication target: 2 Hz
+Ce document decrit le contrat HTTP effectivement implemente par `api/app/main.py`.
 
-## Metric Envelope
+Garantie de compatibilite V1:
+- `"v": 1` sur tous les payloads de contrat;
+- noms de champs stables;
+- champs conserves meme si la metrique est absente (`null` + `valid=false` dans l'enveloppe metrique);
+- `history` retourne des series alignees sur une timeline `ts_ms` explicite.
 
-Every dashboard metric uses this shape:
+## Enveloppe metrique
+
+Chaque metrique de `dashboard` utilise cette forme:
 
 ```json
 {
@@ -33,21 +30,30 @@ Every dashboard metric uses this shape:
 }
 ```
 
-Fields:
+Champs:
+- `value_raw`: valeur capteur brute, ou `null`.
+- `value_display`: valeur prete a afficher, ou `null`.
+- `source`: source retenue (signature logique ou chemin sysfs).
+- `unit`: unite fixe (`percent`, `celsius`, `watt`, `bytes`).
+- `sampled_at`: timestamp Unix en millisecondes.
+- `estimated`: reserve aux valeurs estimees (actuellement `false` dans le backend).
+- `valid`: `true` si une valeur exploitable a ete lue.
 
-- `value_raw`: direct instantaneous sensor value, or `null`
-- `value_display`: UI value derived from `value_raw` (`Median(3)` then `EMA(alpha)` for `%` usage metrics), or `null`
-- `source`: selected source path/signature
-- `unit`: fixed unit (`percent`, `celsius`, `watt`, `bytes`)
-- `sampled_at`: unix timestamp in ms
-- `estimated`: `true` only for computed estimate (unused in current backend)
-- `valid`: `true` only when a real value was read
+Politique `value_display` actuelle:
+- `cpu.pct` et `gpu.pct`: `Median(3)` puis `EMA(alpha)`.
+- autres metriques: `value_display == value_raw` quand la metrique est valide.
+
+## Cadence backend
+
+Cadence par defaut (configurable via variables d'environnement):
+- acquisition capteurs: `STATS_SAMPLE_INTERVAL_S=0.1` (10 Hz);
+- publication snapshot/history: `STATS_PUBLISH_INTERVAL_S=0.5` (2 Hz).
 
 ## Endpoints
 
 ### `GET /api/v1/health`
 
-Returns service availability:
+Retourne un etat minimal du service.
 
 ```json
 {
@@ -58,131 +64,30 @@ Returns service availability:
 }
 ```
 
+Note: l'implementation actuelle retourne `ok=true`.
+
 ### `GET /api/v1/dashboard`
 
-Returns current snapshot:
+Retourne le dernier snapshot publie par le sampler.
 
-```json
-{
-  "v": 1,
-  "ts": 1774256402,
-  "host": "linux-main",
-  "cpu": {
-    "pct": {
-      "value_raw": 86.0,
-      "value_display": 89.2,
-      "source": "psutil.cpu_percent(interval=None)",
-      "unit": "percent",
-      "sampled_at": 1774256402000,
-      "estimated": false,
-      "valid": true
-    },
-    "temp_c": {
-      "value_raw": 67.0,
-      "value_display": 66.6,
-      "source": "psutil.sensors_temperatures(fahrenheit=False):Tctl",
-      "unit": "celsius",
-      "sampled_at": 1774256402000,
-      "estimated": false,
-      "valid": true
-    },
-    "power_w": {
-      "value_raw": null,
-      "value_display": null,
-      "source": "/sys/class/powercap/*/energy_uj",
-      "unit": "watt",
-      "sampled_at": 1774256402000,
-      "estimated": false,
-      "valid": false
-    }
-  },
-  "mem": {
-    "used_b": {
-      "value_raw": 9123454976,
-      "value_display": 9123454976,
-      "source": "psutil.virtual_memory()",
-      "unit": "bytes",
-      "sampled_at": 1774256402000,
-      "estimated": false,
-      "valid": true
-    },
-    "total_b": {
-      "value_raw": 34359738368,
-      "value_display": 34359738368,
-      "source": "psutil.virtual_memory()",
-      "unit": "bytes",
-      "sampled_at": 1774256402000,
-      "estimated": false,
-      "valid": true
-    },
-    "pct": {
-      "value_raw": 26.6,
-      "value_display": 26.6,
-      "source": "psutil.virtual_memory()",
-      "unit": "percent",
-      "sampled_at": 1774256402000,
-      "estimated": false,
-      "valid": true
-    }
-  },
-  "gpu": {
-    "pct": {
-      "value_raw": 83.0,
-      "value_display": 89.4,
-      "source": "/sys/class/drm/card1/device/gpu_busy_percent",
-      "unit": "percent",
-      "sampled_at": 1774256402000,
-      "estimated": false,
-      "valid": true
-    },
-    "temp_c": {
-      "value_raw": 64.0,
-      "value_display": 64.2,
-      "source": "/sys/class/hwmon/hwmon3/temp1_input:edge",
-      "unit": "celsius",
-      "sampled_at": 1774256402000,
-      "estimated": false,
-      "valid": true
-    },
-    "power_w": {
-      "value_raw": 243.0,
-      "value_display": 240.1,
-      "source": "/sys/class/hwmon/hwmon3/power1_average",
-      "unit": "watt",
-      "sampled_at": 1774256402000,
-      "estimated": false,
-      "valid": true
-    }
-  },
-  "state": {
-    "ok": true,
-    "stale_ms": 0
-  }
-}
-```
+Structure racine:
+- `v`, `ts`, `host`
+- `cpu`: `pct`, `temp_c`, `power_w` (enveloppes metrique)
+- `mem`: `used_b`, `total_b`, `pct` (enveloppes metrique)
+- `gpu`: `pct`, `temp_c`, `power_w` (enveloppes metrique)
+- `state`: `ok`, `stale_ms`
+
+Si aucun snapshot n'est disponible: HTTP `503` + erreur `snapshot_unavailable`.
 
 ### `GET /api/v1/history?window=300&step=1&mode=display`
 
-Parameter bounds:
+Parametres:
+- `window`: `1..600` (defaut `300`).
+- `step`: `1..10` (defaut `1`).
+- `mode`: `display|raw` (defaut `display`).
+- `since_ts_ms`: optionnel, entier `>=0`, active le mode delta.
 
-- `window`: `1..600`
-- `step`: `1..10`
-- `mode`: `display|raw` (default `display`)
-- `since_ts_ms`: optional unix timestamp in milliseconds (`>=0`)
-
-History rules:
-
-- backend stores each sample with a real timestamp in milliseconds;
-- response series are bucketed by `step` on an absolute time grid (`floor(ts_ms / step_ms)`);
-- `ts_ms` carries the explicit X axis timeline (one timestamp per point);
-- missing buckets are returned as `null` (no synthetic interpolation);
-- `ts` corresponds to the latest available history point timestamp (seconds).
-- default behavior (without `since_ts_ms`) returns the full window series;
-- with `since_ts_ms`, response returns only points with `ts_ms > since_ts_ms`;
-- if `since_ts_ms` is older than the retained in-memory timeline, backend falls back to full-window output (client resync path);
-- `mode=display` uses filtered values (`value_display`), `mode=raw` uses raw values (`value_raw`).
-
-Response:
+Reponse:
 
 ```json
 {
@@ -200,37 +105,23 @@ Response:
 }
 ```
 
+Regles `history`:
+- bucketisation sur grille absolue (`floor(ts_ms/step_ms)`);
+- `ts_ms` est l'axe X de reference;
+- buckets manquants => points `null` (pas d'interpolation metier);
+- `mode=display` utilise `value_display`, `mode=raw` utilise `value_raw`;
+- avec `since_ts_ms`, seules les points `ts_ms > since_ts_ms` sont retournes;
+- si `since_ts_ms` est plus ancien que la fenetre retenue, le backend force une reponse fenetre complete (resync client).
+
 ### `GET /api/v1/meta`
 
-Response:
+Retourne la liste normative exposee par l'API:
+- `metrics`: `cpu.pct`, `cpu.temp_c`, `cpu.power_w`, `mem.used_b`, `mem.total_b`, `mem.pct`, `gpu.pct`, `gpu.temp_c`, `gpu.power_w`
+- `history_series`: `cpu_pct`, `cpu_temp_c`, `gpu_pct`, `gpu_temp_c`
 
-```json
-{
-  "v": 1,
-  "host": "linux-main",
-  "metrics": [
-    "cpu.pct",
-    "cpu.temp_c",
-    "cpu.power_w",
-    "mem.used_b",
-    "mem.total_b",
-    "mem.pct",
-    "gpu.pct",
-    "gpu.temp_c",
-    "gpu.power_w"
-  ],
-  "history_series": [
-    "cpu_pct",
-    "cpu_temp_c",
-    "gpu_pct",
-    "gpu_temp_c"
-  ]
-}
-```
+## Erreurs
 
-## Error payloads
-
-Invalid parameter:
+Payload d'erreur V1:
 
 ```json
 {
@@ -240,22 +131,12 @@ Invalid parameter:
 }
 ```
 
-Snapshot unavailable:
+Erreurs contractuelles principales:
+- `invalid_parameter` (`window`, `step`, `mode`, `since_ts_ms`) -> HTTP 400.
+- `snapshot_unavailable` -> HTTP 503.
+- `unauthorized` -> HTTP 401 (si cle API active).
 
-```json
-{
-  "v": 1,
-  "error": "snapshot_unavailable",
-  "field": null
-}
-```
+## Authentification optionnelle
 
-Unauthorized (when API key is enabled):
-
-```json
-{
-  "v": 1,
-  "error": "unauthorized",
-  "field": "x-api-key"
-}
-```
+Si `STATS_API_KEY` est definie, toutes les routes `/api/v1/*` exigent le header configure (defaut `X-API-Key`).
+Le champ `field` de l'erreur `unauthorized` est retourne en minuscule (ex: `x-api-key`).

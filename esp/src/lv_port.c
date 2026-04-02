@@ -18,6 +18,7 @@
 
 #include "lv_port.h"
 #include "lvgl.h"
+#include "lcd_capture.h"
 
 #ifdef ESP_LVGL_PORT_TOUCH_COMPONENT
 #include "esp_lcd_touch.h"
@@ -553,6 +554,7 @@ static void lvgl_port_flush_callback(lv_disp_drv_t *drv, const lv_area_t *area, 
             }
 
             xSemaphoreTake(disp_ctx->trans_done_sem, portMAX_DELAY);
+            lcd_capture_on_flush_chunk(x_draw_start, y_draw_start, x_draw_end - x_draw_start + 1, y_draw_end - y_draw_start + 1, to);
             esp_lcd_panel_draw_bitmap(disp_ctx->panel_handle, x_draw_start, y_draw_start, x_draw_end + 1, y_draw_end + 1, to);
 
             if (LV_DISP_ROT_90 == rotate) {
@@ -566,6 +568,7 @@ static void lvgl_port_flush_callback(lv_disp_drv_t *drv, const lv_area_t *area, 
             }
         }
     } else {
+        lcd_capture_on_flush_chunk(x_start, y_start, width, height, color_map);
         esp_lcd_panel_draw_bitmap(disp_ctx->panel_handle, x_start, y_start, x_end + 1, y_end + 1, color_map);
     }
     lv_disp_flush_ready(drv);
