@@ -1,6 +1,8 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -22,6 +24,18 @@ static char g_gpu_mem_clock[VAR_BUF_LEN];
 static char g_gpu_fan_rpm[VAR_BUF_LEN];
 static char g_host_meta[HOST_META_BUF_LEN];
 static int32_t g_gpu_vram_used;
+static char g_fan_1_label[VAR_BUF_LEN];
+static int32_t g_fan_1_rpm;
+static char g_fan_1_rpm_text[VAR_BUF_LEN];
+static char g_fan_2_label[VAR_BUF_LEN];
+static int32_t g_fan_2_rpm;
+static char g_fan_2_rpm_text[VAR_BUF_LEN];
+static char g_fan_3_label[VAR_BUF_LEN];
+static int32_t g_fan_3_rpm;
+static char g_fan_3_rpm_text[VAR_BUF_LEN];
+static int32_t g_fan_1_pct;
+static int32_t g_fan_2_pct;
+static int32_t g_fan_3_pct;
 
 typedef struct {
     float value;
@@ -222,6 +236,145 @@ const char *get_var_host_meta()
 void set_var_host_meta(const char *value)
 {
     set_text(g_host_meta, sizeof(g_host_meta), value);
+}
+
+const char *get_var_fan_1_label()
+{
+    return g_fan_1_label;
+}
+
+void set_var_fan_1_label(const char *value)
+{
+    set_text(g_fan_1_label, sizeof(g_fan_1_label), value);
+}
+
+int32_t get_var_fan_1_rpm()
+{
+    return (int32_t)(intptr_t)g_fan_1_rpm_text;
+}
+
+void set_var_fan_1_rpm(int32_t value)
+{
+    g_fan_1_rpm = value < 0 ? 0 : value;
+    snprintf(g_fan_1_rpm_text, sizeof(g_fan_1_rpm_text), "%d", (int)g_fan_1_rpm);
+    g_fan_1_rpm_text[sizeof(g_fan_1_rpm_text) - 1] = '\0';
+}
+
+const char *get_var_fan_2_label()
+{
+    return g_fan_2_label;
+}
+
+void set_var_fan_2_label(const char *value)
+{
+    set_text(g_fan_2_label, sizeof(g_fan_2_label), value);
+}
+
+int32_t get_var_fan_2_rmp()
+{
+    return (int32_t)(intptr_t)g_fan_2_rpm_text;
+}
+
+void set_var_fan_2_rmp(int32_t value)
+{
+    g_fan_2_rpm = value < 0 ? 0 : value;
+    snprintf(g_fan_2_rpm_text, sizeof(g_fan_2_rpm_text), "%d", (int)g_fan_2_rpm);
+    g_fan_2_rpm_text[sizeof(g_fan_2_rpm_text) - 1] = '\0';
+}
+
+int32_t get_var_fan_2_rpm()
+{
+    return get_var_fan_2_rmp();
+}
+
+void set_var_fan_2_rpm(int32_t value)
+{
+    set_var_fan_2_rmp(value);
+}
+
+int32_t get_var_fan_3_rpm()
+{
+    return (int32_t)(intptr_t)g_fan_3_rpm_text;
+}
+
+void set_var_fan_3_rpm(int32_t value)
+{
+    g_fan_3_rpm = value < 0 ? 0 : value;
+    snprintf(g_fan_3_rpm_text, sizeof(g_fan_3_rpm_text), "%d", (int)g_fan_3_rpm);
+    g_fan_3_rpm_text[sizeof(g_fan_3_rpm_text) - 1] = '\0';
+}
+
+const char *get_var_fan_3_label()
+{
+    return g_fan_3_label;
+}
+
+void set_var_fan_3_label(const char *value)
+{
+    set_text(g_fan_3_label, sizeof(g_fan_3_label), value);
+}
+
+int32_t get_var_fan_1_pct()
+{
+    return g_fan_1_pct;
+}
+
+void set_var_fan_1_pct(int32_t value)
+{
+    if (value < 0) {
+        g_fan_1_pct = 0;
+    } else if (value > 100) {
+        g_fan_1_pct = 100;
+    } else {
+        g_fan_1_pct = value;
+    }
+}
+
+int32_t get_var_fan_2_pct()
+{
+    return g_fan_2_pct;
+}
+
+void set_var_fan_2_pct(int32_t value)
+{
+    if (value < 0) {
+        g_fan_2_pct = 0;
+    } else if (value > 100) {
+        g_fan_2_pct = 100;
+    } else {
+        g_fan_2_pct = value;
+    }
+}
+
+int32_t get_var_fan_3_pct()
+{
+    return g_fan_3_pct;
+}
+
+void set_var_fan_3_pct(int32_t value)
+{
+    if (value < 0) {
+        g_fan_3_pct = 0;
+    } else if (value > 100) {
+        g_fan_3_pct = 100;
+    } else {
+        g_fan_3_pct = value;
+    }
+}
+
+int32_t vars_get_fan_1_rpm_value(void)
+{
+    return g_fan_1_rpm;
+}
+
+int32_t vars_get_fan_2_rpm_value(void)
+{
+    return g_fan_2_rpm;
+}
+
+int32_t vars_get_fan_3_rpm_value(void)
+{
+    return g_fan_3_rpm;
 }
 
 void vars_get_graph_sample(vars_graph_sample_t *out)

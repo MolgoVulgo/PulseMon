@@ -13,12 +13,14 @@ enum ScreensEnum {
     _SCREEN_ID_FIRST = 1,
     SCREEN_ID_MAIN = 1,
     SCREEN_ID_GPU = 2,
-    _SCREEN_ID_LAST = 2
+    SCREEN_ID_FAN = 3,
+    _SCREEN_ID_LAST = 3
 };
 
 typedef struct _objects_t {
     lv_obj_t *main;
     lv_obj_t *gpu;
+    lv_obj_t *fan;
     lv_obj_t *cpu;
     lv_obj_t *obj0;
     lv_obj_t *obj1;
@@ -64,6 +66,31 @@ typedef struct _objects_t {
     lv_obj_t *gpu_vram_total;
     lv_obj_t *graph_gpu_temp;
     lv_obj_t *obj23;
+    lv_obj_t *fan_1;
+    lv_obj_t *obj24;
+    lv_obj_t *obj25;
+    lv_obj_t *obj26;
+    lv_obj_t *fan_2;
+    lv_obj_t *obj27;
+    lv_obj_t *obj28;
+    lv_obj_t *obj29;
+    lv_obj_t *fan_3;
+    lv_obj_t *obj30;
+    lv_obj_t *obj31;
+    lv_obj_t *obj32;
+    lv_obj_t *fan_host_meta;
+    lv_obj_t *obj33;
+    lv_obj_t *obj34;
+    lv_obj_t *obj35;
+    lv_obj_t *fan_4;
+    lv_obj_t *obj36;
+    lv_obj_t *obj37;
+    lv_obj_t *fan_5;
+    lv_obj_t *obj38;
+    lv_obj_t *obj39;
+    lv_obj_t *fan_6;
+    lv_obj_t *obj40;
+    lv_obj_t *obj41;
 } objects_t;
 
 extern objects_t objects;
@@ -73,6 +100,9 @@ void tick_screen_main();
 
 void create_screen_gpu();
 void tick_screen_gpu();
+
+void create_screen_fan();
+void tick_screen_fan();
 
 void tick_screen_by_id(enum ScreensEnum screenId);
 void tick_screen(int screen_index);

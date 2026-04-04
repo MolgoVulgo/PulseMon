@@ -56,4 +56,24 @@ typedef struct {
 
 bool pulsemon_fetch_gpu_dashboard(pulsemon_gpu_dashboard_t *out, char *err, size_t err_len);
 
+#define PULSEMON_FAN_SLOT_COUNT 3
+
+typedef struct {
+    char label[48];
+    bool label_valid;
+    int rpm;
+    bool rpm_valid;
+    int pct;
+    bool pct_valid;
+    bool has_data;
+} pulsemon_fan_slot_t;
+
+typedef struct {
+    char host[96];
+    bool host_valid;
+    pulsemon_fan_slot_t slots[PULSEMON_FAN_SLOT_COUNT];
+} pulsemon_fans_dashboard_t;
+
+bool pulsemon_fetch_fans_dashboard(pulsemon_fans_dashboard_t *out, char *err, size_t err_len);
+
 #endif

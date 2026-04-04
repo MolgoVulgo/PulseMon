@@ -9,6 +9,8 @@ def test_ui_html_contains_expected_hooks() -> None:
     assert "id=\"usage-chart\"" in html
     assert "id=\"tab-btn-fans\"" in html
     assert "id=\"tab-fans\"" in html
+    assert "id=\"fans-mode-config\"" in html
+    assert "id=\"fans-config-save\"" in html
     assert "const HISTORY_WINDOW_S =" in html
     assert "const DASHBOARD_POLL_MS = 1000" in html
     assert "const HISTORY_POLL_MS = 1000" in html
@@ -16,6 +18,10 @@ def test_ui_html_contains_expected_hooks() -> None:
     assert "fetch(`${API}/dashboard`" in html
     assert "fetch(`${API}/fans/dashboard`" in html
     assert "fetch(`${API}/fans/meta`" in html
+    assert "fetch(`${API}/fans/config`" in html
+    assert "fetch(`${API}/fans/reference`" in html
+    assert "method: \"PUT\"" in html
+    assert "pct_fans" in html
     assert "buildHistoryUrl(forceFull)" in html
     assert "params.set(\"since_ts_ms\", String(lastTs))" in html
     assert "window: String(HISTORY_WINDOW_S)" in html

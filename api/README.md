@@ -32,6 +32,9 @@ python3 -m venv .venv
 - `GET /api/v1/gpu/meta`
 - `GET /api/v1/fans/dashboard`
 - `GET /api/v1/fans/meta`
+- `GET /api/v1/fans/config`
+- `PUT /api/v1/fans/config`
+- `GET /api/v1/fans/reference`
 - `GET /ui` (UI locale de debug)
 
 ## Contrat principal (resume)
@@ -95,11 +98,13 @@ Erreur de validation:
 - `STATS_DIAG_COMPARE_HZ` (defaut `10.0`)
 - `STATS_DIAG_COMPARE_DURATION_S` (defaut `60`)
 - `STATS_DIAG_COMPARE_LOG_PATH` (defaut `api/diagnostics/raw_vs_display_gpu_pct.jsonl`)
-- `STATS_FANS_MAPPING_FILE` (defaut `api/config/fans_mapping.json`)
+- `STATS_FANS_MAPPING_FILE` (optionnel, prioritaire)
+- mapping fans par defaut: `~/.config/pulsemon/fans_mapping.json`
 
 Comportement fans sans mapping:
 - si `STATS_FANS_MAPPING_FILE` est absent, l'API cree automatiquement un fichier de mapping initial a partir des canaux detectes.
 - si `STATS_FANS_MAPPING_FILE` est invalide, `/api/v1/fans/dashboard` retourne uniquement les ventilateurs actifs detectes (`rpm > 0`).
+- `/api/v1/fans/dashboard` expose `pct_fans` (0..100) calcule depuis `rpm_min/rpm_max` quand la configuration est valide, sinon `null`.
 
 ## Auth optionnelle
 

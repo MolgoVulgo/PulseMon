@@ -25,7 +25,16 @@ enum FlowGlobalVariables {
     FLOW_GLOBAL_VARIABLE_GPU_VRAM_TOTAL = 9,
     FLOW_GLOBAL_VARIABLE_GPU_MEM_CLOCK = 10,
     FLOW_GLOBAL_VARIABLE_GPU_FAN_RPM = 11,
-    FLOW_GLOBAL_VARIABLE_GPU_VRAM_USED = 12
+    FLOW_GLOBAL_VARIABLE_GPU_VRAM_USED = 12,
+    FLOW_GLOBAL_VARIABLE_FAN_1_LABEL = 13,
+    FLOW_GLOBAL_VARIABLE_FAN_1_RPM = 14,
+    FLOW_GLOBAL_VARIABLE_FAN_2_LABEL = 15,
+    FLOW_GLOBAL_VARIABLE_FAN_2_RPM = 16,
+    FLOW_GLOBAL_VARIABLE_FAN_3_RPM = 17,
+    FLOW_GLOBAL_VARIABLE_FAN_3_LABEL = 18,
+    FLOW_GLOBAL_VARIABLE_FAN_1_PCT = 19,
+    FLOW_GLOBAL_VARIABLE_FAN_2_PCT = 20,
+    FLOW_GLOBAL_VARIABLE_FAN_3_PCT = 21
 };
 
 // Native global variables
@@ -56,6 +65,24 @@ extern const char *get_var_gpu_fan_rpm();
 extern void set_var_gpu_fan_rpm(const char *value);
 extern int32_t get_var_gpu_vram_used();
 extern void set_var_gpu_vram_used(int32_t value);
+extern const char *get_var_fan_1_label();
+extern void set_var_fan_1_label(const char *value);
+extern int32_t get_var_fan_1_rpm();
+extern void set_var_fan_1_rpm(int32_t value);
+extern const char *get_var_fan_2_label();
+extern void set_var_fan_2_label(const char *value);
+extern int32_t get_var_fan_2_rpm();
+extern void set_var_fan_2_rpm(int32_t value);
+extern int32_t get_var_fan_3_rpm();
+extern void set_var_fan_3_rpm(int32_t value);
+extern const char *get_var_fan_3_label();
+extern void set_var_fan_3_label(const char *value);
+extern int32_t get_var_fan_1_pct();
+extern void set_var_fan_1_pct(int32_t value);
+extern int32_t get_var_fan_2_pct();
+extern void set_var_fan_2_pct(int32_t value);
+extern int32_t get_var_fan_3_pct();
+extern void set_var_fan_3_pct(int32_t value);
 
 #ifdef __cplusplus
 }

@@ -135,6 +135,16 @@ static void parse_metric_u64(cJSON *metric, unsigned long long *value, bool *val
     }
 }
 
+static int parse_int_value(cJSON *value, bool *valid)
+{
+    *valid = false;
+    if (cJSON_IsNumber(value)) {
+        *valid = true;
+        return value->valueint;
+    }
+    return 0;
+}
+
 bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_len)
 {
     int64_t t_total_start_us = esp_timer_get_time();
@@ -340,6 +350,117 @@ bool pulsemon_fetch_gpu_dashboard(pulsemon_gpu_dashboard_t *out, char *err, size
         parse_metric(obj_get(gpu, "power_w"), &out->power_w, &out->power_w_valid);
         parse_metric(obj_get(gpu, "fan_rpm"), &out->fan_rpm, &out->fan_rpm_valid);
         parse_metric(obj_get(gpu, "fan_pct"), &out->fan_pct, &out->fan_pct_valid);
+    }
+
+    cJSON_Delete(root);
+    free(body);
+    return true;
+}
+
+bool pulsemon_fetch_fans_dashboard(pulsemon_fans_dashboard_t *out, char *err, size_t err_len)
+{
+    if (out == NULL) {
+        set_err(err, err_len, "out=null");
+        return false;
+    }
+    memset(out, 0, sizeof(*out));
+
+    char *body = (char *)calloc(1, DASHBOARD_BODY_CAP);
+    if (body == NULL) {
+        set_err(err, err_len, "oom_body");
+        return false;
+    }
+
+    http_acc_t acc = {
+        .buf = body,
+        .cap = DASHBOARD_BODY_CAP,
+        .len = 0,
+    };
+
+    char url[192];
+    snprintf(url, sizeof(url), "%s/fans/dashboard", PULSEMON_API_BASE_URL);
+
+    esp_http_client_config_t cfg = {
+        .url = url,
+        .method = HTTP_METHOD_GET,
+        .timeout_ms = PULSEMON_HTTP_TIMEOUT_MS,
+        .event_handler = http_event_handler,
+        .user_data = &acc,
+        .buffer_size = 2048,
+        .buffer_size_tx = 1024,
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&cfg);
+    if (client == NULL) {
+        set_err(err, err_len, "http_init_failed");
+        free(body);
+        return false;
+    }
+
+    esp_err_t rc = esp_http_client_perform(client);
+    if (rc != ESP_OK) {
+        set_err(err, err_len, "http_perform_failed");
+        esp_http_client_cleanup(client);
+        free(body);
+        return false;
+    }
+
+    int status = esp_http_client_get_status_code(client);
+    esp_http_client_cleanup(client);
+    if (status != 200) {
+        set_err(err, err_len, "http_status_not_200");
+        free(body);
+        return false;
+    }
+
+    cJSON *root = cJSON_Parse(body);
+    if (!cJSON_IsObject(root)) {
+        set_err(err, err_len, "json_parse_failed");
+        if (root) {
+            cJSON_Delete(root);
+        }
+        free(body);
+        return false;
+    }
+
+    cJSON *host = obj_get(root, "host");
+    if (cJSON_IsString(host) && host->valuestring != NULL) {
+        snprintf(out->host, sizeof(out->host), "%s", host->valuestring);
+        out->host[sizeof(out->host) - 1] = '\0';
+        out->host_valid = true;
+    }
+
+    cJSON *fans = obj_get(root, "fans");
+    if (cJSON_IsArray(fans)) {
+        int n = cJSON_GetArraySize(fans);
+        if (n > PULSEMON_FAN_SLOT_COUNT) {
+            n = PULSEMON_FAN_SLOT_COUNT;
+        }
+        for (int i = 0; i < n; ++i) {
+            cJSON *item = cJSON_GetArrayItem(fans, i);
+            if (!cJSON_IsObject(item)) {
+                continue;
+            }
+            pulsemon_fan_slot_t *slot = &out->slots[i];
+
+            cJSON *label = obj_get(item, "label");
+            if (cJSON_IsString(label) && label->valuestring != NULL) {
+                snprintf(slot->label, sizeof(slot->label), "%s", label->valuestring);
+                slot->label[sizeof(slot->label) - 1] = '\0';
+                slot->label_valid = true;
+            }
+
+            slot->rpm = parse_int_value(obj_get(item, "rpm"), &slot->rpm_valid);
+            slot->pct = parse_int_value(obj_get(item, "pct_fans"), &slot->pct_valid);
+            if (slot->pct_valid) {
+                if (slot->pct < 0) {
+                    slot->pct = 0;
+                } else if (slot->pct > 100) {
+                    slot->pct = 100;
+                }
+            }
+            slot->has_data = slot->label_valid || slot->rpm_valid || slot->pct_valid;
+        }
     }
 
     cJSON_Delete(root);

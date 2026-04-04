@@ -13,6 +13,7 @@ PulseMon est un systeme de supervision locale en deux briques:
 - publie un historique court via `GET /api/v1/history`;
 - expose une extension GPU dediee (`/api/v1/gpu/*`);
 - fournit une UI web locale de debug (`/ui`).
+- expose la configuration fans via API (`/api/v1/fans/config`).
 
 Le contrat `dashboard` est base sur une enveloppe metrique (`value_raw`, `value_display`, `source`, `unit`, `sampled_at`, `valid`).
 

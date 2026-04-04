@@ -164,6 +164,15 @@ void app_main(void)
     set_var_gpu_mem_clock("--");
     set_var_gpu_fan_rpm("--");
     set_var_gpu_vram_used(0);
+    set_var_fan_1_label("Fan 1");
+    set_var_fan_1_rpm(0);
+    set_var_fan_1_pct(0);
+    set_var_fan_2_label("Fan 2");
+    set_var_fan_2_rpm(0);
+    set_var_fan_2_pct(0);
+    set_var_fan_3_label("Fan 3");
+    set_var_fan_3_rpm(0);
+    set_var_fan_3_pct(0);
     set_var_host_meta("waiting backend");
 
     ui_init();

@@ -270,6 +270,7 @@
           <div class="tabs" style="margin-top: 8px; margin-bottom: 0">
             <button class="tab-btn active" id="fans-mode-dashboard" type="button">Display</button>
             <button class="tab-btn" id="fans-mode-meta" type="button">Diagnostic</button>
+            <button class="tab-btn" id="fans-mode-config" type="button">Config</button>
           </div>
         </div>
 
@@ -281,6 +282,16 @@
         <div class="panel" id="fans-meta-panel" style="display: none">
           <div class="label">Fans technical channels</div>
           <div id="fans-meta-list" class="meta" style="margin-top: 8px">-</div>
+        </div>
+
+        <div class="panel" id="fans-config-panel" style="display: none">
+          <div class="label">Fans configuration</div>
+          <div id="fans-config-path" class="meta" style="margin-top: 6px">mapping: -</div>
+          <div id="fans-config-bootstrap" class="meta" style="margin-top: 6px"></div>
+          <div id="fans-config-list" class="meta" style="margin-top: 10px">-</div>
+          <div style="margin-top: 12px">
+            <button class="tab-btn" id="fans-config-save" type="button">Save config</button>
+          </div>
         </div>
       </section>
 
@@ -327,9 +338,15 @@
         gpu2Fan: document.getElementById("gpu2-fan"),
         fansModeDashboard: document.getElementById("fans-mode-dashboard"),
         fansModeMeta: document.getElementById("fans-mode-meta"),
+        fansModeConfig: document.getElementById("fans-mode-config"),
         fansDashboardList: document.getElementById("fans-dashboard-list"),
         fansMetaPanel: document.getElementById("fans-meta-panel"),
         fansMetaList: document.getElementById("fans-meta-list"),
+        fansConfigPanel: document.getElementById("fans-config-panel"),
+        fansConfigPath: document.getElementById("fans-config-path"),
+        fansConfigBootstrap: document.getElementById("fans-config-bootstrap"),
+        fansConfigList: document.getElementById("fans-config-list"),
+        fansConfigSave: document.getElementById("fans-config-save"),
       };
 
       let lastDashboardTs = null;
@@ -339,6 +356,13 @@
       let dashboardInFlight = false;
       let historyInFlight = false;
       let fansMode = "dashboard";
+      let fansConfigBootstrapped = false;
+      let allowedFanRoles = ["unknown"];
+      let fanReferenceItems = [];
+      const fanReferenceMap = new Map();
+      let lastFansDashboardSignature = "";
+      let lastFansMetaSignature = "";
+      let lastFansConfigSignature = "";
       const historyState = {
         ts_ms: [],
         series: {
@@ -390,18 +414,112 @@
       }
 
       function setFansMode(mode) {
-        fansMode = mode === "meta" ? "meta" : "dashboard";
+        fansMode = mode === "meta" || mode === "config" ? mode : "dashboard";
         const metaMode = fansMode === "meta";
-        el.fansModeDashboard.classList.toggle("active", !metaMode);
+        const configMode = fansMode === "config";
+        el.fansModeDashboard.classList.toggle("active", !metaMode && !configMode);
         el.fansModeMeta.classList.toggle("active", metaMode);
+        el.fansModeConfig.classList.toggle("active", configMode);
         el.fansMetaPanel.style.display = metaMode ? "block" : "none";
+        el.fansConfigPanel.style.display = configMode ? "block" : "none";
+      }
+
+      function roleSelectHtml(currentRole, idx) {
+        const options = allowedFanRoles.map((role) => {
+          const selected = role === currentRole ? "selected" : "";
+          return `<option value="${escapeHtml(role)}" ${selected}>${escapeHtml(role)}</option>`;
+        });
+        return `<select data-field="role" data-index="${idx}">${options.join("")}</select>`;
+      }
+
+      function referenceSelectHtml(currentReferenceId, idx) {
+        const opts = ["<option value=\"\">(none)</option>"];
+        for (const item of fanReferenceItems) {
+          const selected = item.id === currentReferenceId ? "selected" : "";
+          const label = `${item.brand} / ${item.series} / ${item.model}`;
+          opts.push(`<option value="${escapeHtml(item.id)}" ${selected}>${escapeHtml(label)}</option>`);
+        }
+        return `<select data-field="reference_id" data-index="${idx}">${opts.join("")}</select>`;
+      }
+
+      function fanConfigRowHtml(mapping, idx) {
+        const checked = mapping.enabled ? "checked" : "";
+        const role = String(mapping.role || "unknown");
+        const refId = String(mapping.reference_id || "");
+        const rpmMin = mapping.rpm_min ?? "";
+        const rpmMax = mapping.rpm_max ?? "";
+        return `<div class="row" style="display:grid;grid-template-columns:44px 1fr 120px 70px 1fr 1fr 90px 90px;gap:8px;align-items:center;">
+          <input data-field="enabled" data-index="${idx}" type="checkbox" ${checked} />
+          <input data-field="label" data-index="${idx}" type="text" value="${escapeHtml(mapping.label || "")}" />
+          ${roleSelectHtml(role, idx)}
+          <input data-field="order" data-index="${idx}" type="number" value="${Number(mapping.order || 100)}" />
+          ${referenceSelectHtml(refId, idx)}
+          <span class="meta">${escapeHtml((mapping.match?.hwmon_name || "?") + ":" + (mapping.match?.channel || "?") + " / " + (mapping.match?.group || "?"))}</span>
+          <input data-field="rpm_min" data-index="${idx}" type="number" value="${rpmMin}" />
+          <input data-field="rpm_max" data-index="${idx}" type="number" value="${rpmMax}" />
+          <input data-field="match-hwmon" data-index="${idx}" type="hidden" value="${escapeHtml(mapping.match?.hwmon_name || "")}" />
+          <input data-field="match-channel" data-index="${idx}" type="hidden" value="${escapeHtml(mapping.match?.channel || "")}" />
+          <input data-field="match-group" data-index="${idx}" type="hidden" value="${escapeHtml(mapping.match?.group || "")}" />
+        </div>`;
+      }
+
+      function readFansConfigFormRows() {
+        const rows = [];
+        const labels = el.fansConfigList.querySelectorAll("input[data-field='label']");
+        for (const labelInput of labels) {
+          const idx = Number(labelInput.dataset.index || "-1");
+          if (idx < 0) continue;
+          const roleInput = el.fansConfigList.querySelector(`select[data-field='role'][data-index='${idx}']`);
+          const orderInput = el.fansConfigList.querySelector(`input[data-field='order'][data-index='${idx}']`);
+          const refInput = el.fansConfigList.querySelector(`select[data-field='reference_id'][data-index='${idx}']`);
+          const rpmMinInput = el.fansConfigList.querySelector(`input[data-field='rpm_min'][data-index='${idx}']`);
+          const rpmMaxInput = el.fansConfigList.querySelector(`input[data-field='rpm_max'][data-index='${idx}']`);
+          const enabledInput = el.fansConfigList.querySelector(`input[data-field='enabled'][data-index='${idx}']`);
+          const hwmonInput = el.fansConfigList.querySelector(`input[data-field='match-hwmon'][data-index='${idx}']`);
+          const channelInput = el.fansConfigList.querySelector(`input[data-field='match-channel'][data-index='${idx}']`);
+          const groupInput = el.fansConfigList.querySelector(`input[data-field='match-group'][data-index='${idx}']`);
+          const referenceId = String(refInput?.value || "").trim();
+          const reference = referenceId ? fanReferenceMap.get(referenceId) : null;
+          rows.push({
+            label: String(labelInput.value || "").trim(),
+            role: String(roleInput?.value || "unknown").trim() || "unknown",
+            order: Number(orderInput?.value || "100"),
+            enabled: Boolean(enabledInput?.checked),
+            reference_id: referenceId || null,
+            rpm_min: rpmMinInput?.value ? Number(rpmMinInput.value) : (reference?.rpm_min ?? null),
+            rpm_max: rpmMaxInput?.value ? Number(rpmMaxInput.value) : (reference?.rpm_max ?? null),
+            match: {
+              hwmon_name: String(hwmonInput?.value || "").trim() || null,
+              channel: String(channelInput?.value || "").trim() || null,
+              group: String(groupInput?.value || "").trim() || null,
+            },
+          });
+        }
+        return rows;
+      }
+
+      function bindReferenceAutoFill() {
+        const selects = el.fansConfigList.querySelectorAll("select[data-field='reference_id']");
+        for (const select of selects) {
+          select.addEventListener("change", () => {
+            const idx = select.dataset.index;
+            if (!idx) return;
+            const refId = String(select.value || "").trim();
+            const ref = refId ? fanReferenceMap.get(refId) : null;
+            const rpmMinInput = el.fansConfigList.querySelector(`input[data-field='rpm_min'][data-index='${idx}']`);
+            const rpmMaxInput = el.fansConfigList.querySelector(`input[data-field='rpm_max'][data-index='${idx}']`);
+            if (rpmMinInput) rpmMinInput.value = ref && ref.rpm_min !== null && ref.rpm_min !== undefined ? String(ref.rpm_min) : "";
+            if (rpmMaxInput) rpmMaxInput.value = ref && ref.rpm_max !== null && ref.rpm_max !== undefined ? String(ref.rpm_max) : "";
+          });
+        }
       }
 
       function escapeHtml(value) {
         return String(value)
           .replaceAll("&", "&amp;")
           .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;");
+          .replaceAll(">", "&gt;")
+          .replaceAll("\"", "&quot;");
       }
 
       function statusDot(level) {
@@ -686,6 +804,11 @@
         const r = await fetch(`${API}/fans/dashboard`, { cache: "no-store" });
         if (!r.ok) throw new Error(`fans_dashboard ${r.status}`);
         const d = await r.json();
+        const signature = JSON.stringify(Array.isArray(d.fans) ? d.fans : []);
+        if (signature === lastFansDashboardSignature) {
+          return;
+        }
+        lastFansDashboardSignature = signature;
         if (!Array.isArray(d.fans) || d.fans.length === 0) {
           el.fansDashboardList.innerHTML = `<div>no active fans</div>`;
           return;
@@ -703,7 +826,8 @@
           const rows = fans.map((fan) => {
             const pwm = fan.pwm_pct === null || fan.pwm_pct === undefined ? "N/A" : `${fan.pwm_pct}%`;
             const rpm = fan.rpm === null || fan.rpm === undefined ? "N/A" : `${fan.rpm} RPM`;
-            return `<div class="row"><span>${escapeHtml(fan.label)}</span><span>${rpm} | PWM ${pwm}</span></div>`;
+            const pctFans = fan.pct_fans === null || fan.pct_fans === undefined ? "N/A" : `${fan.pct_fans}%`;
+            return `<div class="row"><span>${escapeHtml(fan.label)}</span><span>${rpm} | PWM ${pwm} | Speed ${pctFans}</span></div>`;
           });
           sections.push(`<div class="label" style="margin-top: 8px">${escapeHtml(role)}</div>`);
           sections.push(rows.join(""));
@@ -716,6 +840,11 @@
         const r = await fetch(`${API}/fans/meta`, { cache: "no-store" });
         if (!r.ok) throw new Error(`fans_meta ${r.status}`);
         const d = await r.json();
+        const signature = JSON.stringify(Array.isArray(d.channels) ? d.channels : []);
+        if (signature === lastFansMetaSignature) {
+          return;
+        }
+        lastFansMetaSignature = signature;
         if (!Array.isArray(d.channels) || d.channels.length === 0) {
           el.fansMetaList.innerHTML = `<div class="chip">no channels detected</div>`;
           return;
@@ -729,6 +858,73 @@
           return `<div class="row"><span>${escapeHtml(ch.hwmon_name)}:${escapeHtml(ch.channel)} (${mapping})</span><span>${rpm} | PWM ${pwm} | ${state}</span></div>`;
         });
         el.fansMetaList.innerHTML = rows.join("");
+      }
+
+      async function fetchFansConfig() {
+        if (fanReferenceItems.length === 0) {
+          await fetchFansReference();
+        }
+        const r = await fetch(`${API}/fans/config`, { cache: "no-store" });
+        if (!r.ok) throw new Error(`fans_config ${r.status}`);
+        const d = await r.json();
+        const signature = JSON.stringify({
+          mapping_path: d.mapping_path || "",
+          allowed_roles: Array.isArray(d.allowed_roles) ? d.allowed_roles : [],
+          mappings: Array.isArray(d.mappings) ? d.mappings : [],
+        });
+        if (signature === lastFansConfigSignature) {
+          return;
+        }
+        lastFansConfigSignature = signature;
+        allowedFanRoles = Array.isArray(d.allowed_roles) && d.allowed_roles.length > 0 ? d.allowed_roles : ["unknown"];
+        const mappings = Array.isArray(d.mappings) ? d.mappings : [];
+        el.fansConfigPath.textContent = `mapping: ${d.mapping_path || "-"}`;
+        if (!fansConfigBootstrapped) {
+          fansConfigBootstrapped = true;
+          el.fansConfigBootstrap.textContent = "first run: mapping generated if missing";
+        }
+        if (mappings.length === 0) {
+          el.fansConfigList.innerHTML = `<div class="chip">no mapping entries</div>`;
+          return;
+        }
+        const header = `<div class="row" style="display:grid;grid-template-columns:44px 1fr 120px 70px 1fr 1fr 90px 90px;gap:8px;align-items:center;">
+          <span class="meta">on</span>
+          <span class="meta">label</span>
+          <span class="meta">role</span>
+          <span class="meta">order</span>
+          <span class="meta">reference</span>
+          <span class="meta">match</span>
+          <span class="meta">rpm min</span>
+          <span class="meta">rpm max</span>
+        </div>`;
+        const rows = mappings.map((mapping, idx) => fanConfigRowHtml(mapping, idx));
+        el.fansConfigList.innerHTML = `${header}${rows.join("")}`;
+        bindReferenceAutoFill();
+      }
+
+      async function saveFansConfig() {
+        const mappings = readFansConfigFormRows();
+        const r = await fetch(`${API}/fans/config`, {
+          method: "PUT",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mappings }),
+        });
+        if (!r.ok) throw new Error(`fans_config_put ${r.status}`);
+        await fetchFansConfig();
+      }
+
+      async function fetchFansReference() {
+        const r = await fetch(`${API}/fans/reference`, { cache: "no-store" });
+        if (!r.ok) throw new Error(`fans_reference ${r.status}`);
+        const d = await r.json();
+        fanReferenceItems = Array.isArray(d.items) ? d.items : [];
+        fanReferenceMap.clear();
+        for (const item of fanReferenceItems) {
+          if (item && typeof item.id === "string") {
+            fanReferenceMap.set(item.id, item);
+          }
+        }
       }
 
       async function fetchHistory() {
@@ -801,6 +997,8 @@
           await fetchFansDashboard();
           if (fansMode === "meta") {
             await fetchFansMeta();
+          } else if (fansMode === "config") {
+            await fetchFansConfig();
           }
         } catch (e) {
           el.status.innerHTML += ` | fans error: ${e.message}`;
@@ -816,6 +1014,15 @@
       el.tabBtnFans.addEventListener("click", () => setTab("fans"));
       el.fansModeDashboard.addEventListener("click", () => setFansMode("dashboard"));
       el.fansModeMeta.addEventListener("click", () => setFansMode("meta"));
+      el.fansModeConfig.addEventListener("click", () => setFansMode("config"));
+      el.fansConfigSave.addEventListener("click", async () => {
+        try {
+          await saveFansConfig();
+          el.status.innerHTML += " | fans config saved";
+        } catch (e) {
+          el.status.innerHTML += ` | fans config save error: ${e.message}`;
+        }
+      });
       tickDashboard();
       tickHistory();
       tickGpuDashboard();

@@ -12,8 +12,11 @@ from app.diagnostics.probe import capture_gpu_raw_vs_display, capture_raw_metric
 from app.models import (
     DashboardResponse,
     ErrorResponse,
+    FansConfigResponse,
+    FansConfigUpdateRequest,
     FansDashboardResponse,
     FansMetaResponse,
+    FansReferenceResponse,
     GpuDashboardResponse,
     GpuHistoryResponse,
     GpuMetaResponse,
@@ -29,12 +32,15 @@ from app.services import (
     build_dashboard_live,
     build_fans_dashboard,
     build_fans_meta,
+    get_fans_reference_catalog,
+    get_fans_mapping_config,
     build_gpu_dashboard_from_store,
     build_gpu_dashboard_live,
     build_gpu_history,
     build_gpu_meta,
     build_history,
     build_meta,
+    save_fans_mapping_config,
 )
 from app.store import GpuHistoryStore, GpuSnapshotStore, HistoryStore, SnapshotStore
 from app.ui import get_ui_html
@@ -258,6 +264,40 @@ def get_fans_dashboard() -> FansDashboardResponse:
 @app.get("/api/v1/fans/meta", response_model=FansMetaResponse)
 def get_fans_meta() -> FansMetaResponse:
     return build_fans_meta()
+
+
+@app.get("/api/v1/fans/config", response_model=FansConfigResponse)
+def get_fans_config() -> FansConfigResponse:
+    payload = get_fans_mapping_config()
+    return FansConfigResponse(
+        v=1,
+        mapping_path=payload.get("mapping_path", ""),
+        allowed_roles=payload.get("allowed_roles", ["unknown"]),
+        mappings=payload.get("mappings", []),
+    )
+
+
+@app.put("/api/v1/fans/config", response_model=FansConfigResponse)
+def put_fans_config(request: FansConfigUpdateRequest) -> FansConfigResponse:
+    payload = save_fans_mapping_config({"mappings": [item.model_dump() for item in request.mappings]})
+    return FansConfigResponse(
+        v=1,
+        mapping_path=payload.get("mapping_path", ""),
+        allowed_roles=payload.get("allowed_roles", ["unknown"]),
+        mappings=payload.get("mappings", []),
+    )
+
+
+@app.get("/api/v1/fans/reference", response_model=FansReferenceResponse)
+def get_fans_reference() -> FansReferenceResponse:
+    payload = get_fans_reference_catalog()
+    items = payload.get("items", [])
+    return FansReferenceResponse(
+        v=1,
+        generated_at=payload.get("generated_at"),
+        count=len(items) if isinstance(items, list) else 0,
+        items=items if isinstance(items, list) else [],
+    )
 
 
 def _raise_api_error(status_code: int, error: str, field: str | None = None) -> None:

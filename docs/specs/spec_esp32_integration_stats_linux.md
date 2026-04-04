@@ -145,5 +145,11 @@ Regles firmware:
 Affichage embarque minimal cible:
 - label ventilateur;
 - rpm;
-- pwm_pct si disponible;
+- pct_fans (0..100) si disponible;
 - etat stale/offline global.
+
+Regles d'affichage panneau Fan (implementation runtime):
+- `fan_1` est toujours visible;
+- `fan_2` et `fan_3` passent visibles uniquement si la source JSON contient des donnees exploitables;
+- `fan_4` a `fan_6` sont hors scope et doivent rester hidden;
+- aucune logique de remapping cote ESP32: ordre direct `fans[0..2]`.
