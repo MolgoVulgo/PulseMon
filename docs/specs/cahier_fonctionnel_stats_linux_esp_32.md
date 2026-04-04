@@ -95,3 +95,28 @@ Firmware par defaut:
 - pas de multi-machines
 - pas de persistance longue duree
 - pas de pilotage de la machine Linux
+
+## 8. Extension fonctionnelle ajoutee - ventilateurs configures
+
+### 8.1 Endpoints cibles
+
+- `GET /api/v1/fans/dashboard` (vue d'affichage)
+- `GET /api/v1/fans/meta` (vue technique/diagnostic)
+- `GET /api/v1/fans/history` (optionnel)
+
+### 8.2 Regles de separation
+
+- vue d'affichage: ventilateurs mappes/valides/retenus uniquement;
+- vue technique: canaux physiques, source, validite, statut mapping.
+
+### 8.3 Workflow impose
+
+1. detection API
+2. validation/calibration sur UI locale
+3. integration ESP32 sur vue deja resolue
+
+### 8.4 Regles firmware
+
+- pas de remapping cote ESP32;
+- conserver dernier snapshot valide si echec reseau/JSON;
+- signaler stale sans vider l'ecran.

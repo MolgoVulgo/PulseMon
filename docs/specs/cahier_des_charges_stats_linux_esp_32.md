@@ -31,6 +31,11 @@ Extension GPU dediee disponible:
 - `/api/v1/gpu/history`
 - `/api/v1/gpu/meta`
 
+Extension ventilateurs (ajout fonctionnel) prevue:
+- `/api/v1/fans/dashboard`
+- `/api/v1/fans/meta`
+- `/api/v1/fans/history` (optionnel V1)
+
 ## 4. Contrat JSON
 
 Principes obligatoires:
@@ -77,6 +82,10 @@ Firmware:
 - consommation actuelle: `/dashboard` et `/gpu/dashboard`;
 - graphes locaux bases sur snapshots recus;
 - affichage degrade explicite en cas d'echec backend.
+
+Extension ventilateurs:
+- validation API + UI locale avant integration ESP32;
+- ESP32 consomme uniquement la vue d'affichage ventilos deja mappee.
 
 ## 7. Hors perimetre V1
 

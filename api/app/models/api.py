@@ -161,6 +161,61 @@ class GpuMetaResponse(BaseModel):
     caps: GpuMetaCaps
 
 
+class FanItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: str
+    role: str
+    rpm: int | None
+    pwm_pct: int | None
+
+
+class FansDashboardResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    v: int
+    ts: int
+    host: str
+    fans: list[FanItem]
+
+
+class FanMappingInfo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    configured: bool
+    label: str | None
+    role: str | None
+    order: int | None
+    enabled: bool | None
+
+
+class FanChannelInfo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    channel: str
+    hwmon_name: str
+    hwmon_path: str
+    source: str
+    group: str
+    label: str | None
+    rpm: int | None
+    pwm_pct: int | None
+    connected: bool
+    valid: bool
+    error: str | None
+    mapping: FanMappingInfo
+
+
+class FansMetaResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    v: int
+    ts: int
+    host: str
+    channels: list[FanChannelInfo]
+    display_labels: list[str]
+
+
 class ErrorResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -209,4 +264,11 @@ V1_GPU_HISTORY_SERIES = [
     "gpu_power_w",
     "gpu_mem_clock_mhz",
     "gpu_fan_rpm",
+]
+
+V1_FANS_DASHBOARD_FIELDS = [
+    "label",
+    "role",
+    "rpm",
+    "pwm_pct",
 ]

@@ -27,6 +27,8 @@ Le contrat `dashboard` est base sur une enveloppe metrique (`value_raw`, `value_
 Etat actuel important:
 - le firmware ne consomme pas encore les endpoints `/history` et `/meta`;
 - les graphes embarques sont alimentes localement par echantillonnage des dernieres valeurs affichees.
+- support fonctionnel confirme pour le moment uniquement avec CPU + GPU AMD;
+- les sondes temperature et ventilateurs sont fonctionnels avec une carte mere MSI utilisant `it87` (`0x8628`).
 
 ## Structure
 

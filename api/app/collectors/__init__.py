@@ -5,6 +5,7 @@ from .cpu import (
     read_cpu_temp_c,
     read_cpu_temp_metric,
 )
+from .fans import FanChannelReading, list_fan_channels
 from .gpu import (
     list_amd_gpu_mappings,
     probe_gpu_device_path,
@@ -30,6 +31,7 @@ from .metric import MetricReading
 
 __all__ = [
     "MetricReading",
+    "FanChannelReading",
     "read_cpu_percent",
     "read_cpu_percent_metric",
     "read_cpu_temp_c",
@@ -54,4 +56,5 @@ __all__ = [
     "probe_gpu_device_path",
     "probe_gpu_mappings",
     "list_amd_gpu_mappings",
+    "list_fan_channels",
 ]

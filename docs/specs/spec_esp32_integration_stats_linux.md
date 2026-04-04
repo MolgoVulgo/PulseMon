@@ -24,6 +24,9 @@ En cas de divergence, le code API et les tests de contrat backend font foi.
 - `GET /api/v1/health`
 - `GET /api/v1/gpu/history`
 - `GET /api/v1/gpu/meta`
+- `GET /api/v1/fans/dashboard` (extension planifiee)
+- `GET /api/v1/fans/meta` (vue technique)
+- `GET /api/v1/fans/history` (optionnel)
 
 ## 3. Regles de parsing firmware
 
@@ -101,3 +104,46 @@ Conforme si:
 3. supporte l'absence de metrique (affichage `--`/N/A);
 4. affiche un statut degrade en cas d'indisponibilite backend;
 5. conserve le decouplage reseau/parsing/rendu.
+
+## 9. Extension ajoutee - ecran GPU AMD specialise
+
+### 9.1 Panneaux cibles
+
+La page GPU specialisee vise 7 panneaux:
+1. GPU Usage %
+2. GPU Core Clock
+3. VRAM
+4. Temperature
+5. Power
+6. VRAM Clock
+7. Fan
+
+### 9.2 Mapping fonctionnel
+
+- Usage <- `gpu.pct.value_display`
+- Core clock <- `gpu.core_clock_mhz.value_display`
+- VRAM <- `gpu.vram_used_b.value_display`, `gpu.vram_total_b.value_display`, `gpu.vram_pct.value_display`
+- Temperature <- `gpu.temp_c.value_display`
+- Power <- `gpu.power_w.value_display`
+- VRAM clock <- `gpu.mem_clock_mhz.value_display`
+- Fan <- `gpu.fan_rpm.value_display` (+ `gpu.fan_pct.value_display` si present)
+
+### 9.3 Contraintes UI
+
+- 1 panneau = titre + graphe + valeur instantanee.
+- si serie indisponible: graphe vide mais panneau conserve.
+- si metrique indisponible: afficher `N/A`.
+- aucune derivation metier cote ESP32.
+
+## 10. Extension planifiee - ventilateurs
+
+Regles firmware:
+- consommer prioritairement `/api/v1/fans/dashboard`;
+- ne pas utiliser `/api/v1/fans/meta` pour l'affichage final;
+- ne pas effectuer de remapping `fanX` -> role cote ESP32.
+
+Affichage embarque minimal cible:
+- label ventilateur;
+- rpm;
+- pwm_pct si disponible;
+- etat stale/offline global.

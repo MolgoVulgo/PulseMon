@@ -18,7 +18,10 @@ Point d'entree principal:
 - `docs/specs/cahier_des_charges_stats_linux_esp_32.md`
 - `docs/specs/cahier_fonctionnel_stats_linux_esp_32.md`
 - `docs/specs/cahier_gpu_amd_v1.md`
+- `docs/specs/cahier_fans_config_v1.md`
 - `docs/plans/plan_implementation_api_stats_linux.md`
+- `docs/plans/plan_implementation_gpu_monitoring_amd.md`
+- `docs/plans/plan_implementation_fans_config.md`
 
 ## Regle pratique
 

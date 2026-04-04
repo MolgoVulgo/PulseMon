@@ -195,6 +195,7 @@
       <div class="tabs">
         <button class="tab-btn active" id="tab-btn-main" type="button">General</button>
         <button class="tab-btn" id="tab-btn-gpu" type="button">GPU AMD</button>
+        <button class="tab-btn" id="tab-btn-fans" type="button">Fans</button>
       </div>
 
       <section class="tab active" id="tab-main">
@@ -263,6 +264,26 @@
         </div>
       </section>
 
+      <section class="tab" id="tab-fans">
+        <div class="panel" style="margin-bottom: 12px">
+          <div class="label">Fans mode</div>
+          <div class="tabs" style="margin-top: 8px; margin-bottom: 0">
+            <button class="tab-btn active" id="fans-mode-dashboard" type="button">Display</button>
+            <button class="tab-btn" id="fans-mode-meta" type="button">Diagnostic</button>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom: 12px">
+          <div class="label">Fans dashboard (active only)</div>
+          <div id="fans-dashboard-list" class="meta" style="margin-top: 8px">-</div>
+        </div>
+
+        <div class="panel" id="fans-meta-panel" style="display: none">
+          <div class="label">Fans technical channels</div>
+          <div id="fans-meta-list" class="meta" style="margin-top: 8px">-</div>
+        </div>
+      </section>
+
       <div class="status" id="status-line">chargement...</div>
     </div>
 
@@ -291,8 +312,10 @@
         tempChart: document.getElementById("temp-chart"),
         tabBtnMain: document.getElementById("tab-btn-main"),
         tabBtnGpu: document.getElementById("tab-btn-gpu"),
+        tabBtnFans: document.getElementById("tab-btn-fans"),
         tabMain: document.getElementById("tab-main"),
         tabGpu: document.getElementById("tab-gpu"),
+        tabFans: document.getElementById("tab-fans"),
         gpu2Pct: document.getElementById("gpu2-pct"),
         gpu2Core: document.getElementById("gpu2-core"),
         gpu2MemClock: document.getElementById("gpu2-memclock"),
@@ -302,13 +325,20 @@
         gpu2Temp: document.getElementById("gpu2-temp"),
         gpu2Power: document.getElementById("gpu2-power"),
         gpu2Fan: document.getElementById("gpu2-fan"),
+        fansModeDashboard: document.getElementById("fans-mode-dashboard"),
+        fansModeMeta: document.getElementById("fans-mode-meta"),
+        fansDashboardList: document.getElementById("fans-dashboard-list"),
+        fansMetaPanel: document.getElementById("fans-meta-panel"),
+        fansMetaList: document.getElementById("fans-meta-list"),
       };
 
       let lastDashboardTs = null;
       let lastHistoryTs = null;
       let gpuDashboardInFlight = false;
+      let fansInFlight = false;
       let dashboardInFlight = false;
       let historyInFlight = false;
+      let fansMode = "dashboard";
       const historyState = {
         ts_ms: [],
         series: {
@@ -348,11 +378,30 @@
       }
 
       function setTab(tab) {
-        const gpu = tab === "gpu";
-        el.tabMain.classList.toggle("active", !gpu);
-        el.tabGpu.classList.toggle("active", gpu);
-        el.tabBtnMain.classList.toggle("active", !gpu);
-        el.tabBtnGpu.classList.toggle("active", gpu);
+        const isMain = tab === "main";
+        const isGpu = tab === "gpu";
+        const isFans = tab === "fans";
+        el.tabMain.classList.toggle("active", isMain);
+        el.tabGpu.classList.toggle("active", isGpu);
+        el.tabFans.classList.toggle("active", isFans);
+        el.tabBtnMain.classList.toggle("active", isMain);
+        el.tabBtnGpu.classList.toggle("active", isGpu);
+        el.tabBtnFans.classList.toggle("active", isFans);
+      }
+
+      function setFansMode(mode) {
+        fansMode = mode === "meta" ? "meta" : "dashboard";
+        const metaMode = fansMode === "meta";
+        el.fansModeDashboard.classList.toggle("active", !metaMode);
+        el.fansModeMeta.classList.toggle("active", metaMode);
+        el.fansMetaPanel.style.display = metaMode ? "block" : "none";
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;");
       }
 
       function statusDot(level) {
@@ -633,6 +682,55 @@
         el.gpu2Fan.textContent = fanDisplay;
       }
 
+      async function fetchFansDashboard() {
+        const r = await fetch(`${API}/fans/dashboard`, { cache: "no-store" });
+        if (!r.ok) throw new Error(`fans_dashboard ${r.status}`);
+        const d = await r.json();
+        if (!Array.isArray(d.fans) || d.fans.length === 0) {
+          el.fansDashboardList.innerHTML = `<div>no active fans</div>`;
+          return;
+        }
+
+        const grouped = new Map();
+        for (const fan of d.fans) {
+          const role = fan.role || "unknown";
+          if (!grouped.has(role)) grouped.set(role, []);
+          grouped.get(role).push(fan);
+        }
+
+        const sections = [];
+        for (const [role, fans] of grouped.entries()) {
+          const rows = fans.map((fan) => {
+            const pwm = fan.pwm_pct === null || fan.pwm_pct === undefined ? "N/A" : `${fan.pwm_pct}%`;
+            const rpm = fan.rpm === null || fan.rpm === undefined ? "N/A" : `${fan.rpm} RPM`;
+            return `<div class="row"><span>${escapeHtml(fan.label)}</span><span>${rpm} | PWM ${pwm}</span></div>`;
+          });
+          sections.push(`<div class="label" style="margin-top: 8px">${escapeHtml(role)}</div>`);
+          sections.push(rows.join(""));
+        }
+
+        el.fansDashboardList.innerHTML = sections.join("");
+      }
+
+      async function fetchFansMeta() {
+        const r = await fetch(`${API}/fans/meta`, { cache: "no-store" });
+        if (!r.ok) throw new Error(`fans_meta ${r.status}`);
+        const d = await r.json();
+        if (!Array.isArray(d.channels) || d.channels.length === 0) {
+          el.fansMetaList.innerHTML = `<div class="chip">no channels detected</div>`;
+          return;
+        }
+
+        const rows = d.channels.map((ch) => {
+          const state = ch.valid ? "valid" : "invalid";
+          const mapping = ch.mapping && ch.mapping.configured ? `${ch.mapping.label}/${ch.mapping.role}` : "unmapped";
+          const rpm = ch.rpm === null || ch.rpm === undefined ? "N/A" : `${ch.rpm} RPM`;
+          const pwm = ch.pwm_pct === null || ch.pwm_pct === undefined ? "N/A" : `${ch.pwm_pct}%`;
+          return `<div class="row"><span>${escapeHtml(ch.hwmon_name)}:${escapeHtml(ch.channel)} (${mapping})</span><span>${rpm} | PWM ${pwm} | ${state}</span></div>`;
+        });
+        el.fansMetaList.innerHTML = rows.join("");
+      }
+
       async function fetchHistory() {
         const needPeriodicResync =
           historyState.lastResyncAtMs === 0 || (Date.now() - historyState.lastResyncAtMs) >= HISTORY_RESYNC_MS;
@@ -696,15 +794,36 @@
         }
       }
 
+      async function tickFans() {
+        if (fansInFlight) return;
+        fansInFlight = true;
+        try {
+          await fetchFansDashboard();
+          if (fansMode === "meta") {
+            await fetchFansMeta();
+          }
+        } catch (e) {
+          el.status.innerHTML += ` | fans error: ${e.message}`;
+        } finally {
+          fansInFlight = false;
+        }
+      }
+
       setTab("main");
+      setFansMode("dashboard");
       el.tabBtnMain.addEventListener("click", () => setTab("main"));
       el.tabBtnGpu.addEventListener("click", () => setTab("gpu"));
+      el.tabBtnFans.addEventListener("click", () => setTab("fans"));
+      el.fansModeDashboard.addEventListener("click", () => setFansMode("dashboard"));
+      el.fansModeMeta.addEventListener("click", () => setFansMode("meta"));
       tickDashboard();
       tickHistory();
       tickGpuDashboard();
+      tickFans();
       setInterval(tickDashboard, DASHBOARD_POLL_MS);
       setInterval(tickHistory, HISTORY_POLL_MS);
       setInterval(tickGpuDashboard, DASHBOARD_POLL_MS);
+      setInterval(tickFans, DASHBOARD_POLL_MS);
     </script>
   </body>
 </html>

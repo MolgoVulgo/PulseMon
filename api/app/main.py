@@ -12,6 +12,8 @@ from app.diagnostics.probe import capture_gpu_raw_vs_display, capture_raw_metric
 from app.models import (
     DashboardResponse,
     ErrorResponse,
+    FansDashboardResponse,
+    FansMetaResponse,
     GpuDashboardResponse,
     GpuHistoryResponse,
     GpuMetaResponse,
@@ -25,6 +27,8 @@ from app.services import (
     SnapshotUnavailableError,
     build_dashboard_from_store,
     build_dashboard_live,
+    build_fans_dashboard,
+    build_fans_meta,
     build_gpu_dashboard_from_store,
     build_gpu_dashboard_live,
     build_gpu_history,
@@ -244,6 +248,16 @@ def get_gpu_history(window: int = WINDOW_DEFAULT, step: int = STEP_DEFAULT, mode
 @app.get("/api/v1/gpu/meta", response_model=GpuMetaResponse)
 def get_gpu_meta() -> GpuMetaResponse:
     return build_gpu_meta()
+
+
+@app.get("/api/v1/fans/dashboard", response_model=FansDashboardResponse)
+def get_fans_dashboard() -> FansDashboardResponse:
+    return build_fans_dashboard()
+
+
+@app.get("/api/v1/fans/meta", response_model=FansMetaResponse)
+def get_fans_meta() -> FansMetaResponse:
+    return build_fans_meta()
 
 
 def _raise_api_error(status_code: int, error: str, field: str | None = None) -> None:

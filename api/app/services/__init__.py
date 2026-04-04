@@ -10,6 +10,7 @@ from .gpu_dashboard_service import (
 )
 from .gpu_history_service import build_gpu_history
 from .gpu_meta_service import build_gpu_meta
+from .fans_service import build_fans_dashboard, build_fans_meta
 from .history_service import build_history
 from .meta_service import build_meta
 from .sampler import SamplerService
@@ -23,6 +24,8 @@ __all__ = [
     "GpuSnapshotUnavailableError",
     "build_gpu_history",
     "build_gpu_meta",
+    "build_fans_dashboard",
+    "build_fans_meta",
     "build_history",
     "build_meta",
     "SamplerService",

@@ -1,0 +1,70 @@
+{
+  "mappings": [
+    {
+      "label": "fan1",
+      "role": "gpu",
+      "order": 100,
+      "enabled": false,
+      "match": {
+        "hwmon_name": "amdgpu",
+        "channel": "fan1",
+        "group": "gpu"
+      }
+    },
+    {
+      "label": "fan1",
+      "role": "unknown",
+      "order": 101,
+      "enabled": true,
+      "match": {
+        "hwmon_name": "it8628",
+        "channel": "fan1",
+        "group": "motherboard"
+      }
+    },
+    {
+      "label": "fan2",
+      "role": "unknown",
+      "order": 102,
+      "enabled": true,
+      "match": {
+        "hwmon_name": "it8628",
+        "channel": "fan2",
+        "group": "motherboard"
+      }
+    },
+    {
+      "label": "fan3",
+      "role": "unknown",
+      "order": 103,
+      "enabled": true,
+      "match": {
+        "hwmon_name": "it8628",
+        "channel": "fan3",
+        "group": "motherboard"
+      }
+    },
+    {
+      "label": "fan4",
+      "role": "unknown",
+      "order": 104,
+      "enabled": false,
+      "match": {
+        "hwmon_name": "it8628",
+        "channel": "fan4",
+        "group": "motherboard"
+      }
+    },
+    {
+      "label": "fan5",
+      "role": "unknown",
+      "order": 105,
+      "enabled": false,
+      "match": {
+        "hwmon_name": "it8628",
+        "channel": "fan5",
+        "group": "motherboard"
+      }
+    }
+  ]
+}

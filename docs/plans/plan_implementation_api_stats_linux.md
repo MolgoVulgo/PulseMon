@@ -91,3 +91,7 @@ cd api
 - `api/docs/API_CONTRACT_V1.md`
 - `api/docs/API_GPU_CONTRACT_V1.md`
 - `docs/specs/spec_esp32_integration_stats_linux.md`
+- `docs/specs/cahier_gpu_amd_v1.md`
+- `docs/plans/plan_implementation_gpu_monitoring_amd.md`
+- `docs/specs/cahier_fans_config_v1.md`
+- `docs/plans/plan_implementation_fans_config.md`
