@@ -5,6 +5,8 @@
       "role": "gpu",
       "order": 100,
       "enabled": false,
+      "rpm_min": null,
+      "rpm_max": null,
       "match": {
         "hwmon_name": "amdgpu",
         "channel": "fan1",
@@ -16,6 +18,8 @@
       "role": "unknown",
       "order": 101,
       "enabled": true,
+      "rpm_min": null,
+      "rpm_max": null,
       "match": {
         "hwmon_name": "it8628",
         "channel": "fan1",
@@ -27,6 +31,8 @@
       "role": "unknown",
       "order": 102,
       "enabled": true,
+      "rpm_min": null,
+      "rpm_max": null,
       "match": {
         "hwmon_name": "it8628",
         "channel": "fan2",
@@ -38,6 +44,8 @@
       "role": "unknown",
       "order": 103,
       "enabled": true,
+      "rpm_min": null,
+      "rpm_max": null,
       "match": {
         "hwmon_name": "it8628",
         "channel": "fan3",
@@ -49,6 +57,8 @@
       "role": "unknown",
       "order": 104,
       "enabled": false,
+      "rpm_min": null,
+      "rpm_max": null,
       "match": {
         "hwmon_name": "it8628",
         "channel": "fan4",
@@ -60,6 +70,8 @@
       "role": "unknown",
       "order": 105,
       "enabled": false,
+      "rpm_min": null,
+      "rpm_max": null,
       "match": {
         "hwmon_name": "it8628",
         "channel": "fan5",

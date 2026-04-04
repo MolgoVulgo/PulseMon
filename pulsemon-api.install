@@ -1,4 +1,19 @@
+_ensure_fans_env_config() {
+  local conf="/etc/pulsemon/pulsemon-api.conf"
+  if [[ ! -f "${conf}" ]]; then
+    return 0
+  fi
+
+  if ! grep -q '^STATS_FANS_MAPPING_FILE=' "${conf}"; then
+    printf '\n# Fans configuration and reference catalog\nSTATS_FANS_MAPPING_FILE=/var/lib/pulsemon-api/fans_mapping.json\n' >> "${conf}"
+  fi
+  if ! grep -q '^STATS_FANS_REFERENCE_SEED_FILE=' "${conf}"; then
+    printf 'STATS_FANS_REFERENCE_SEED_FILE=/usr/share/pulsemon-api/fan_reference_seed.json\n' >> "${conf}"
+  fi
+}
+
 post_install() {
+  _ensure_fans_env_config
   cat <<'EOF'
 PulseMon API installed.
 
@@ -8,10 +23,15 @@ Service management:
 
 Configuration file:
   /etc/pulsemon/pulsemon-api.conf
+
+Fans files:
+  /var/lib/pulsemon-api/fans_mapping.json (auto-created at first fans endpoint call)
+  /usr/share/pulsemon-api/fan_reference_seed.json
 EOF
 }
 
 post_upgrade() {
+  _ensure_fans_env_config
   post_install
 }
 

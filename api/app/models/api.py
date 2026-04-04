@@ -1,4 +1,9 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict
+
+
+FanRole = Literal["cpu", "case", "pump", "gpu", "radiator", "unknown"]
 
 
 class HealthResponse(BaseModel):
@@ -165,9 +170,10 @@ class FanItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     label: str
-    role: str
+    role: FanRole
     rpm: int | None
     pwm_pct: int | None
+    pct_fans: int | None
 
 
 class FansDashboardResponse(BaseModel):
@@ -184,9 +190,69 @@ class FanMappingInfo(BaseModel):
 
     configured: bool
     label: str | None
-    role: str | None
+    role: FanRole | None
     order: int | None
     enabled: bool | None
+
+
+class FanMatchRule(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    hwmon_name: str | None = None
+    channel: str | None = None
+    group: str | None = None
+    hwmon_path_contains: str | None = None
+
+
+class FanMappingEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: str
+    role: FanRole
+    order: int
+    enabled: bool
+    match: FanMatchRule
+    reference_id: str | None = None
+    rpm_min: int | None = None
+    rpm_max: int | None = None
+
+
+class FansConfigResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    v: int
+    mapping_path: str
+    allowed_roles: list[FanRole]
+    mappings: list[FanMappingEntry]
+
+
+class FansConfigUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mappings: list[FanMappingEntry]
+
+
+class FanReferenceItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    brand: str
+    series: str
+    model: str
+    rpm_min: int | None
+    rpm_max: int | None
+    pwm: bool | None
+    connector: str | None
+    size_mm: int | None
+
+
+class FansReferenceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    v: int
+    generated_at: str | None
+    count: int
+    items: list[FanReferenceItem]
 
 
 class FanChannelInfo(BaseModel):
@@ -271,4 +337,5 @@ V1_FANS_DASHBOARD_FIELDS = [
     "role",
     "rpm",
     "pwm_pct",
+    "pct_fans",
 ]

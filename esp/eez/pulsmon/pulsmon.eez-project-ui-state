@@ -1,8 +1,9 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[pulsmon.eez-project]:/userPages/1",
+    "selectedUserPageObject": "[pulsmon.eez-project]:/userPages/2",
     "selectedActionObject": "[pulsmon.eez-project]:/actions/0",
-    "selectedGlobalVariableObject": "[pulsmon.eez-project]:/variables/globalVariables/12",
+    "selectedGlobalVariableObject": "[pulsmon.eez-project]:/variables/globalVariables/16",
+    "selectedEnumObject": "[pulsmon.eez-project]:/variables/enums/-1",
     "selectedFontObject": "[pulsmon.eez-project]:/fonts/0",
     "subnavigationSelectedItems": {
       "variables-tab/sub-navigation/selected-item": "Global"
@@ -26,7 +27,6 @@
           },
           {
             "type": "border",
-            "selected": 1,
             "size": 240,
             "location": "right",
             "children": [
@@ -198,10 +198,10 @@
                 {
                   "type": "tab",
                   "id": "#56c77853-7bd0-4b79-81ec-025216de3de3",
-                  "name": "gpu",
+                  "name": "fan",
                   "component": "editor",
                   "config": {
-                    "objectPath": "[pulsmon.eez-project]:/userPages/1",
+                    "objectPath": "[pulsmon.eez-project]:/userPages/2",
                     "permanent": false
                   },
                   "icon": "svg:page"
@@ -1086,12 +1086,16 @@
           "0": {
             "0": {}
           },
-          "1": {},
+          "1": {
+            "$selected": true
+          },
           "2": {},
           "3": {},
           "4": {},
           "5": {},
           "6": {},
+          "7": {},
+          "8": {},
           "9": {}
         }
       },
@@ -1113,15 +1117,19 @@
       "selectionFront": {},
       "selectionBack": {
         "0": {
-          "0": {
-            "$selected": true
-          }
+          "0": {},
+          "1": {},
+          "2": {},
+          "4": {},
+          "7": {},
+          "8": {},
+          "9": {}
         }
       },
       "transform": {
         "translate": {
-          "x": -240,
-          "y": -410
+          "x": -451.14453125,
+          "y": 65.37890625
         },
         "scale": 1.75
       },
@@ -1147,8 +1155,8 @@
   "lvglPart": "MAIN",
   "lvglState": "DEFAULT",
   "lvglExpandedPropertiesGroup": [
-    "BACKGROUND",
-    "TEXT"
+    "TEXT",
+    "MISCELLANEOUS"
   ],
   "showInactiveFlowsInDebugger": true,
   "globalFlowZoom": true,

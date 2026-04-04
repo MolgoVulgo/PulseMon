@@ -30,6 +30,7 @@ esp/
 Le firmware consomme en production:
 - `GET /api/v1/dashboard`
 - `GET /api/v1/gpu/dashboard`
+- `GET /api/v1/fans/dashboard` (ecran `Fan`)
 
 Important:
 - le code ne consomme pas encore `/api/v1/history` ni `/api/v1/gpu/history`;
@@ -40,11 +41,27 @@ Important:
 - Poller: `PULSEMON_DASHBOARD_POLL_MS` (defaut `1000` ms)
 - Si ecran actif = `Main`: fetch `/dashboard`
 - Si ecran actif = `GPU`: fetch `/gpu/dashboard`
+- Si ecran actif = `Fan`: fetch `/fans/dashboard`
 - En echec fetch: message `backend offline` et conservation implicite des dernieres valeurs UI
 - Parsing JSON tolerant:
   - priorite `value_display`
   - fallback `value_raw`
   - fallback scalaire direct si necessaire
+
+Comportement page Fan:
+- `fan_1` visible en permanence.
+- `fan_2` et `fan_3` affiches uniquement si des donnees sont presentes dans `fans[1]` / `fans[2]`.
+- `fan_4`, `fan_5`, `fan_6` ignores (forces hidden).
+- mapping JSON -> vars:
+  - `fan_X_Label` <- `fans[X-1].label`
+  - `fan_X_rpm` <- `fans[X-1].rpm`
+  - `fan_X_pct` <- `fans[X-1].pct_fans`
+
+Navigation swipe:
+- `Main` swipe gauche -> `GPU`
+- `GPU` swipe droite -> `Main`
+- `GPU` swipe gauche -> `Fan`
+- `Fan` swipe droite -> `GPU`
 
 ## Configuration API firmware
 
