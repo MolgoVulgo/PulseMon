@@ -27,6 +27,10 @@ Implante:
 - `/api/v1/gpu/dashboard`
 - `/api/v1/gpu/history`
 - `/api/v1/gpu/meta`
+- `/api/v1/fans/dashboard`
+- `/api/v1/fans/meta`
+- `/api/v1/fans/config`
+- `/api/v1/fans/reference`
 
 Le contrat `dashboard` est base sur enveloppes metriques `value_raw/value_display/source/unit/sampled_at/estimated/valid`.
 
@@ -64,6 +68,7 @@ Assuree par tests `api/tests/`:
 - comportement delta/resync `since_ts_ms`
 - capteurs CPU/GPU (fallbacks)
 - endpoints GPU dedies
+- endpoints fans (dashboard/meta/config/reference)
 
 ## 4. Ecarts vs objectifs initiaux
 
@@ -90,6 +95,7 @@ cd api
 
 - `api/docs/API_CONTRACT_V1.md`
 - `api/docs/API_GPU_CONTRACT_V1.md`
+- `api/docs/API_FANS_CONTRACT_V1.md`
 - `docs/specs/spec_esp32_integration_stats_linux.md`
 - `docs/specs/cahier_gpu_amd_v1.md`
 - `docs/plans/plan_implementation_gpu_monitoring_amd.md`

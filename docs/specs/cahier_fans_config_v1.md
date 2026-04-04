@@ -68,7 +68,7 @@ Structure cible:
   "v": 1,
   "ts": 1774256402,
   "fans": [
-    { "id": "cpu_fan", "label": "CPU", "rpm": 1132, "pwm_pct": 45 }
+    { "label": "CPU", "role": "cpu", "rpm": 1132, "pwm_pct": 45, "pct_fans": 52 }
   ]
 }
 ```
@@ -87,7 +87,7 @@ Doit permettre:
 
 `GET /api/v1/fans/history`
 
-Optionnel en premiere iteration.
+Non implemente dans l'etat actuel.
 
 ### 4.6 Regles de validite
 
@@ -98,6 +98,12 @@ Vue technique:
 - canaux connus conserves;
 - valeur absente -> `null`;
 - `valid=false` explicite si donnee non fiable.
+
+### 4.7 Endpoints annexes exposes
+
+- `GET /api/v1/fans/config`
+- `PUT /api/v1/fans/config`
+- `GET /api/v1/fans/reference`
 
 ## 5. Mapping configurable
 

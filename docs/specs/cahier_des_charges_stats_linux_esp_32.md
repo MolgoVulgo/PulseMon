@@ -31,10 +31,11 @@ Extension GPU dediee disponible:
 - `/api/v1/gpu/history`
 - `/api/v1/gpu/meta`
 
-Extension ventilateurs (ajout fonctionnel) prevue:
+Extension ventilateurs (ajout fonctionnel) exposee:
 - `/api/v1/fans/dashboard`
 - `/api/v1/fans/meta`
-- `/api/v1/fans/history` (optionnel V1)
+- `/api/v1/fans/config`
+- `/api/v1/fans/reference`
 
 ## 4. Contrat JSON
 

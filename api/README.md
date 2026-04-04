@@ -21,6 +21,24 @@ python3 -m venv .venv
 .venv/bin/pytest -q
 ```
 
+## Test E2E UI (Playwright)
+
+Installation:
+
+```bash
+npm install
+npx playwright install chromium
+```
+
+Execution:
+
+```bash
+npm run test:e2e
+```
+
+Test couvert actuellement:
+- non-regression UI `Fans > Config`: la selection d'une reference ventilateur dans la liste deroulante ne doit pas etre reinitialisee par le polling.
+
 ## Endpoints exposes
 
 - `GET /api/v1/health`

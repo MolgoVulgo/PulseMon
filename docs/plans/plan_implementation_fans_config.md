@@ -27,13 +27,16 @@ Actions:
 4. exposer:
    - `GET /api/v1/fans/dashboard`
    - `GET /api/v1/fans/meta`
-   - `GET /api/v1/fans/history` (optionnel)
+   - `GET /api/v1/fans/config`
+   - `PUT /api/v1/fans/config`
+   - `GET /api/v1/fans/reference`
 5. journaliser absences/non-correspondances sans bruit excessif.
 
 Definition of done:
 - payload stable;
 - valeurs `null` explicites;
 - aucun mapping en dur.
+- `fans/history` reste hors scope tant que non requis par un client.
 
 ## 4. Phase 2 - UI locale
 

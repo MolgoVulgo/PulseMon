@@ -14,6 +14,7 @@ Point d'entree principal:
 
 - `api/docs/API_CONTRACT_V1.md`
 - `api/docs/API_GPU_CONTRACT_V1.md`
+- `api/docs/API_FANS_CONTRACT_V1.md`
 - `docs/specs/spec_esp32_integration_stats_linux.md`
 - `docs/specs/cahier_des_charges_stats_linux_esp_32.md`
 - `docs/specs/cahier_fonctionnel_stats_linux_esp_32.md`
@@ -31,3 +32,8 @@ En cas de divergence entre texte et implementation:
 1. le code backend/firmware fait foi;
 2. les tests de contrat backend font foi;
 3. les contrats API (`api/docs/*.md`) priment sur les specs haut niveau.
+
+## Notes de travail (`tmp/`)
+
+Le dossier `tmp/` contient des sources de travail (notes, captures, references materiel).
+Les fichiers `tmp/*.md` peuvent alimenter une spec, mais ne sont pas normatifs tant qu'ils ne sont pas integres dans `docs/specs/` ou `api/docs/`.

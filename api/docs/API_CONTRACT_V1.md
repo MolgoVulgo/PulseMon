@@ -3,6 +3,7 @@
 Prefixe contractuel: `/api/v1`
 
 Extension GPU dediee: `api/docs/API_GPU_CONTRACT_V1.md`
+Extension ventilateurs: `api/docs/API_FANS_CONTRACT_V1.md`
 
 ## Portee
 

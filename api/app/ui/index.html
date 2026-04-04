@@ -357,6 +357,7 @@
       let historyInFlight = false;
       let fansMode = "dashboard";
       let fansConfigBootstrapped = false;
+      let fansConfigLoaded = false;
       let allowedFanRoles = ["unknown"];
       let fanReferenceItems = [];
       const fanReferenceMap = new Map();
@@ -414,6 +415,7 @@
       }
 
       function setFansMode(mode) {
+        const previousMode = fansMode;
         fansMode = mode === "meta" || mode === "config" ? mode : "dashboard";
         const metaMode = fansMode === "meta";
         const configMode = fansMode === "config";
@@ -422,6 +424,16 @@
         el.fansModeConfig.classList.toggle("active", configMode);
         el.fansMetaPanel.style.display = metaMode ? "block" : "none";
         el.fansConfigPanel.style.display = configMode ? "block" : "none";
+        if (configMode && previousMode !== "config") {
+          void loadFansConfigOnDemand();
+        }
+      }
+
+      async function loadFansConfigOnDemand(force = false) {
+        if (fansMode !== "config") return;
+        if (!force && fansConfigLoaded) return;
+        await fetchFansConfig();
+        fansConfigLoaded = true;
       }
 
       function roleSelectHtml(currentRole, idx) {
@@ -911,7 +923,9 @@
           body: JSON.stringify({ mappings }),
         });
         if (!r.ok) throw new Error(`fans_config_put ${r.status}`);
+        fansConfigLoaded = false;
         await fetchFansConfig();
+        fansConfigLoaded = true;
       }
 
       async function fetchFansReference() {
@@ -997,8 +1011,6 @@
           await fetchFansDashboard();
           if (fansMode === "meta") {
             await fetchFansMeta();
-          } else if (fansMode === "config") {
-            await fetchFansConfig();
           }
         } catch (e) {
           el.status.innerHTML += ` | fans error: ${e.message}`;
