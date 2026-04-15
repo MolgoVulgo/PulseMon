@@ -1,3 +1,5 @@
+import os
+
 from fastapi import HTTPException
 
 from app import main as main_mod
@@ -112,6 +114,24 @@ def test_get_meta_returns_model() -> None:
     assert payload["v"] == 1
     assert "metrics" in payload
     assert "history_series" in payload
+
+
+def test_get_db_data_returns_model(tmp_path) -> None:
+    db_file = tmp_path / "profile" / "config.db"
+    original_env = os.environ.get("STATS_CONFIG_DB_PATH")
+    os.environ["STATS_CONFIG_DB_PATH"] = str(db_file)
+    try:
+        payload = main_mod.get_db_data().model_dump()
+    finally:
+        if original_env is None:
+            os.environ.pop("STATS_CONFIG_DB_PATH", None)
+        else:
+            os.environ["STATS_CONFIG_DB_PATH"] = original_env
+
+    assert payload["v"] == 1
+    assert payload["db_path"] == str(db_file)
+    assert isinstance(payload["fan_mappings"], list)
+    assert isinstance(payload["user_settings"], dict)
 
 
 def test_is_api_key_required_false_when_not_configured() -> None:

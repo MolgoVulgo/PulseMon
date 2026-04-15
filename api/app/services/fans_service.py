@@ -9,6 +9,7 @@ import socket
 import time
 
 from app.collectors import FanChannelReading, list_fan_channels
+from app.store.config_db import ConfigDb, config_db_uri
 from app.models import (
     FanChannelInfo,
     FanItem,
@@ -47,29 +48,23 @@ class _FanMapping:
 
 def get_fans_mapping_config() -> dict[str, object]:
     channels = list_fan_channels()
-    path = _resolve_mapping_path()
-    if not path.exists():
-        _bootstrap_mapping_file(path, channels)
-        logger.info("fans mapping file bootstrapped path=%s entries=%s", path, len(channels))
-
-    raw = _read_mapping_json(path)
-    if raw is None:
-        return {"mapping_path": str(path), "allowed_roles": list(ALLOWED_FAN_ROLES), "mappings": []}
+    _ensure_fans_mapping_seeded(channels)
+    raw_rows = _config_db().fetch_fan_mappings()
     return {
-        "mapping_path": str(path),
+        "mapping_path": config_db_uri(),
         "allowed_roles": list(ALLOWED_FAN_ROLES),
-        "mappings": raw.get("mappings", []),
+        "mappings": raw_rows,
     }
 
 
 def save_fans_mapping_config(payload: dict[str, object]) -> dict[str, object]:
-    path = _resolve_mapping_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    rows = payload.get("mappings")
+    mappings = rows if isinstance(rows, list) else []
+    _config_db().replace_fan_mappings(mappings)
     return {
-        "mapping_path": str(path),
+        "mapping_path": config_db_uri(),
         "allowed_roles": list(ALLOWED_FAN_ROLES),
-        "mappings": payload.get("mappings", []),
+        "mappings": mappings,
     }
 
 
@@ -218,19 +213,8 @@ def build_fans_meta() -> FansMetaResponse:
 
 
 def _load_mappings(channels: list[FanChannelReading]) -> list[_FanMapping]:
-    path = _resolve_mapping_path()
-    if not path.exists():
-        _bootstrap_mapping_file(path, channels)
-        logger.info("fans mapping file bootstrapped path=%s entries=%s", path, len(channels))
-
-    raw = _read_mapping_json(path)
-    if raw is None:
-        return []
-
-    rows = raw.get("mappings")
-    if not isinstance(rows, list):
-        logger.warning("fans mapping invalid format path=%s", path)
-        return []
+    _ensure_fans_mapping_seeded(channels)
+    rows = _config_db().fetch_fan_mappings()
 
     mappings: list[_FanMapping] = []
     for row in rows:
@@ -268,7 +252,6 @@ def _load_mappings(channels: list[FanChannelReading]) -> list[_FanMapping]:
 
 
 def _bootstrap_mapping_file(path: Path, channels: list[FanChannelReading]) -> None:
-    template: dict[str, object] = {"mappings": []}
     mappings_rows: list[dict[str, object]] = []
     for idx, channel in enumerate(channels):
         role = "gpu" if channel.group == "gpu" else "unknown"
@@ -287,13 +270,7 @@ def _bootstrap_mapping_file(path: Path, channels: list[FanChannelReading]) -> No
                 },
             }
         )
-    template["mappings"] = mappings_rows
-
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(template, indent=2) + "\n", encoding="utf-8")
-    except OSError as exc:
-        logger.warning("failed to bootstrap fans mapping file path=%s error=%s:%s", path, type(exc).__name__, exc)
+    _config_db().import_fan_mappings_if_empty(mappings_rows)
 
 
 def _resolve_mapping_path() -> Path:
@@ -313,6 +290,28 @@ def _resolve_mapping_path() -> Path:
             return candidate
 
     return Path(_DEFAULT_MAPPING_FILE)
+
+
+def _ensure_fans_mapping_seeded(channels: list[FanChannelReading]) -> None:
+    db = _config_db()
+    rows = db.fetch_fan_mappings()
+    if len(rows) > 0:
+        return
+
+    legacy_path = _resolve_mapping_path()
+    legacy_raw = _read_mapping_json(legacy_path) if legacy_path.exists() else None
+    if legacy_raw is not None:
+        legacy_rows = legacy_raw.get("mappings")
+        if isinstance(legacy_rows, list) and db.import_fan_mappings_if_empty(legacy_rows):
+            logger.info("fans mapping imported from legacy json path=%s entries=%s", legacy_path, len(legacy_rows))
+            return
+
+    _bootstrap_mapping_file(legacy_path, channels)
+    logger.info("fans mapping bootstrapped in sqlite source=%s entries=%s", config_db_uri(), len(channels))
+
+
+def _config_db() -> ConfigDb:
+    return ConfigDb()
 
 
 def _ensure_parent_writable(path: Path) -> bool:

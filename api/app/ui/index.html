@@ -75,6 +75,18 @@
         color: #b9d5ff;
       }
 
+      pre {
+        margin: 8px 0 0;
+        padding: 10px;
+        border: 1px solid #2f3b52;
+        border-radius: 8px;
+        background: #101622;
+        color: #cdd9ef;
+        font-size: 12px;
+        overflow: auto;
+        max-height: 280px;
+      }
+
       .tab {
         display: none;
       }
@@ -124,6 +136,20 @@
         font-size: 11px;
         color: var(--muted);
         background: #111826;
+      }
+
+      .input {
+        width: 100%;
+        background: #101622;
+        color: #cdd9ef;
+        border: 1px solid #2f3b52;
+        border-radius: 8px;
+        padding: 7px 9px;
+      }
+
+      .btn-danger {
+        border-color: #69353a;
+        color: #ffb3bb;
       }
 
       .charts {
@@ -196,6 +222,7 @@
         <button class="tab-btn active" id="tab-btn-main" type="button">General</button>
         <button class="tab-btn" id="tab-btn-gpu" type="button">GPU AMD</button>
         <button class="tab-btn" id="tab-btn-fans" type="button">Fans</button>
+        <button class="tab-btn" id="tab-btn-db" type="button">DB</button>
       </div>
 
       <section class="tab active" id="tab-main">
@@ -295,6 +322,44 @@
         </div>
       </section>
 
+      <section class="tab" id="tab-db">
+        <div class="panel" style="margin-bottom: 12px">
+          <div class="label">SQLite source</div>
+          <div id="db-path" class="meta" style="margin-top: 8px">-</div>
+        </div>
+        <div class="panel" style="margin-bottom: 12px">
+          <div class="label">Gestion fan_mappings (CRUD)</div>
+          <div class="meta" style="margin-top: 6px">Ajouter, modifier, suppression soft (masque) et hard (definitive).</div>
+          <div style="margin-top: 10px; display:flex; gap:8px; flex-wrap:wrap">
+            <button class="tab-btn" id="db-fan-add" type="button">Ajouter ventilateur</button>
+            <button class="tab-btn" id="db-fan-refresh" type="button">Rafraichir</button>
+          </div>
+          <div id="db-fan-manager-list" class="meta" style="margin-top: 10px">-</div>
+        </div>
+        <div class="panel" style="margin-bottom: 12px">
+          <div class="label">fan_mappings</div>
+          <div id="db-fans-count" class="meta" style="margin-top: 6px">count: 0</div>
+          <pre id="db-fans-json">[]</pre>
+        </div>
+        <div class="panel">
+          <div class="label">user_settings</div>
+          <div id="db-settings-count" class="meta" style="margin-top: 6px">keys: 0</div>
+          <pre id="db-settings-json">{}</pre>
+        </div>
+        <div class="panel" style="margin-top: 12px">
+          <div class="label">Reference catalog (brand / series / model)</div>
+          <input
+            id="db-reference-filter"
+            type="text"
+            placeholder="Filter brand / series / model..."
+            class="input"
+            style="margin-top:8px;max-width:420px"
+          />
+          <div id="db-reference-count" class="meta" style="margin-top: 6px">items: 0</div>
+          <div id="db-reference-list" class="meta" style="margin-top: 8px">-</div>
+        </div>
+      </section>
+
       <div class="status" id="status-line">chargement...</div>
     </div>
 
@@ -324,9 +389,11 @@
         tabBtnMain: document.getElementById("tab-btn-main"),
         tabBtnGpu: document.getElementById("tab-btn-gpu"),
         tabBtnFans: document.getElementById("tab-btn-fans"),
+        tabBtnDb: document.getElementById("tab-btn-db"),
         tabMain: document.getElementById("tab-main"),
         tabGpu: document.getElementById("tab-gpu"),
         tabFans: document.getElementById("tab-fans"),
+        tabDb: document.getElementById("tab-db"),
         gpu2Pct: document.getElementById("gpu2-pct"),
         gpu2Core: document.getElementById("gpu2-core"),
         gpu2MemClock: document.getElementById("gpu2-memclock"),
@@ -347,6 +414,17 @@
         fansConfigBootstrap: document.getElementById("fans-config-bootstrap"),
         fansConfigList: document.getElementById("fans-config-list"),
         fansConfigSave: document.getElementById("fans-config-save"),
+        dbPath: document.getElementById("db-path"),
+        dbFanAdd: document.getElementById("db-fan-add"),
+        dbFanRefresh: document.getElementById("db-fan-refresh"),
+        dbFanManagerList: document.getElementById("db-fan-manager-list"),
+        dbFansCount: document.getElementById("db-fans-count"),
+        dbFansJson: document.getElementById("db-fans-json"),
+        dbSettingsCount: document.getElementById("db-settings-count"),
+        dbSettingsJson: document.getElementById("db-settings-json"),
+        dbReferenceFilter: document.getElementById("db-reference-filter"),
+        dbReferenceCount: document.getElementById("db-reference-count"),
+        dbReferenceList: document.getElementById("db-reference-list"),
       };
 
       let lastDashboardTs = null;
@@ -355,6 +433,7 @@
       let fansInFlight = false;
       let dashboardInFlight = false;
       let historyInFlight = false;
+      let dbInFlight = false;
       let fansMode = "dashboard";
       let fansConfigBootstrapped = false;
       let fansConfigLoaded = false;
@@ -364,6 +443,11 @@
       let lastFansDashboardSignature = "";
       let lastFansMetaSignature = "";
       let lastFansConfigSignature = "";
+      let lastDbSignature = "";
+      let lastDbReferenceSignature = "";
+      let dbReferenceItems = [];
+      let dbFanItems = [];
+      let lastDbFansManagerSignature = "";
       const historyState = {
         ts_ms: [],
         series: {
@@ -406,12 +490,18 @@
         const isMain = tab === "main";
         const isGpu = tab === "gpu";
         const isFans = tab === "fans";
+        const isDb = tab === "db";
         el.tabMain.classList.toggle("active", isMain);
         el.tabGpu.classList.toggle("active", isGpu);
         el.tabFans.classList.toggle("active", isFans);
+        el.tabDb.classList.toggle("active", isDb);
         el.tabBtnMain.classList.toggle("active", isMain);
         el.tabBtnGpu.classList.toggle("active", isGpu);
         el.tabBtnFans.classList.toggle("active", isFans);
+        el.tabBtnDb.classList.toggle("active", isDb);
+        if (isDb) {
+          void tickDb();
+        }
       }
 
       function setFansMode(mode) {
@@ -941,6 +1031,257 @@
         }
       }
 
+      async function fetchDbData() {
+        const r = await fetch(`${API}/db/data`, { cache: "no-store" });
+        if (!r.ok) throw new Error(`db_data ${r.status}`);
+        const d = await r.json();
+        const fanMappings = Array.isArray(d.fan_mappings) ? d.fan_mappings : [];
+        const userSettings = d.user_settings && typeof d.user_settings === "object" ? d.user_settings : {};
+        const signature = JSON.stringify({ db_path: d.db_path || "", fan_mappings: fanMappings, user_settings: userSettings });
+        if (signature === lastDbSignature) {
+          return;
+        }
+        lastDbSignature = signature;
+        el.dbPath.textContent = `db: ${d.db_path || "-"}`;
+        el.dbFansCount.textContent = `count: ${fanMappings.length}`;
+        el.dbSettingsCount.textContent = `keys: ${Object.keys(userSettings).length}`;
+        el.dbFansJson.textContent = JSON.stringify(fanMappings, null, 2);
+        el.dbSettingsJson.textContent = JSON.stringify(userSettings, null, 2);
+      }
+
+      function dbFanManagerRowHtml(item) {
+        const mapping = item?.mapping || {};
+        const match = mapping.match || {};
+        const deleted = Boolean(item?.deleted);
+        const status = deleted ? "deleted" : (mapping.enabled ? "active" : "disabled");
+        const deletedClass = deleted ? "chip" : "meta";
+        return `<div class="row" style="display:grid;grid-template-columns:56px 1fr 120px 76px 1fr 92px 92px 220px;gap:8px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid #2a3140;">
+          <span class="${deletedClass}">${status}</span>
+          <input class="input" data-db-fan-field="label" data-db-fan-id="${item.id}" type="text" value="${escapeHtml(mapping.label || "")}" />
+          <select class="input" data-db-fan-field="role" data-db-fan-id="${item.id}">
+            ${allowedFanRoles.map((role) => `<option value="${escapeHtml(role)}" ${role === mapping.role ? "selected" : ""}>${escapeHtml(role)}</option>`).join("")}
+          </select>
+          <input class="input" data-db-fan-field="order" data-db-fan-id="${item.id}" type="number" value="${Number(mapping.order || 100)}" />
+          <input class="input" data-db-fan-field="reference_id" data-db-fan-id="${item.id}" type="text" value="${escapeHtml(mapping.reference_id || "")}" placeholder="brand|series|model" />
+          <input class="input" data-db-fan-field="rpm_min" data-db-fan-id="${item.id}" type="number" value="${mapping.rpm_min ?? ""}" />
+          <input class="input" data-db-fan-field="rpm_max" data-db-fan-id="${item.id}" type="number" value="${mapping.rpm_max ?? ""}" />
+          <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
+            <button class="tab-btn" data-db-fan-action="save" data-db-fan-id="${item.id}" type="button">Sauver</button>
+            <button class="tab-btn" data-db-fan-action="${deleted ? "restore" : "soft-delete"}" data-db-fan-id="${item.id}" type="button">${deleted ? "Restore" : "Soft del"}</button>
+            <button class="tab-btn btn-danger" data-db-fan-action="hard-delete" data-db-fan-id="${item.id}" type="button">Hard del</button>
+          </div>
+          <input data-db-fan-field="enabled" data-db-fan-id="${item.id}" type="hidden" value="${mapping.enabled ? "1" : "0"}" />
+          <input data-db-fan-field="match-hwmon" data-db-fan-id="${item.id}" type="hidden" value="${escapeHtml(match.hwmon_name || "")}" />
+          <input data-db-fan-field="match-channel" data-db-fan-id="${item.id}" type="hidden" value="${escapeHtml(match.channel || "")}" />
+          <input data-db-fan-field="match-group" data-db-fan-id="${item.id}" type="hidden" value="${escapeHtml(match.group || "")}" />
+          <input data-db-fan-field="match-path" data-db-fan-id="${item.id}" type="hidden" value="${escapeHtml(match.hwmon_path_contains || "")}" />
+        </div>`;
+      }
+
+      function renderDbFansManager(items) {
+        if (!Array.isArray(items) || items.length === 0) {
+          el.dbFanManagerList.innerHTML = "<div class=\"chip\">aucune entree ventilateur</div>";
+          return;
+        }
+        const header = `<div class="row" style="display:grid;grid-template-columns:56px 1fr 120px 76px 1fr 92px 92px 220px;gap:8px;align-items:center;">
+          <span class="meta">state</span>
+          <span class="meta">label</span>
+          <span class="meta">role</span>
+          <span class="meta">order</span>
+          <span class="meta">reference</span>
+          <span class="meta">rpm min</span>
+          <span class="meta">rpm max</span>
+          <span class="meta">actions</span>
+        </div>`;
+        const rows = items.map((item) => dbFanManagerRowHtml(item));
+        el.dbFanManagerList.innerHTML = `${header}${rows.join("")}`;
+        bindDbFansManagerActions();
+      }
+
+      function readDbFanRow(fanId) {
+        const field = (name) => el.dbFanManagerList.querySelector(`[data-db-fan-field='${name}'][data-db-fan-id='${fanId}']`);
+        const toNumberOrNull = (value) => {
+          if (value === null || value === undefined) return null;
+          const trimmed = String(value).trim();
+          if (trimmed === "") return null;
+          const num = Number(trimmed);
+          return Number.isFinite(num) ? num : null;
+        };
+        const role = String(field("role")?.value || "unknown").trim() || "unknown";
+        return {
+          label: String(field("label")?.value || "").trim(),
+          role: allowedFanRoles.includes(role) ? role : "unknown",
+          order: Number(field("order")?.value || "100"),
+          enabled: String(field("enabled")?.value || "1") === "1",
+          reference_id: String(field("reference_id")?.value || "").trim() || null,
+          rpm_min: toNumberOrNull(field("rpm_min")?.value),
+          rpm_max: toNumberOrNull(field("rpm_max")?.value),
+          match: {
+            hwmon_name: String(field("match-hwmon")?.value || "").trim() || null,
+            channel: String(field("match-channel")?.value || "").trim() || null,
+            group: String(field("match-group")?.value || "").trim() || null,
+            hwmon_path_contains: String(field("match-path")?.value || "").trim() || null,
+          },
+        };
+      }
+
+      function bindDbFansManagerActions() {
+        const buttons = el.dbFanManagerList.querySelectorAll("button[data-db-fan-action]");
+        for (const button of buttons) {
+          button.addEventListener("click", async () => {
+            const fanId = Number(button.dataset.dbFanId || "-1");
+            const action = String(button.dataset.dbFanAction || "");
+            if (!Number.isInteger(fanId) || fanId <= 0 || !action) return;
+            try {
+              if (action === "save") {
+                const mapping = readDbFanRow(fanId);
+                await updateDbFan(fanId, mapping);
+                el.status.innerHTML += ` | db fan #${fanId} saved`;
+              } else if (action === "soft-delete") {
+                await softDeleteDbFan(fanId);
+                el.status.innerHTML += ` | db fan #${fanId} soft deleted`;
+              } else if (action === "restore") {
+                await restoreDbFan(fanId);
+                el.status.innerHTML += ` | db fan #${fanId} restored`;
+              } else if (action === "hard-delete") {
+                await hardDeleteDbFan(fanId);
+                el.status.innerHTML += ` | db fan #${fanId} hard deleted`;
+              }
+              await fetchDbFansManager(true);
+              await fetchDbData();
+            } catch (e) {
+              el.status.innerHTML += ` | db fan action error: ${e.message}`;
+            }
+          });
+        }
+      }
+
+      async function fetchDbFansManager(force = false) {
+        const r = await fetch(`${API}/db/fans?include_deleted=1`, { cache: "no-store" });
+        if (!r.ok) throw new Error(`db_fans ${r.status}`);
+        const d = await r.json();
+        const items = Array.isArray(d.items) ? d.items : [];
+        const signature = JSON.stringify(items);
+        if (!force && signature === lastDbFansManagerSignature) {
+          return;
+        }
+        lastDbFansManagerSignature = signature;
+        dbFanItems = items;
+        renderDbFansManager(items);
+      }
+
+      async function createDbFan(mapping) {
+        const r = await fetch(`${API}/db/fans`, {
+          method: "POST",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mapping }),
+        });
+        if (!r.ok) throw new Error(`db_fan_post ${r.status}`);
+      }
+
+      async function updateDbFan(fanId, mapping) {
+        const r = await fetch(`${API}/db/fans/${fanId}`, {
+          method: "PUT",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mapping }),
+        });
+        if (!r.ok) throw new Error(`db_fan_put ${r.status}`);
+      }
+
+      async function softDeleteDbFan(fanId) {
+        const r = await fetch(`${API}/db/fans/${fanId}/soft-delete`, {
+          method: "POST",
+          cache: "no-store",
+        });
+        if (!r.ok) throw new Error(`db_fan_soft_delete ${r.status}`);
+      }
+
+      async function restoreDbFan(fanId) {
+        const r = await fetch(`${API}/db/fans/${fanId}/restore`, {
+          method: "POST",
+          cache: "no-store",
+        });
+        if (!r.ok) throw new Error(`db_fan_restore ${r.status}`);
+      }
+
+      async function hardDeleteDbFan(fanId) {
+        const r = await fetch(`${API}/db/fans/${fanId}`, {
+          method: "DELETE",
+          cache: "no-store",
+        });
+        if (!r.ok) throw new Error(`db_fan_delete ${r.status}`);
+      }
+
+      function renderReferenceCatalog(items) {
+        if (!Array.isArray(items) || items.length === 0) {
+          el.dbReferenceCount.textContent = "items: 0";
+          el.dbReferenceList.innerHTML = "<div class=\"chip\">no reference items</div>";
+          return;
+        }
+        const needle = String(el.dbReferenceFilter?.value || "").trim().toLowerCase();
+        const filtered = needle
+          ? items.filter((item) => {
+              const fullText = [
+                item.id,
+                item.brand,
+                item.series,
+                item.model,
+              ]
+                .map((v) => String(v || ""))
+                .join(" ")
+                .toLowerCase();
+              return fullText.includes(needle);
+            })
+          : items;
+        el.dbReferenceCount.textContent = `items: ${filtered.length} / ${items.length}`;
+        if (filtered.length === 0) {
+          el.dbReferenceList.innerHTML = "<div class=\"chip\">no match</div>";
+          return;
+        }
+        const groups = new Map();
+        for (const item of filtered) {
+          const brand = String(item.brand || "unknown");
+          if (!groups.has(brand)) groups.set(brand, []);
+          groups.get(brand).push(item);
+        }
+        const brands = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+        const parts = [];
+        for (const brand of brands) {
+          const rows = groups.get(brand) || [];
+          rows.sort((a, b) => {
+            const as = `${String(a.series || "")}|${String(a.model || "")}`;
+            const bs = `${String(b.series || "")}|${String(b.model || "")}`;
+            return as.localeCompare(bs);
+          });
+          parts.push(`<div class="label" style="margin-top: 10px">${escapeHtml(brand)} (${rows.length})</div>`);
+          for (const row of rows) {
+            const rpmMin = row.rpm_min === null || row.rpm_min === undefined ? "?" : String(row.rpm_min);
+            const rpmMax = row.rpm_max === null || row.rpm_max === undefined ? "?" : String(row.rpm_max);
+            parts.push(
+              `<div class="row"><span>${escapeHtml(String(row.series || "-"))} / ${escapeHtml(String(row.model || "-"))}</span><span>${rpmMin}-${rpmMax} RPM</span></div>`
+            );
+          }
+        }
+        el.dbReferenceList.innerHTML = parts.join("");
+      }
+
+      async function fetchDbReferenceCatalog() {
+        const r = await fetch(`${API}/fans/reference`, { cache: "no-store" });
+        if (!r.ok) throw new Error(`fans_reference ${r.status}`);
+        const d = await r.json();
+        const items = Array.isArray(d.items) ? d.items : [];
+        const signature = JSON.stringify(items);
+        if (signature === lastDbReferenceSignature) {
+          renderReferenceCatalog(dbReferenceItems);
+          return;
+        }
+        lastDbReferenceSignature = signature;
+        dbReferenceItems = items;
+        renderReferenceCatalog(dbReferenceItems);
+      }
+
       async function fetchHistory() {
         const needPeriodicResync =
           historyState.lastResyncAtMs === 0 || (Date.now() - historyState.lastResyncAtMs) >= HISTORY_RESYNC_MS;
@@ -1019,11 +1360,64 @@
         }
       }
 
+      async function tickDb() {
+        if (dbInFlight) return;
+        if (!el.tabDb.classList.contains("active")) return;
+        dbInFlight = true;
+        try {
+          await fetchDbData();
+          await fetchDbFansManager();
+          await fetchDbReferenceCatalog();
+        } catch (e) {
+          el.status.innerHTML += ` | db error: ${e.message}`;
+        } finally {
+          dbInFlight = false;
+        }
+      }
+
       setTab("main");
       setFansMode("dashboard");
       el.tabBtnMain.addEventListener("click", () => setTab("main"));
       el.tabBtnGpu.addEventListener("click", () => setTab("gpu"));
       el.tabBtnFans.addEventListener("click", () => setTab("fans"));
+      el.tabBtnDb.addEventListener("click", () => setTab("db"));
+      el.dbFanAdd.addEventListener("click", async () => {
+        try {
+          const nextOrder = dbFanItems.length > 0
+            ? Math.max(...dbFanItems.map((item) => Number(item?.mapping?.order || 100))) + 1
+            : 100;
+          await createDbFan({
+            label: `Fan ${dbFanItems.length + 1}`,
+            role: "unknown",
+            order: nextOrder,
+            enabled: true,
+            reference_id: null,
+            rpm_min: null,
+            rpm_max: null,
+            match: {
+              hwmon_name: null,
+              channel: null,
+              group: null,
+              hwmon_path_contains: null,
+            },
+          });
+          await fetchDbFansManager(true);
+          await fetchDbData();
+          el.status.innerHTML += " | db fan added";
+        } catch (e) {
+          el.status.innerHTML += ` | db fan add error: ${e.message}`;
+        }
+      });
+      el.dbFanRefresh.addEventListener("click", async () => {
+        try {
+          await fetchDbFansManager(true);
+          await fetchDbData();
+          el.status.innerHTML += " | db fan manager refreshed";
+        } catch (e) {
+          el.status.innerHTML += ` | db fan refresh error: ${e.message}`;
+        }
+      });
+      el.dbReferenceFilter.addEventListener("input", () => renderReferenceCatalog(dbReferenceItems));
       el.fansModeDashboard.addEventListener("click", () => setFansMode("dashboard"));
       el.fansModeMeta.addEventListener("click", () => setFansMode("meta"));
       el.fansModeConfig.addEventListener("click", () => setFansMode("config"));
@@ -1043,6 +1437,7 @@
       setInterval(tickHistory, HISTORY_POLL_MS);
       setInterval(tickGpuDashboard, DASHBOARD_POLL_MS);
       setInterval(tickFans, DASHBOARD_POLL_MS);
+      setInterval(tickDb, DASHBOARD_POLL_MS);
     </script>
   </body>
 </html>

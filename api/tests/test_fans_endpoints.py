@@ -46,34 +46,34 @@ def test_get_fans_meta_contract_shape() -> None:
 
 def test_get_fans_config_contract_shape(tmp_path: Path) -> None:
     hwmon = tmp_path / "hwmon"
-    mapping_file = tmp_path / "profile" / "fans_mapping.json"
+    db_file = tmp_path / "profile" / "config.db"
     (hwmon / "hwmon0").mkdir(parents=True, exist_ok=True)
     (hwmon / "hwmon0" / "name").write_text("it8628\n", encoding="utf-8")
     (hwmon / "hwmon0" / "fan1_input").write_text("1200\n", encoding="utf-8")
 
     original_hwmon = fans_collector_mod.HWMON_CLASS_PATH
-    original_env = os.environ.get("STATS_FANS_MAPPING_FILE")
+    original_env = os.environ.get("STATS_CONFIG_DB_PATH")
     fans_collector_mod.HWMON_CLASS_PATH = hwmon
-    os.environ["STATS_FANS_MAPPING_FILE"] = str(mapping_file)
+    os.environ["STATS_CONFIG_DB_PATH"] = str(db_file)
     try:
         payload = main_mod.get_fans_config().model_dump()
     finally:
         fans_collector_mod.HWMON_CLASS_PATH = original_hwmon
         if original_env is None:
-            os.environ.pop("STATS_FANS_MAPPING_FILE", None)
+            os.environ.pop("STATS_CONFIG_DB_PATH", None)
         else:
-            os.environ["STATS_FANS_MAPPING_FILE"] = original_env
+            os.environ["STATS_CONFIG_DB_PATH"] = original_env
 
     assert payload["v"] == 1
-    assert payload["mapping_path"] == str(mapping_file)
+    assert payload["mapping_path"] == f"sqlite://{db_file}"
     assert "unknown" in payload["allowed_roles"]
     assert isinstance(payload["mappings"], list)
 
 
 def test_put_fans_config_persists_mapping(tmp_path: Path) -> None:
-    mapping_file = tmp_path / "profile" / "fans_mapping.json"
-    original_env = os.environ.get("STATS_FANS_MAPPING_FILE")
-    os.environ["STATS_FANS_MAPPING_FILE"] = str(mapping_file)
+    db_file = tmp_path / "profile" / "config.db"
+    original_env = os.environ.get("STATS_CONFIG_DB_PATH")
+    os.environ["STATS_CONFIG_DB_PATH"] = str(db_file)
     request = FansConfigUpdateRequest(
         mappings=[
             {
@@ -92,16 +92,16 @@ def test_put_fans_config_persists_mapping(tmp_path: Path) -> None:
         payload = main_mod.put_fans_config(request).model_dump()
     finally:
         if original_env is None:
-            os.environ.pop("STATS_FANS_MAPPING_FILE", None)
+            os.environ.pop("STATS_CONFIG_DB_PATH", None)
         else:
-            os.environ["STATS_FANS_MAPPING_FILE"] = original_env
+            os.environ["STATS_CONFIG_DB_PATH"] = original_env
 
     assert payload["v"] == 1
-    assert payload["mapping_path"] == str(mapping_file)
+    assert payload["mapping_path"] == f"sqlite://{db_file}"
     assert "cpu" in payload["allowed_roles"]
     assert payload["mappings"][0]["label"] == "CPU"
     assert payload["mappings"][0]["rpm_max"] == 1800
-    assert mapping_file.exists()
+    assert db_file.exists()
 
 
 def test_get_fans_reference_contract_shape() -> None:
