@@ -2790,6 +2790,7 @@
                   },
                   "timeline": [],
                   "eventHandlers": [],
+                  "identifier": "fan_1_pct",
                   "leftUnit": "px",
                   "topUnit": "px",
                   "widthUnit": "px",
@@ -2813,6 +2814,11 @@
                         "DEFAULT": {
                           "opa": 0,
                           "align": "CENTER"
+                        }
+                      },
+                      "MAIN": {
+                        "DEFAULT": {
+                          "text_color": "#212121"
                         }
                       }
                     }

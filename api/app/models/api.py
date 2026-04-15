@@ -232,6 +232,63 @@ class FansConfigUpdateRequest(BaseModel):
     mappings: list[FanMappingEntry]
 
 
+class UserConfigResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    v: int
+    settings: dict[str, object]
+
+
+class UserConfigUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    settings: dict[str, object]
+
+
+class DbDataResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    v: int
+    db_path: str
+    fan_mappings: list[FanMappingEntry]
+    user_settings: dict[str, object]
+
+
+class DbFanRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    deleted: bool
+    mapping: FanMappingEntry
+
+
+class DbFansListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    v: int
+    items: list[DbFanRow]
+
+
+class DbFanWriteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mapping: FanMappingEntry
+
+
+class DbFanWriteResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    v: int
+    item: DbFanRow
+
+
+class DbFanDeleteResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    v: int
+    deleted_id: int
+
+
 class FanReferenceItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

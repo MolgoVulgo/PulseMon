@@ -21,6 +21,24 @@ python3 -m venv .venv
 .venv/bin/pytest -q
 ```
 
+## Test E2E UI (Playwright)
+
+Installation:
+
+```bash
+npm install
+npx playwright install chromium
+```
+
+Execution:
+
+```bash
+npm run test:e2e
+```
+
+Test couvert actuellement:
+- non-regression UI `Fans > Config`: la selection d'une reference ventilateur dans la liste deroulante ne doit pas etre reinitialisee par le polling.
+
 ## Endpoints exposes
 
 - `GET /api/v1/health`
@@ -35,6 +53,15 @@ python3 -m venv .venv
 - `GET /api/v1/fans/config`
 - `PUT /api/v1/fans/config`
 - `GET /api/v1/fans/reference`
+- `GET /api/v1/user/config`
+- `PUT /api/v1/user/config`
+- `GET /api/v1/db/data`
+- `GET /api/v1/db/fans?include_deleted=1`
+- `POST /api/v1/db/fans`
+- `PUT /api/v1/db/fans/{fan_id}`
+- `POST /api/v1/db/fans/{fan_id}/soft-delete`
+- `POST /api/v1/db/fans/{fan_id}/restore`
+- `DELETE /api/v1/db/fans/{fan_id}`
 - `GET /ui` (UI locale de debug)
 
 ## Contrat principal (resume)
@@ -99,11 +126,15 @@ Erreur de validation:
 - `STATS_DIAG_COMPARE_DURATION_S` (defaut `60`)
 - `STATS_DIAG_COMPARE_LOG_PATH` (defaut `api/diagnostics/raw_vs_display_gpu_pct.jsonl`)
 - `STATS_FANS_MAPPING_FILE` (optionnel, prioritaire)
-- mapping fans par defaut: `~/.config/pulsemon/fans_mapping.json`
+- `STATS_CONFIG_DB_PATH` (optionnel, defaut `~/.config/pulsemon/config.db`)
+- stockage config (fans + user): SQLite
+
+Comportement de migration:
+- au premier lancement sur une DB vide, l'API tente d'importer le mapping fans depuis le legacy JSON (`STATS_FANS_MAPPING_FILE` ou chemins de fallback) ;
+- si aucun JSON n'est disponible, un bootstrap est genere depuis les canaux ventilateurs detectes.
 
 Comportement fans sans mapping:
-- si `STATS_FANS_MAPPING_FILE` est absent, l'API cree automatiquement un fichier de mapping initial a partir des canaux detectes.
-- si `STATS_FANS_MAPPING_FILE` est invalide, `/api/v1/fans/dashboard` retourne uniquement les ventilateurs actifs detectes (`rpm > 0`).
+- si la DB ne contient aucun mapping, l'API bootstrap automatiquement un mapping initial a partir des canaux detectes.
 - `/api/v1/fans/dashboard` expose `pct_fans` (0..100) calcule depuis `rpm_min/rpm_max` quand la configuration est valide, sinon `null`.
 
 ## Auth optionnelle
@@ -129,3 +160,4 @@ Capture brute multi-metriques:
 - `api/docs/API_CONTRACT_V1.md`
 - `api/docs/API_GPU_CONTRACT_V1.md`
 - `api/docs/API_FANS_CONTRACT_V1.md`
+- `api/docs/API_USER_CONFIG_V1.md`

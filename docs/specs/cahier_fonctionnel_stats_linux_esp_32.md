@@ -20,7 +20,7 @@ Definir le fonctionnement detaille backend + firmware pour la V1.
 - gere Wi-Fi et appels HTTP;
 - parse les enveloppes metriques JSON;
 - met a jour les variables UI;
-- rend les pages LVGL Main/GPU;
+- rend les pages LVGL Main/GPU/Fan;
 - signale l'indisponibilite backend.
 
 ## 3. Contrat V1
@@ -102,7 +102,8 @@ Firmware par defaut:
 
 - `GET /api/v1/fans/dashboard` (vue d'affichage)
 - `GET /api/v1/fans/meta` (vue technique/diagnostic)
-- `GET /api/v1/fans/history` (optionnel)
+- `GET /api/v1/fans/config` (configuration mapping)
+- `GET /api/v1/fans/reference` (catalogue de reference)
 
 ### 8.2 Regles de separation
 

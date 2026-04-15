@@ -11,6 +11,11 @@ from app.diagnostics.logging import configure_logging
 from app.diagnostics.probe import capture_gpu_raw_vs_display, capture_raw_metrics, probe_sources
 from app.models import (
     DashboardResponse,
+    DbFanDeleteResponse,
+    DbFansListResponse,
+    DbFanWriteRequest,
+    DbFanWriteResponse,
+    DbDataResponse,
     ErrorResponse,
     FansConfigResponse,
     FansConfigUpdateRequest,
@@ -23,6 +28,8 @@ from app.models import (
     HealthResponse,
     HistoryResponse,
     MetaResponse,
+    UserConfigResponse,
+    UserConfigUpdateRequest,
 )
 from app.services import (
     GpuSnapshotUnavailableError,
@@ -41,6 +48,15 @@ from app.services import (
     build_history,
     build_meta,
     save_fans_mapping_config,
+    get_user_config,
+    save_user_config,
+    get_db_data_view,
+    create_db_fan,
+    hard_delete_db_fan,
+    list_db_fans,
+    restore_db_fan,
+    soft_delete_db_fan,
+    update_db_fan,
 )
 from app.store import GpuHistoryStore, GpuSnapshotStore, HistoryStore, SnapshotStore
 from app.ui import get_ui_html
@@ -298,6 +314,77 @@ def get_fans_reference() -> FansReferenceResponse:
         count=len(items) if isinstance(items, list) else 0,
         items=items if isinstance(items, list) else [],
     )
+
+
+@app.get("/api/v1/user/config", response_model=UserConfigResponse)
+def get_user_config_v1() -> UserConfigResponse:
+    payload = get_user_config()
+    return UserConfigResponse(v=1, settings=payload.get("settings", {}))
+
+
+@app.put("/api/v1/user/config", response_model=UserConfigResponse)
+def put_user_config_v1(request: UserConfigUpdateRequest) -> UserConfigResponse:
+    payload = save_user_config({"settings": request.settings})
+    return UserConfigResponse(v=1, settings=payload.get("settings", {}))
+
+
+@app.get("/api/v1/db/data", response_model=DbDataResponse)
+def get_db_data() -> DbDataResponse:
+    payload = get_db_data_view()
+    return DbDataResponse(
+        v=1,
+        db_path=str(payload.get("db_path", "")),
+        fan_mappings=payload.get("fan_mappings", []),
+        user_settings=payload.get("user_settings", {}),
+    )
+
+
+@app.get("/api/v1/db/fans", response_model=DbFansListResponse)
+def get_db_fans(include_deleted: bool = True) -> DbFansListResponse:
+    payload = list_db_fans(include_deleted=include_deleted)
+    return DbFansListResponse(v=1, items=payload.get("items", []))
+
+
+@app.post("/api/v1/db/fans", response_model=DbFanWriteResponse)
+def post_db_fan(request: DbFanWriteRequest) -> DbFanWriteResponse:
+    payload = create_db_fan(request.mapping.model_dump())
+    return DbFanWriteResponse(v=1, item=payload)
+
+
+@app.put("/api/v1/db/fans/{fan_id}", response_model=DbFanWriteResponse)
+def put_db_fan(fan_id: int, request: DbFanWriteRequest) -> DbFanWriteResponse:
+    try:
+        payload = update_db_fan(fan_id, request.mapping.model_dump())
+    except KeyError:
+        _raise_api_error(404, "not_found", "fan_id")
+    return DbFanWriteResponse(v=1, item=payload)
+
+
+@app.post("/api/v1/db/fans/{fan_id}/soft-delete", response_model=DbFanWriteResponse)
+def post_db_fan_soft_delete(fan_id: int) -> DbFanWriteResponse:
+    try:
+        payload = soft_delete_db_fan(fan_id)
+    except KeyError:
+        _raise_api_error(404, "not_found", "fan_id")
+    return DbFanWriteResponse(v=1, item=payload)
+
+
+@app.post("/api/v1/db/fans/{fan_id}/restore", response_model=DbFanWriteResponse)
+def post_db_fan_restore(fan_id: int) -> DbFanWriteResponse:
+    try:
+        payload = restore_db_fan(fan_id)
+    except KeyError:
+        _raise_api_error(404, "not_found", "fan_id")
+    return DbFanWriteResponse(v=1, item=payload)
+
+
+@app.delete("/api/v1/db/fans/{fan_id}", response_model=DbFanDeleteResponse)
+def delete_db_fan(fan_id: int) -> DbFanDeleteResponse:
+    try:
+        payload = hard_delete_db_fan(fan_id)
+    except KeyError:
+        _raise_api_error(404, "not_found", "fan_id")
+    return DbFanDeleteResponse(v=1, deleted_id=int(payload.get("deleted_id", fan_id)))
 
 
 def _raise_api_error(status_code: int, error: str, field: str | None = None) -> None:

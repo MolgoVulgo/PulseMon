@@ -8,7 +8,15 @@ def test_ui_html_contains_expected_hooks() -> None:
     assert "id=\"cpu-pct\"" in html
     assert "id=\"usage-chart\"" in html
     assert "id=\"tab-btn-fans\"" in html
+    assert "id=\"tab-btn-db\"" in html
     assert "id=\"tab-fans\"" in html
+    assert "id=\"tab-db\"" in html
+    assert "id=\"db-reference-count\"" in html
+    assert "id=\"db-reference-list\"" in html
+    assert "id=\"db-reference-filter\"" in html
+    assert "id=\"db-fan-manager-list\"" in html
+    assert "id=\"db-fan-add\"" in html
+    assert "id=\"db-fan-refresh\"" in html
     assert "id=\"fans-mode-config\"" in html
     assert "id=\"fans-config-save\"" in html
     assert "const HISTORY_WINDOW_S =" in html
@@ -20,6 +28,12 @@ def test_ui_html_contains_expected_hooks() -> None:
     assert "fetch(`${API}/fans/meta`" in html
     assert "fetch(`${API}/fans/config`" in html
     assert "fetch(`${API}/fans/reference`" in html
+    assert "fetch(`${API}/db/data`" in html
+    assert "fetch(`${API}/db/fans?include_deleted=1`" in html
+    assert "fetch(`${API}/db/fans/${fanId}`" in html
+    assert "fetch(`${API}/db/fans/${fanId}/soft-delete`" in html
+    assert "fetch(`${API}/db/fans/${fanId}/restore`" in html
+    assert "renderReferenceCatalog(dbReferenceItems)" in html
     assert "method: \"PUT\"" in html
     assert "pct_fans" in html
     assert "buildHistoryUrl(forceFull)" in html

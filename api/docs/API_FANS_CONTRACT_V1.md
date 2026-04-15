@@ -5,6 +5,7 @@ Prefixe contractuel: `/api/v1/fans`
 Extension ventilateurs V1:
 - vue d'affichage pour clients finaux (`dashboard`)
 - vue technique pour diagnostic/calibration (`meta`)
+- gestion DB locale (UI admin, CRUD `fan_mappings`)
 
 ## Endpoints
 
@@ -13,6 +14,12 @@ Extension ventilateurs V1:
 - `GET /api/v1/fans/config`
 - `PUT /api/v1/fans/config`
 - `GET /api/v1/fans/reference`
+- `GET /api/v1/db/fans?include_deleted=1`
+- `POST /api/v1/db/fans`
+- `PUT /api/v1/db/fans/{fan_id}`
+- `POST /api/v1/db/fans/{fan_id}/soft-delete`
+- `POST /api/v1/db/fans/{fan_id}/restore`
+- `DELETE /api/v1/db/fans/{fan_id}`
 
 ## `GET /api/v1/fans/dashboard`
 
@@ -22,10 +29,9 @@ Retourne uniquement les ventilateurs:
 - actives (`enabled=true`).
 
 Fallback sans mapping:
-- si le fichier `STATS_FANS_MAPPING_FILE` est absent, l'API cree un mapping initial avec les canaux detectes puis repond en mode mappe;
-- si le fichier `STATS_FANS_MAPPING_FILE` est invalide, l'endpoint scanne les canaux detectes actifs (`rpm > 0`) uniquement;
+- si la base SQLite est vide, l'API tente d'importer le mapping legacy JSON puis, sinon, cree un mapping initial avec les canaux detectes;
 - un canal avec `rpm = 0` est considere OFF et n'apparait pas dans le `dashboard`.
-- lors du bootstrap initial, un canal OFF est ecrit dans le mapping avec `"enabled": false`.
+- lors du bootstrap initial, un canal OFF est enregistre avec `"enabled": false`.
 
 Payload:
 - `v`, `ts`, `host`
@@ -71,12 +77,12 @@ Retourne la vue technique complete:
 
 Retourne la configuration de mapping active:
 - `v`
-- `mapping_path`
+- `mapping_path` (source SQLite, format `sqlite:///...`)
 - `allowed_roles` (liste fermee: `cpu|case|pump|gpu|radiator|unknown`)
 - `mappings[]`
 
 Comportement premier lancement:
-- si le fichier n'existe pas, l'API bootstrap automatiquement `mappings[]` depuis les canaux detectes.
+- si la base est vide, l'API bootstrap automatiquement `mappings[]` depuis les canaux detectes (avec import legacy JSON si disponible).
 
 ## `PUT /api/v1/fans/config`
 
@@ -103,9 +109,10 @@ Retourne un catalogue aplati depuis `tmp/fan_reference_seed.json`:
 
 ## Mapping configurable
 
-Fichier de mapping:
-- `STATS_FANS_MAPPING_FILE` (optionnel, prioritaire)
-- defaut sans variable: `~/.config/pulsemon/fans_mapping.json`
+Source de mapping:
+- SQLite par defaut: `~/.config/pulsemon/config.db`
+- override: `STATS_CONFIG_DB_PATH`
+- import legacy optionnel: `STATS_FANS_MAPPING_FILE` (uniquement migration initiale)
 
 Format minimal:
 
@@ -126,3 +133,20 @@ Format minimal:
   ]
 }
 ```
+
+## Endpoints DB (admin)
+
+Ces routes manipulent directement `fan_mappings` en SQLite pour l'UI locale de gestion:
+
+- `GET /api/v1/db/fans?include_deleted=1`
+  - retourne `items[]` avec `id`, `deleted`, `mapping`.
+- `POST /api/v1/db/fans`
+  - cree une entree (`mapping`).
+- `PUT /api/v1/db/fans/{fan_id}`
+  - met a jour une entree existante.
+- `POST /api/v1/db/fans/{fan_id}/soft-delete`
+  - suppression logique: `deleted=true`, `enabled=false`.
+- `POST /api/v1/db/fans/{fan_id}/restore`
+  - restauration: `deleted=false`, `enabled=true`.
+- `DELETE /api/v1/db/fans/{fan_id}`
+  - suppression definitive de la ligne SQLite.

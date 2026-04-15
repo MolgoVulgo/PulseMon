@@ -7,6 +7,7 @@ Statut: normatif pour l'integration firmware ESP32-S3.
 Reference d'interface:
 - `api/docs/API_CONTRACT_V1.md`
 - `api/docs/API_GPU_CONTRACT_V1.md`
+- `api/docs/API_FANS_CONTRACT_V1.md`
 
 En cas de divergence, le code API et les tests de contrat backend font foi.
 
@@ -16,6 +17,7 @@ En cas de divergence, le code API et les tests de contrat backend font foi.
 
 - `GET /api/v1/dashboard`
 - `GET /api/v1/gpu/dashboard`
+- `GET /api/v1/fans/dashboard`
 
 ### 2.2 Endpoints disponibles mais non consommes dans le firmware actuel
 
@@ -24,9 +26,9 @@ En cas de divergence, le code API et les tests de contrat backend font foi.
 - `GET /api/v1/health`
 - `GET /api/v1/gpu/history`
 - `GET /api/v1/gpu/meta`
-- `GET /api/v1/fans/dashboard` (extension planifiee)
-- `GET /api/v1/fans/meta` (vue technique)
-- `GET /api/v1/fans/history` (optionnel)
+- `GET /api/v1/fans/meta` (vue technique, non consommee par l'UI firmware)
+- `GET /api/v1/fans/config`
+- `GET /api/v1/fans/reference`
 
 ## 3. Regles de parsing firmware
 
@@ -84,6 +86,7 @@ Cadence actuelle:
 Selection endpoint selon ecran actif:
 - ecran `Main` -> `/dashboard`
 - ecran `GPU` -> `/gpu/dashboard`
+- ecran `Fan` -> `/fans/dashboard`
 
 En cas d'echec HTTP/JSON:
 - mise a jour `host_meta` avec `backend offline`
@@ -135,10 +138,10 @@ La page GPU specialisee vise 7 panneaux:
 - si metrique indisponible: afficher `N/A`.
 - aucune derivation metier cote ESP32.
 
-## 10. Extension planifiee - ventilateurs
+## 10. Extension ventilateurs (etat actuel)
 
 Regles firmware:
-- consommer prioritairement `/api/v1/fans/dashboard`;
+- consommer `/api/v1/fans/dashboard` pour l'affichage final;
 - ne pas utiliser `/api/v1/fans/meta` pour l'affichage final;
 - ne pas effectuer de remapping `fanX` -> role cote ESP32.
 

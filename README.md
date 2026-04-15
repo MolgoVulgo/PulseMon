@@ -14,8 +14,11 @@ PulseMon est un systeme de supervision locale en deux briques:
 - expose une extension GPU dediee (`/api/v1/gpu/*`);
 - fournit une UI web locale de debug (`/ui`).
 - expose la configuration fans via API (`/api/v1/fans/config`).
+- persiste la configuration fans + utilisateur en SQLite locale (`/api/v1/fans/config`, `/api/v1/user/config`).
+- expose aussi un CRUD DB local des mappings ventilateurs (`/api/v1/db/fans/*`) pour la page GUI admin.
 
 Le contrat `dashboard` est base sur une enveloppe metrique (`value_raw`, `value_display`, `source`, `unit`, `sampled_at`, `valid`).
+Le champ `estimated` est egalement present dans cette enveloppe.
 
 ### Firmware (`esp/`)
 
@@ -70,6 +73,7 @@ pio run -e LVGL-320-480
 
 - `api/docs/API_CONTRACT_V1.md`
 - `api/docs/API_GPU_CONTRACT_V1.md`
+- `api/docs/API_FANS_CONTRACT_V1.md`
 - `docs/specs/spec_esp32_integration_stats_linux.md`
 - `docs/specs/cahier_des_charges_stats_linux_esp_32.md`
 - `docs/specs/cahier_fonctionnel_stats_linux_esp_32.md`
