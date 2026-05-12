@@ -19,9 +19,7 @@ typedef struct {
 
 void vars_get_graph_sample(vars_graph_sample_t *out);
 
-/* Fan vars helpers (runtime-safe names) */
-int32_t get_var_fan_2_rpm(void);
-void set_var_fan_2_rpm(int32_t value);
+/* Fan numeric helpers for runtime patches. Generated RPM vars are text labels. */
 int32_t vars_get_fan_1_rpm_value(void);
 int32_t vars_get_fan_2_rpm_value(void);
 int32_t vars_get_fan_3_rpm_value(void);

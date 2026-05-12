@@ -121,9 +121,8 @@ static void update_ui_from_dashboard(const pulsemon_dashboard_t *d)
 
     char meta[128];
     const char *host = d->host_valid ? d->host : "host?";
-    long stale = d->stale_ms_valid ? d->stale_ms : -1;
     const char *ok = d->state_ok_valid ? (d->state_ok ? "ok" : "degraded") : "state?";
-    snprintf(meta, sizeof(meta), "%s | %s | stale=%ldms", host, ok, stale);
+    snprintf(meta, sizeof(meta), "%s | %s", host, ok);
     meta[sizeof(meta) - 1] = '\0';
     set_var_host_meta(meta);
 }
@@ -172,64 +171,6 @@ static void update_ui_from_gpu_dashboard(const pulsemon_gpu_dashboard_t *g)
     }
 }
 
-static void set_fan_slot_defaults(int slot_index)
-{
-    if (slot_index == 0) {
-        set_var_fan_1_label("Fan 1");
-        set_var_fan_1_rpm(0);
-        set_var_fan_1_pct(0);
-    } else if (slot_index == 1) {
-        set_var_fan_2_label("Fan 2");
-        set_var_fan_2_rpm(0);
-        set_var_fan_2_pct(0);
-    } else if (slot_index == 2) {
-        set_var_fan_3_label("Fan 3");
-        set_var_fan_3_rpm(0);
-        set_var_fan_3_pct(0);
-    }
-}
-
-static void update_ui_from_fans_dashboard(const pulsemon_fans_dashboard_t *f)
-{
-    if (f == NULL) {
-        return;
-    }
-
-    for (int i = 0; i < PULSEMON_FAN_SLOT_COUNT; ++i) {
-        const pulsemon_fan_slot_t *slot = &f->slots[i];
-        if (!slot->has_data) {
-            set_fan_slot_defaults(i);
-            continue;
-        }
-
-        const char *label = slot->label_valid ? slot->label : (i == 0 ? "Fan 1" : (i == 1 ? "Fan 2" : "Fan 3"));
-        int rpm = slot->rpm_valid ? slot->rpm : 0;
-        int pct = slot->pct_valid ? slot->pct : 0;
-        if (pct < 0) {
-            pct = 0;
-        } else if (pct > 100) {
-            pct = 100;
-        }
-
-        if (i == 0) {
-            set_var_fan_1_label(label);
-            set_var_fan_1_rpm(rpm);
-            set_var_fan_1_pct(pct);
-        } else if (i == 1) {
-            set_var_fan_2_label(label);
-            set_var_fan_2_rpm(rpm);
-            set_var_fan_2_pct(pct);
-        } else if (i == 2) {
-            set_var_fan_3_label(label);
-            set_var_fan_3_rpm(rpm);
-            set_var_fan_3_pct(pct);
-        }
-    }
-
-    /* fan_1 always visible, fan_2 and fan_3 only when data exists. */
-    ui_screen_set_fans_visibility(f->slots[1].has_data, f->slots[2].has_data);
-}
-
 static void mark_backend_offline(const char *why)
 {
     set_var_host_meta(why ? why : "backend offline");
@@ -248,22 +189,16 @@ static void poller_task(void *arg)
 
         enum ScreensEnum active_screen = ui_screen_get_active();
         bool gpu_page_active = (active_screen == SCREEN_ID_GPU);
-        bool fan_page_active = (active_screen == SCREEN_ID_FAN);
         bool ok = false;
         pulsemon_dashboard_t dashboard = {0};
         pulsemon_gpu_dashboard_t gpu_dashboard = {0};
-        pulsemon_fans_dashboard_t fans_dashboard = {0};
         char err[64];
         char gpu_err[64];
-        char fan_err[64];
         err[0] = '\0';
         gpu_err[0] = '\0';
-        fan_err[0] = '\0';
 
         if (gpu_page_active) {
             ok = pulsemon_fetch_gpu_dashboard(&gpu_dashboard, gpu_err, sizeof(gpu_err));
-        } else if (fan_page_active) {
-            ok = pulsemon_fetch_fans_dashboard(&fans_dashboard, fan_err, sizeof(fan_err));
         } else {
             ok = pulsemon_fetch_dashboard(&dashboard, err, sizeof(err));
         }
@@ -276,8 +211,6 @@ static void poller_task(void *arg)
         if (!ok) {
             if (gpu_page_active) {
                 ESP_LOGW(TAG, "gpu dashboard fetch failed: %s", gpu_err);
-            } else if (fan_page_active) {
-                ESP_LOGW(TAG, "fans dashboard fetch failed: %s", fan_err);
             } else {
                 ESP_LOGW(TAG, "dashboard fetch failed: %s", err);
             }
@@ -298,8 +231,6 @@ static void poller_task(void *arg)
                 int64_t t_ui_apply_start_us = esp_timer_get_time();
                 if (gpu_page_active) {
                     update_ui_from_gpu_dashboard(&gpu_dashboard);
-                } else if (fan_page_active) {
-                    update_ui_from_fans_dashboard(&fans_dashboard);
                 } else {
                     update_ui_from_dashboard(&dashboard);
                 }
@@ -310,15 +241,14 @@ static void poller_task(void *arg)
         }
 
         int64_t cycle_ms = (esp_timer_get_time() - t_cycle_start_us) / 1000;
-        LAT_DEBUG("tick=%lu screen=%s ok=%d fetch=%lldms lock=%lldms ui=%lldms cycle=%lldms stale=%ld",
+        LAT_DEBUG("tick=%lu screen=%s ok=%d fetch=%lldms lock=%lldms ui=%lldms cycle=%lldms",
                   (unsigned long)tick_seq,
-                  gpu_page_active ? "gpu" : (fan_page_active ? "fan" : "main"),
+                  gpu_page_active ? "gpu" : (active_screen == SCREEN_ID_METEO ? "meteo" : "main"),
                   ok ? 1 : 0,
                   (long long)fetch_ms,
                   (long long)lock_wait_ms,
                   (long long)ui_apply_ms,
-                  (long long)cycle_ms,
-                  (!gpu_page_active && ok && dashboard.stale_ms_valid) ? dashboard.stale_ms : -1L);
+                  (long long)cycle_ms);
         if (!got_lock) {
             ESP_LOGW(TAG, "ui lock timeout tick=%lu", (unsigned long)tick_seq);
         }

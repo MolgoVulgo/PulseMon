@@ -24,6 +24,22 @@ static char g_gpu_mem_clock[VAR_BUF_LEN];
 static char g_gpu_fan_rpm[VAR_BUF_LEN];
 static char g_host_meta[HOST_META_BUF_LEN];
 static int32_t g_gpu_vram_used;
+static char g_ui_meteo_condition[VAR_BUF_LEN];
+static char g_ui_meteo_date[VAR_BUF_LEN];
+static char g_ui_meteo_fd1[VAR_BUF_LEN];
+static char g_ui_meteo_fd2[VAR_BUF_LEN];
+static char g_ui_meteo_fd3[VAR_BUF_LEN];
+static char g_ui_meteo_fd4[VAR_BUF_LEN];
+static char g_ui_meteo_fd5[VAR_BUF_LEN];
+static char g_ui_meteo_fd6[VAR_BUF_LEN];
+static char g_ui_meteo_ft1[VAR_BUF_LEN];
+static char g_ui_meteo_ft2[VAR_BUF_LEN];
+static char g_ui_meteo_ft3[VAR_BUF_LEN];
+static char g_ui_meteo_ft4[VAR_BUF_LEN];
+static char g_ui_meteo_ft5[VAR_BUF_LEN];
+static char g_ui_meteo_ft6[VAR_BUF_LEN];
+static char g_ui_meteo_houre[VAR_BUF_LEN];
+static char g_ui_meteo_temp[VAR_BUF_LEN];
 static char g_fan_1_label[VAR_BUF_LEN];
 static int32_t g_fan_1_rpm;
 static char g_fan_1_rpm_text[VAR_BUF_LEN];
@@ -94,6 +110,31 @@ static void set_numeric_from_text(numeric_var_t *target, const char *text)
     if (target->valid) {
         target->value = parsed;
     }
+}
+
+static int32_t parse_non_negative_int_or_zero(const char *value)
+{
+    if (value == NULL) {
+        return 0;
+    }
+
+    while (*value != '\0' && isspace((unsigned char)*value)) {
+        value++;
+    }
+    if (*value == '\0') {
+        return 0;
+    }
+
+    errno = 0;
+    char *end = NULL;
+    long parsed = strtol(value, &end, 10);
+    if (value == end || errno == ERANGE || parsed < 0) {
+        return 0;
+    }
+    if (parsed > INT32_MAX) {
+        return INT32_MAX;
+    }
+    return (int32_t)parsed;
 }
 
 const char *get_var_cpu_pct()
@@ -238,6 +279,166 @@ void set_var_host_meta(const char *value)
     set_text(g_host_meta, sizeof(g_host_meta), value);
 }
 
+const char *get_var_ui_meteo_condition()
+{
+    return g_ui_meteo_condition;
+}
+
+void set_var_ui_meteo_condition(const char *value)
+{
+    set_text(g_ui_meteo_condition, sizeof(g_ui_meteo_condition), value);
+}
+
+const char *get_var_ui_meteo_date()
+{
+    return g_ui_meteo_date;
+}
+
+void set_var_ui_meteo_date(const char *value)
+{
+    set_text(g_ui_meteo_date, sizeof(g_ui_meteo_date), value);
+}
+
+const char *get_var_ui_meteo_fd1()
+{
+    return g_ui_meteo_fd1;
+}
+
+void set_var_ui_meteo_fd1(const char *value)
+{
+    set_text(g_ui_meteo_fd1, sizeof(g_ui_meteo_fd1), value);
+}
+
+const char *get_var_ui_meteo_fd2()
+{
+    return g_ui_meteo_fd2;
+}
+
+void set_var_ui_meteo_fd2(const char *value)
+{
+    set_text(g_ui_meteo_fd2, sizeof(g_ui_meteo_fd2), value);
+}
+
+const char *get_var_ui_meteo_fd3()
+{
+    return g_ui_meteo_fd3;
+}
+
+void set_var_ui_meteo_fd3(const char *value)
+{
+    set_text(g_ui_meteo_fd3, sizeof(g_ui_meteo_fd3), value);
+}
+
+const char *get_var_ui_meteo_fd4()
+{
+    return g_ui_meteo_fd4;
+}
+
+void set_var_ui_meteo_fd4(const char *value)
+{
+    set_text(g_ui_meteo_fd4, sizeof(g_ui_meteo_fd4), value);
+}
+
+const char *get_var_ui_meteo_fd5()
+{
+    return g_ui_meteo_fd5;
+}
+
+void set_var_ui_meteo_fd5(const char *value)
+{
+    set_text(g_ui_meteo_fd5, sizeof(g_ui_meteo_fd5), value);
+}
+
+const char *get_var_ui_meteo_fd6()
+{
+    return g_ui_meteo_fd6;
+}
+
+void set_var_ui_meteo_fd6(const char *value)
+{
+    set_text(g_ui_meteo_fd6, sizeof(g_ui_meteo_fd6), value);
+}
+
+const char *get_var_ui_meteo_ft1()
+{
+    return g_ui_meteo_ft1;
+}
+
+void set_var_ui_meteo_ft1(const char *value)
+{
+    set_text(g_ui_meteo_ft1, sizeof(g_ui_meteo_ft1), value);
+}
+
+const char *get_var_ui_meteo_ft2()
+{
+    return g_ui_meteo_ft2;
+}
+
+void set_var_ui_meteo_ft2(const char *value)
+{
+    set_text(g_ui_meteo_ft2, sizeof(g_ui_meteo_ft2), value);
+}
+
+const char *get_var_ui_meteo_ft3()
+{
+    return g_ui_meteo_ft3;
+}
+
+void set_var_ui_meteo_ft3(const char *value)
+{
+    set_text(g_ui_meteo_ft3, sizeof(g_ui_meteo_ft3), value);
+}
+
+const char *get_var_ui_meteo_ft4()
+{
+    return g_ui_meteo_ft4;
+}
+
+void set_var_ui_meteo_ft4(const char *value)
+{
+    set_text(g_ui_meteo_ft4, sizeof(g_ui_meteo_ft4), value);
+}
+
+const char *get_var_ui_meteo_ft5()
+{
+    return g_ui_meteo_ft5;
+}
+
+void set_var_ui_meteo_ft5(const char *value)
+{
+    set_text(g_ui_meteo_ft5, sizeof(g_ui_meteo_ft5), value);
+}
+
+const char *get_var_ui_meteo_ft6()
+{
+    return g_ui_meteo_ft6;
+}
+
+void set_var_ui_meteo_ft6(const char *value)
+{
+    set_text(g_ui_meteo_ft6, sizeof(g_ui_meteo_ft6), value);
+}
+
+const char *get_var_ui_meteo_houre()
+{
+    return g_ui_meteo_houre;
+}
+
+void set_var_ui_meteo_houre(const char *value)
+{
+    set_text(g_ui_meteo_houre, sizeof(g_ui_meteo_houre), value);
+}
+
+const char *get_var_ui_meteo_temp()
+{
+    return g_ui_meteo_temp;
+}
+
+void set_var_ui_meteo_temp(const char *value)
+{
+    set_text(g_ui_meteo_temp, sizeof(g_ui_meteo_temp), value);
+}
+
 const char *get_var_fan_1_label()
 {
     return g_fan_1_label;
@@ -248,16 +449,15 @@ void set_var_fan_1_label(const char *value)
     set_text(g_fan_1_label, sizeof(g_fan_1_label), value);
 }
 
-int32_t get_var_fan_1_rpm()
+const char *get_var_fan_1_rpm()
 {
-    return (int32_t)(intptr_t)g_fan_1_rpm_text;
+    return g_fan_1_rpm_text;
 }
 
-void set_var_fan_1_rpm(int32_t value)
+void set_var_fan_1_rpm(const char *value)
 {
-    g_fan_1_rpm = value < 0 ? 0 : value;
-    snprintf(g_fan_1_rpm_text, sizeof(g_fan_1_rpm_text), "%d", (int)g_fan_1_rpm);
-    g_fan_1_rpm_text[sizeof(g_fan_1_rpm_text) - 1] = '\0';
+    set_text(g_fan_1_rpm_text, sizeof(g_fan_1_rpm_text), value);
+    g_fan_1_rpm = parse_non_negative_int_or_zero(g_fan_1_rpm_text);
 }
 
 const char *get_var_fan_2_label()
@@ -270,38 +470,36 @@ void set_var_fan_2_label(const char *value)
     set_text(g_fan_2_label, sizeof(g_fan_2_label), value);
 }
 
-int32_t get_var_fan_2_rmp()
+const char *get_var_fan_2_rmp()
 {
-    return (int32_t)(intptr_t)g_fan_2_rpm_text;
+    return g_fan_2_rpm_text;
 }
 
-void set_var_fan_2_rmp(int32_t value)
+void set_var_fan_2_rmp(const char *value)
 {
-    g_fan_2_rpm = value < 0 ? 0 : value;
-    snprintf(g_fan_2_rpm_text, sizeof(g_fan_2_rpm_text), "%d", (int)g_fan_2_rpm);
-    g_fan_2_rpm_text[sizeof(g_fan_2_rpm_text) - 1] = '\0';
+    set_text(g_fan_2_rpm_text, sizeof(g_fan_2_rpm_text), value);
+    g_fan_2_rpm = parse_non_negative_int_or_zero(g_fan_2_rpm_text);
 }
 
-int32_t get_var_fan_2_rpm()
+const char *get_var_fan_2_rpm()
 {
     return get_var_fan_2_rmp();
 }
 
-void set_var_fan_2_rpm(int32_t value)
+void set_var_fan_2_rpm(const char *value)
 {
     set_var_fan_2_rmp(value);
 }
 
-int32_t get_var_fan_3_rpm()
+const char *get_var_fan_3_rpm()
 {
-    return (int32_t)(intptr_t)g_fan_3_rpm_text;
+    return g_fan_3_rpm_text;
 }
 
-void set_var_fan_3_rpm(int32_t value)
+void set_var_fan_3_rpm(const char *value)
 {
-    g_fan_3_rpm = value < 0 ? 0 : value;
-    snprintf(g_fan_3_rpm_text, sizeof(g_fan_3_rpm_text), "%d", (int)g_fan_3_rpm);
-    g_fan_3_rpm_text[sizeof(g_fan_3_rpm_text) - 1] = '\0';
+    set_text(g_fan_3_rpm_text, sizeof(g_fan_3_rpm_text), value);
+    g_fan_3_rpm = parse_non_negative_int_or_zero(g_fan_3_rpm_text);
 }
 
 const char *get_var_fan_3_label()

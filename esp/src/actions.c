@@ -11,7 +11,9 @@ static lv_obj_t *screen_from_id(enum ScreensEnum target)
         case SCREEN_ID_GPU:
             return objects.gpu;
         case SCREEN_ID_FAN:
-            return objects.fan;
+            return NULL;
+        case SCREEN_ID_METEO:
+            return objects.meteo;
         default:
             return NULL;
     }
@@ -55,11 +57,11 @@ void action_ui_swipe(lv_event_t *e)
         return;
     }
     if (target == objects.gpu && dir == LV_DIR_LEFT) {
-        action_swipe_to(SCREEN_ID_FAN, LV_SCR_LOAD_ANIM_MOVE_LEFT);
+        action_swipe_to(SCREEN_ID_METEO, LV_SCR_LOAD_ANIM_MOVE_LEFT);
         lv_indev_wait_release(indev);
         return;
     }
-    if (target == objects.fan && dir == LV_DIR_RIGHT) {
+    if (target == objects.meteo && dir == LV_DIR_RIGHT) {
         action_swipe_to(SCREEN_ID_GPU, LV_SCR_LOAD_ANIM_MOVE_RIGHT);
         lv_indev_wait_release(indev);
     }

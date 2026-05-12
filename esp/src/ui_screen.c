@@ -84,6 +84,9 @@ static void ui_prepare_screen_roots(void)
     if (objects.gpu != NULL) {
         lv_obj_clear_flag(objects.gpu, LV_OBJ_FLAG_SCROLLABLE);
     }
+    if (objects.meteo != NULL) {
+        lv_obj_clear_flag(objects.meteo, LV_OBJ_FLAG_SCROLLABLE);
+    }
     if (objects.obj21 != NULL) {
         lv_obj_clear_flag(objects.obj21, LV_OBJ_FLAG_SCROLLABLE);
     }

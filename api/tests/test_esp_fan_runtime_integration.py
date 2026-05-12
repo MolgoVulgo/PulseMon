@@ -25,25 +25,58 @@ def test_api_client_fetches_fans_dashboard_endpoint_and_pct_field() -> None:
     assert "if (n > PULSEMON_FAN_SLOT_COUNT)" in source
 
 
-def test_poller_routes_fan_screen_to_fans_dashboard() -> None:
+def test_poller_does_not_route_fan_screen_to_fans_dashboard() -> None:
     source = _read(ESP_SRC / "pulsemon_poller.c")
-    assert "active_screen == SCREEN_ID_FAN" in source
-    assert "pulsemon_fetch_fans_dashboard" in source
-    assert "update_ui_from_fans_dashboard" in source
+    assert "active_screen == SCREEN_ID_FAN" not in source
+    assert "pulsemon_fetch_fans_dashboard" not in source
+    assert "update_ui_from_fans_dashboard" not in source
+
+
+def test_runtime_navigation_skips_fan_screen_and_opens_meteo() -> None:
+    source = _read(ESP_SRC / "actions.c")
+    assert "action_swipe_to(SCREEN_ID_METEO" in source
+    assert "action_swipe_to(SCREEN_ID_FAN" not in source
 
 
 def test_poller_applies_visibility_policy_for_fan_panels() -> None:
-    source = _read(ESP_SRC / "pulsemon_poller.c")
-    assert "ui_screen_set_fans_visibility(f->slots[1].has_data, f->slots[2].has_data)" in source
+    source = _read(ESP_SRC / "ui_screen.c")
+    assert "void ui_screen_set_fans_visibility(bool fan2_visible, bool fan3_visible)" in source
+    assert "lv_obj_add_flag(objects.fan_4, LV_OBJ_FLAG_HIDDEN);" in source
+    assert "lv_obj_add_flag(objects.fan_5, LV_OBJ_FLAG_HIDDEN);" in source
+    assert "lv_obj_add_flag(objects.fan_6, LV_OBJ_FLAG_HIDDEN);" in source
+
+
+def test_runtime_vars_implement_generated_meteo_vars() -> None:
+    vars_c = _read(ESP_SRC / "vars.c")
+    for name in (
+        "ui_meteo_condition",
+        "ui_meteo_date",
+        "ui_meteo_fd1",
+        "ui_meteo_fd2",
+        "ui_meteo_fd3",
+        "ui_meteo_fd4",
+        "ui_meteo_fd5",
+        "ui_meteo_fd6",
+        "ui_meteo_ft1",
+        "ui_meteo_ft2",
+        "ui_meteo_ft3",
+        "ui_meteo_ft4",
+        "ui_meteo_ft5",
+        "ui_meteo_ft6",
+        "ui_meteo_houre",
+        "ui_meteo_temp",
+    ):
+        assert f"get_var_{name}()" in vars_c
+        assert f"set_var_{name}(const char *value)" in vars_c
 
 
 def test_runtime_vars_expose_fan2_rpm_name_and_compat_wrapper() -> None:
     vars_h = _read(ESP_SRC / "vars.h")
     vars_c = _read(ESP_SRC / "vars.c")
-    assert "int32_t get_var_fan_2_rpm(void);" in vars_h
-    assert "void set_var_fan_2_rpm(int32_t value);" in vars_h
-    assert "int32_t get_var_fan_2_rpm()" in vars_c
-    assert "void set_var_fan_2_rpm(int32_t value)" in vars_c
+    assert "int32_t get_var_fan_2_rpm(void);" not in vars_h
+    assert "void set_var_fan_2_rpm(int32_t value);" not in vars_h
+    assert "const char *get_var_fan_2_rpm()" in vars_c
+    assert "void set_var_fan_2_rpm(const char *value)" in vars_c
     assert "return get_var_fan_2_rmp();" in vars_c
     assert "set_var_fan_2_rmp(value);" in vars_c
 
