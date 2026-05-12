@@ -15,6 +15,7 @@
 #include "vars.h"
 
 static const char *TAG = "pulsemon_poller";
+static TaskHandle_t s_poller_task;
 
 #ifndef PULSEMON_LATENCY_DEBUG
 #define PULSEMON_LATENCY_DEBUG 0
@@ -268,8 +269,13 @@ static void poller_task(void *arg)
 
 void pulsemon_poller_start(void)
 {
-    BaseType_t res = xTaskCreate(poller_task, "pulsemon_poller", 8192, NULL, 4, NULL);
+    if (s_poller_task != NULL) {
+        return;
+    }
+
+    BaseType_t res = xTaskCreate(poller_task, "pulsemon_poller", 8192, NULL, 4, &s_poller_task);
     if (res != pdPASS) {
+        s_poller_task = NULL;
         ESP_LOGE(TAG, "failed to create poller task");
     }
 }
