@@ -71,6 +71,23 @@ Definie dans `src/pulsemon_api_config.h`:
 
 La valeur par defaut est une URL LAN statique (`192.168.0.10`).
 
+## Configuration Wi-Fi firmware
+
+Les credentials Wi-Fi STA ne sont pas compiles dans le firmware. Ils sont stockes en NVS dans le namespace `pulsemon_wifi`.
+
+Au boot:
+- si des credentials valides existent en NVS, le firmware tente la connexion STA;
+- sinon, ou apres echec de connexion, le firmware ouvre l'AP de configuration `PulseMon-Setup`;
+- le portail est disponible sur `http://192.168.4.1/` depuis l'AP;
+- un DNS captif local redirige les noms de domaine vers `192.168.4.1` pour declencher l'ouverture automatique du portail sur les clients compatibles;
+- la page permet de scanner les SSID, saisir le mot de passe, sauvegarder en NVS et reconnecter immediatement.
+
+Constantes non sensibles definies dans `src/wifi_config.h`:
+- `PULSEMON_WIFI_AP_SSID`
+- `PULSEMON_WIFI_AP_PASSWORD` (vide par defaut: AP ouvert)
+- `PULSEMON_WIFI_MAX_RETRY`
+- `PULSEMON_WIFI_SCAN_MAX_RESULTS`
+
 ## Build
 
 ```bash
