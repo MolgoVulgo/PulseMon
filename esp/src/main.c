@@ -7,7 +7,9 @@
 #include "esp_bsp.h"
 #include "display.h"
 #include "ui/ui.h"
+#include "pulsemon_meteo_service.h"
 #include "pulsemon_poller.h"
+#include "pulsemon_weather_icons.h"
 #include "ui_screen.h"
 #include "vars.h"
 #include "wifi_config_server.h"
@@ -21,6 +23,7 @@ static const char *TAG = "pulsemon";
 static void pulsemon_on_wifi_connected(void)
 {
     pulsemon_poller_start();
+    pulsemon_meteo_service_request_update();
 }
 
 void app_main(void)
@@ -109,9 +112,21 @@ void app_main(void)
 
     ESP_LOGI(TAG, "ui started");
 
+    esp_err_t icons_ret = pulsemon_weather_icons_init();
+    if (icons_ret != ESP_OK) {
+        ESP_LOGW(TAG, "weather icons init skipped: %s", esp_err_to_name(icons_ret));
+    }
+
     esp_err_t wifi_ret = pulsemon_wifi_manager_init(pulsemon_on_wifi_connected);
     if (wifi_ret != ESP_OK) {
         ESP_LOGE(TAG, "wifi manager init failed: %s", esp_err_to_name(wifi_ret));
+    }
+
+    if (wifi_ret == ESP_OK) {
+        esp_err_t meteo_ret = pulsemon_meteo_service_start();
+        if (meteo_ret != ESP_OK) {
+            ESP_LOGE(TAG, "meteo service init failed: %s", esp_err_to_name(meteo_ret));
+        }
     }
 
     esp_err_t web_ret = pulsemon_wifi_config_server_start();

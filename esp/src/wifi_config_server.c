@@ -1,14 +1,18 @@
 #include "wifi_config_server.h"
 
 #include <ctype.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "esp_http_server.h"
 #include "esp_log.h"
 
+#include "pulsemon_meteo_service.h"
+#include "pulsemon_settings.h"
 #include "wifi_config.h"
 #include "wifi_credentials.h"
 #include "wifi_manager.h"
@@ -16,13 +20,47 @@
 static const char *TAG = "wifi_config_web";
 static httpd_handle_t s_server;
 
-static const char INDEX_HTML[] =
+static const char CONFIG_HTML[] =
+    "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+    "<title>PulseMon Config</title><style>"
+    "body{font-family:system-ui,sans-serif;margin:24px;max-width:640px;background:#111;color:#eee}"
+    "nav a{color:#9ad;margin-right:16px}label{display:block;margin-top:14px;color:#ccc}"
+    "button,input,select{width:100%;box-sizing:border-box;padding:12px;margin:8px 0;border-radius:6px;border:1px solid #555;background:#222;color:#eee}"
+    "button{background:#0b6bcb;border:0;font-weight:700}.row{margin:14px 0}.msg{min-height:24px;color:#9ad}.hint{color:#999;font-size:14px}"
+    "</style></head><body><nav><a href=\"/\">Config</a><a href=\"/wifi\">WiFi</a></nav><h1>PulseMon</h1><div class=\"msg\" id=\"msg\">Loading...</div>"
+    "<label>OpenWeather key</label><input id=\"openweather_key\" maxlength=\"96\" type=\"password\" placeholder=\"Leave empty to keep saved key\">"
+    "<label><input id=\"clear_openweather_key\" type=\"checkbox\" style=\"width:auto\"> Clear saved OpenWeather key</label>"
+    "<label>GMT offset</label><select id=\"gmt_offset_min\">"
+    "<option value=\"-720\">GMT-12:00</option><option value=\"-660\">GMT-11:00</option><option value=\"-600\">GMT-10:00</option>"
+    "<option value=\"-540\">GMT-09:00</option><option value=\"-480\">GMT-08:00</option><option value=\"-420\">GMT-07:00</option>"
+    "<option value=\"-360\">GMT-06:00</option><option value=\"-300\">GMT-05:00</option><option value=\"-240\">GMT-04:00</option>"
+    "<option value=\"-180\">GMT-03:00</option><option value=\"-120\">GMT-02:00</option><option value=\"-60\">GMT-01:00</option>"
+    "<option value=\"0\">GMT+00:00</option><option value=\"60\">GMT+01:00</option><option value=\"120\">GMT+02:00</option>"
+    "<option value=\"180\">GMT+03:00</option><option value=\"240\">GMT+04:00</option><option value=\"300\">GMT+05:00</option>"
+    "<option value=\"330\">GMT+05:30</option><option value=\"360\">GMT+06:00</option><option value=\"420\">GMT+07:00</option>"
+    "<option value=\"480\">GMT+08:00</option><option value=\"540\">GMT+09:00</option><option value=\"600\">GMT+10:00</option>"
+    "<option value=\"660\">GMT+11:00</option><option value=\"720\">GMT+12:00</option><option value=\"780\">GMT+13:00</option>"
+    "<option value=\"840\">GMT+14:00</option></select>"
+    "<label>OpenWeather city id</label><input id=\"openweather_city_id\" inputmode=\"numeric\" pattern=\"[0-9]*\" placeholder=\"Example: 2988507\">"
+    "<label>Language</label><select id=\"language\"><option value=\"fr\">fr</option><option value=\"en\">en</option><option value=\"de\">de</option><option value=\"es\">es</option><option value=\"it\">it</option></select>"
+    "<button onclick=\"saveConfig()\">Save configuration</button><button onclick=\"clearConfig()\">Reset PulseMon config</button><p class=\"hint\" id=\"keyState\"></p>"
+    "<script>"
+    "const msg=document.getElementById('msg'),key=document.getElementById('openweather_key'),clearKey=document.getElementById('clear_openweather_key'),gmt=document.getElementById('gmt_offset_min'),city=document.getElementById('openweather_city_id'),lang=document.getElementById('language'),keyState=document.getElementById('keyState');"
+    "function setMsg(t){msg.textContent=t}"
+    "async function loadConfig(){try{let r=await fetch('/api/config');let j=await r.json();gmt.value=String(j.gmt_offset_min);city.value=j.openweather_city_id?String(j.openweather_city_id):'';lang.value=j.language||'fr';keyState.textContent=j.openweather_key_set?'OpenWeather key saved':'No OpenWeather key saved';setMsg('Ready')}catch(e){setMsg('Config unavailable')}}"
+    "async function saveConfig(){setMsg('Saving...');let body=new URLSearchParams({gmt_offset_min:gmt.value,openweather_city_id:city.value,language:lang.value});if(key.value)body.set('openweather_key',key.value);if(clearKey.checked)body.set('clear_openweather_key','1');let r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});setMsg(r.ok?'Saved':await r.text());key.value='';clearKey.checked=false;loadConfig()}"
+    "async function clearConfig(){let r=await fetch('/api/config/clear',{method:'POST'});setMsg(r.ok?'PulseMon config reset':'Reset failed');loadConfig()}"
+    "loadConfig();"
+    "</script></body></html>";
+
+static const char WIFI_HTML[] =
     "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
     "<title>PulseMon WiFi</title><style>"
     "body{font-family:system-ui,sans-serif;margin:24px;max-width:560px;background:#111;color:#eee}"
+    "nav a{color:#9ad;margin-right:16px}"
     "button,input,select{width:100%;box-sizing:border-box;padding:12px;margin:8px 0;border-radius:6px;border:1px solid #555;background:#222;color:#eee}"
     "button{background:#0b6bcb;border:0;font-weight:700}.row{margin:14px 0}.msg{min-height:24px;color:#9ad}"
-    "</style></head><body><h1>PulseMon WiFi</h1><div class=\"msg\" id=\"msg\">Loading...</div>"
+    "</style></head><body><nav><a href=\"/\">Config</a><a href=\"/wifi\">WiFi</a></nav><h1>PulseMon WiFi</h1><div class=\"msg\" id=\"msg\">Loading...</div>"
     "<div class=\"row\"><button onclick=\"scan()\">Scan SSID</button><select id=\"net\" onchange=\"pick()\"><option value=\"\">Manual SSID</option></select></div>"
     "<input id=\"ssid\" maxlength=\"32\" placeholder=\"SSID\"><input id=\"password\" type=\"password\" maxlength=\"63\" placeholder=\"Password\">"
     "<button onclick=\"save()\">Save and connect</button><button onclick=\"clearWifi()\">Clear saved WiFi</button>"
@@ -117,10 +155,155 @@ static bool form_get(const char *body, const char *key, char *out, size_t out_le
     return false;
 }
 
+static bool form_get_i32(const char *body, const char *key, int32_t *out)
+{
+    char value[24];
+    char *end = NULL;
+
+    if (out == NULL || !form_get(body, key, value, sizeof(value))) {
+        return false;
+    }
+    long parsed = strtol(value, &end, 10);
+    if (end == value || *end != '\0') {
+        return false;
+    }
+    if (parsed < INT32_MIN || parsed > INT32_MAX) {
+        return false;
+    }
+    *out = (int32_t)parsed;
+    return true;
+}
+
 static esp_err_t index_handler(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "text/html");
-    return httpd_resp_send(req, INDEX_HTML, HTTPD_RESP_USE_STRLEN);
+    return httpd_resp_send(req, CONFIG_HTML, HTTPD_RESP_USE_STRLEN);
+}
+
+static esp_err_t wifi_page_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "text/html");
+    return httpd_resp_send(req, WIFI_HTML, HTTPD_RESP_USE_STRLEN);
+}
+
+static esp_err_t config_get_handler(httpd_req_t *req)
+{
+    pulsemon_settings_t settings;
+    esp_err_t err = pulsemon_settings_load(&settings);
+    if (err != ESP_OK && err != ESP_ERR_INVALID_SIZE) {
+        ESP_LOGW(TAG, "settings load failed: %s", esp_err_to_name(err));
+        send_text(req, 500, "settings load failed");
+        return ESP_OK;
+    }
+
+    char language[16];
+    json_escape(language, sizeof(language), settings.language);
+
+    char body[192];
+    snprintf(body,
+             sizeof(body),
+             "{\"openweather_key_set\":%s,\"gmt_offset_min\":%d,\"openweather_city_id\":%lu,\"language\":\"%s\"}",
+             settings.openweather_key[0] != '\0' ? "true" : "false",
+             (int)settings.gmt_offset_min,
+             (unsigned long)settings.openweather_city_id,
+             language);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_sendstr(req, body);
+}
+
+static esp_err_t config_save_handler(httpd_req_t *req)
+{
+    if (req->content_len <= 0 || req->content_len > 640) {
+        send_text(req, 400, "invalid form size");
+        return ESP_OK;
+    }
+
+    char body[641];
+    int total = 0;
+    while (total < req->content_len) {
+        int received = httpd_req_recv(req, body + total, req->content_len - total);
+        if (received <= 0) {
+            send_text(req, 400, "form read failed");
+            return ESP_OK;
+        }
+        total += received;
+    }
+    body[total] = '\0';
+
+    pulsemon_settings_t settings;
+    esp_err_t err = pulsemon_settings_load(&settings);
+    if (err != ESP_OK && err != ESP_ERR_INVALID_SIZE) {
+        ESP_LOGW(TAG, "settings load before save failed: %s", esp_err_to_name(err));
+        send_text(req, 500, "settings load failed");
+        return ESP_OK;
+    }
+
+    char openweather_key[PULSEMON_OPENWEATHER_KEY_MAX_LEN + 1];
+    char clear_openweather_key[4];
+    if (form_get(body, "clear_openweather_key", clear_openweather_key, sizeof(clear_openweather_key)) &&
+        strcmp(clear_openweather_key, "1") == 0) {
+        settings.openweather_key[0] = '\0';
+    } else if (form_get(body, "openweather_key", openweather_key, sizeof(openweather_key)) && openweather_key[0] != '\0') {
+        snprintf(settings.openweather_key, sizeof(settings.openweather_key), "%s", openweather_key);
+    }
+
+    int32_t gmt_offset = 0;
+    if (!form_get_i32(body, "gmt_offset_min", &gmt_offset)) {
+        send_text(req, 400, "gmt_offset_min required");
+        return ESP_OK;
+    }
+    if (gmt_offset < -720 || gmt_offset > 840) {
+        send_text(req, 400, "invalid gmt_offset_min");
+        return ESP_OK;
+    }
+    settings.gmt_offset_min = (int16_t)gmt_offset;
+
+    char city_value[24];
+    if (form_get(body, "openweather_city_id", city_value, sizeof(city_value)) && city_value[0] != '\0') {
+        char *end = NULL;
+        long city_id = strtol(city_value, &end, 10);
+        if (end == city_value || *end != '\0' || city_id < 0 || city_id > UINT32_MAX) {
+            send_text(req, 400, "invalid openweather_city_id");
+            return ESP_OK;
+        }
+        settings.openweather_city_id = (uint32_t)city_id;
+    } else {
+        settings.openweather_city_id = 0;
+    }
+
+    if (!form_get(body, "language", settings.language, sizeof(settings.language))) {
+        send_text(req, 400, "language required");
+        return ESP_OK;
+    }
+
+    if (!pulsemon_settings_validate(&settings)) {
+        send_text(req, 400, "invalid configuration");
+        return ESP_OK;
+    }
+
+    err = pulsemon_settings_save(&settings);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "settings save failed: %s", esp_err_to_name(err));
+        send_text(req, 500, "settings save failed");
+        return ESP_OK;
+    }
+
+    send_text(req, 200, "saved");
+    pulsemon_meteo_service_request_update();
+    return ESP_OK;
+}
+
+static esp_err_t config_clear_handler(httpd_req_t *req)
+{
+    esp_err_t err = pulsemon_settings_clear();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "settings clear failed: %s", esp_err_to_name(err));
+        send_text(req, 500, "settings clear failed");
+        return ESP_OK;
+    }
+    send_text(req, 200, "cleared");
+    pulsemon_meteo_service_request_update();
+    return ESP_OK;
 }
 
 static esp_err_t status_handler(httpd_req_t *req)
@@ -247,6 +430,10 @@ esp_err_t pulsemon_wifi_config_server_start(void)
     }
 
     const httpd_uri_t index_uri = {.uri = "/", .method = HTTP_GET, .handler = index_handler};
+    const httpd_uri_t wifi_page_uri = {.uri = "/wifi", .method = HTTP_GET, .handler = wifi_page_handler};
+    const httpd_uri_t config_get_uri = {.uri = "/api/config", .method = HTTP_GET, .handler = config_get_handler};
+    const httpd_uri_t config_save_uri = {.uri = "/api/config", .method = HTTP_POST, .handler = config_save_handler};
+    const httpd_uri_t config_clear_uri = {.uri = "/api/config/clear", .method = HTTP_POST, .handler = config_clear_handler};
     const httpd_uri_t status_uri = {.uri = "/api/wifi/status", .method = HTTP_GET, .handler = status_handler};
     const httpd_uri_t scan_uri = {.uri = "/api/wifi/scan", .method = HTTP_GET, .handler = scan_handler};
     const httpd_uri_t save_uri = {.uri = "/api/wifi", .method = HTTP_POST, .handler = save_handler};
@@ -254,6 +441,10 @@ esp_err_t pulsemon_wifi_config_server_start(void)
     const httpd_uri_t portal_uri = {.uri = "/*", .method = HTTP_GET, .handler = index_handler};
 
     httpd_register_uri_handler(s_server, &index_uri);
+    httpd_register_uri_handler(s_server, &wifi_page_uri);
+    httpd_register_uri_handler(s_server, &config_get_uri);
+    httpd_register_uri_handler(s_server, &config_save_uri);
+    httpd_register_uri_handler(s_server, &config_clear_uri);
     httpd_register_uri_handler(s_server, &status_uri);
     httpd_register_uri_handler(s_server, &scan_uri);
     httpd_register_uri_handler(s_server, &save_uri);
