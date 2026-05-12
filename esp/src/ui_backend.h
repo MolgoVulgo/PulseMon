@@ -5,6 +5,10 @@
 
 #include <lvgl.h>
 
+#if !defined(UI_BACKEND_EEZ) && !defined(UI_BACKEND_SQUARELINE)
+#define UI_BACKEND_EEZ 1
+#endif
+
 #if defined(UI_BACKEND_EEZ)
 #include "ui/ui.h"
 #include "ui/screens.h"
