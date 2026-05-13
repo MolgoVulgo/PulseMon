@@ -23,6 +23,8 @@ Unknown `GET` paths still fall back to `/` for captive portal behavior.
 
 - `openweather_key`
 - `clear_openweather_key`
+- `gnews_key`
+- `clear_gnews_key`
 - `gmt_offset_min`
 - `openweather_city_id`
 - `language`
@@ -38,6 +40,23 @@ PulseMon configuration is stored in the `pulsemon_cfg` namespace:
 
 The OpenWeather key must not be logged or returned by the API. `GET /api/config`
 only reports `openweather_key_set`.
+
+News configuration is stored in the `news` namespace:
+
+- `provider`: active provider, fixed to `gnews` in V1.
+- `gnews_key`: GNews key.
+- `enabled`: news module enable flag.
+- `refresh_min`: nominal refresh interval in minutes.
+- `category`: GNews category.
+- `lang`: GNews language.
+- `country`: GNews country.
+- `max_items`: maximum article count requested.
+- `max_age_days`: maximum article age.
+- `last_ok_ts`: last successful fetch timestamp.
+- `last_error`: last compact error code.
+
+The GNews key must not be logged or returned by the API. `GET /api/config`
+only reports `gnews_key_set`.
 
 ## Meteo UI integration
 

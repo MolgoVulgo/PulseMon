@@ -8,6 +8,7 @@
 #include "display.h"
 #include "ui/ui.h"
 #include "pulsemon_meteo_service.h"
+#include "news_service.h"
 #include "pulsemon_poller.h"
 #include "pulsemon_weather_icons.h"
 #include "ui_screen.h"
@@ -28,6 +29,7 @@ static void pulsemon_on_wifi_connected(void)
 {
     pulsemon_poller_start();
     pulsemon_meteo_service_request_update();
+    news_service_request_update();
 }
 
 void app_main(void)
@@ -82,6 +84,7 @@ void app_main(void)
     set_var_ui_meteo_date("--");
     set_var_ui_meteo_temp("--");
     set_var_ui_meteo_condition("--");
+    set_var_ui_meteo_alert("");
     set_var_ui_meteo_fd1("--");
     set_var_ui_meteo_fd2("--");
     set_var_ui_meteo_fd3("--");
@@ -138,6 +141,14 @@ void app_main(void)
         }
 #else
         (void)meteo_ret;
+#endif
+        esp_err_t news_ret = news_service_start();
+#if PULSEMON_NEWS_DEBUG
+        if (news_ret != ESP_OK) {
+            ESP_LOGE(TAG, "news service init failed: %s", esp_err_to_name(news_ret));
+        }
+#else
+        (void)news_ret;
 #endif
     }
 

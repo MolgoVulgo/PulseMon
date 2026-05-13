@@ -3,4 +3,8 @@
 
 #include <lvgl.h>
 
+#ifndef _
+#define _(text) (text)
+#endif
+
 #endif

@@ -59,7 +59,7 @@ void create_screen_main() {
     lv_obj_t *obj = lv_obj_create(0);
     objects.main = obj;
     lv_obj_set_pos(obj, 0, 0);
-    lv_obj_set_size(obj, 480, 340);
+    lv_obj_set_size(obj, 480, 320);
     lv_obj_add_event_cb(obj, action_ui_swipe, LV_EVENT_GESTURE, (void *)0);
     add_style_defaut(obj);
     {
@@ -418,7 +418,7 @@ void create_screen_gpu() {
     lv_obj_t *obj = lv_obj_create(0);
     objects.gpu = obj;
     lv_obj_set_pos(obj, 0, 0);
-    lv_obj_set_size(obj, 480, 340);
+    lv_obj_set_size(obj, 480, 320);
     lv_obj_add_event_cb(obj, action_ui_swipe, LV_EVENT_GESTURE, (void *)0);
     add_style_defaut(obj);
     {
@@ -426,7 +426,7 @@ void create_screen_gpu() {
         {
             lv_obj_t *obj = lv_obj_create(parent_obj);
             objects.obj13 = obj;
-            lv_obj_set_pos(obj, 6, 47);
+            lv_obj_set_pos(obj, 6, 34);
             lv_obj_set_size(obj, 153, 50);
             lv_obj_set_style_bg_color(obj, lv_color_hex(0x171a21), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_color(obj, lv_color_hex(0x2a3140), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -461,7 +461,7 @@ void create_screen_gpu() {
         {
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.obj15 = obj;
-            lv_obj_set_pos(obj, 12, 21);
+            lv_obj_set_pos(obj, 12, 8);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0xd8deea), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_text_font(obj, &ui_font_font_18, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -471,7 +471,7 @@ void create_screen_gpu() {
             // host_meta_1
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.host_meta_1 = obj;
-            lv_obj_set_pos(obj, 240, 25);
+            lv_obj_set_pos(obj, 240, 8);
             lv_obj_set_size(obj, 228, LV_SIZE_CONTENT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0x90a0bc), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -482,7 +482,7 @@ void create_screen_gpu() {
             // graph_gpu_pct
             lv_obj_t *obj = lv_obj_create(parent_obj);
             objects.graph_gpu_pct = obj;
-            lv_obj_set_pos(obj, 6, 160);
+            lv_obj_set_pos(obj, 6, 141);
             lv_obj_set_size(obj, 232, 160);
             lv_obj_set_style_bg_color(obj, lv_color_hex(0x0f131d), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_color(obj, lv_color_hex(0x232a38), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -491,7 +491,7 @@ void create_screen_gpu() {
         {
             lv_obj_t *obj = lv_obj_create(parent_obj);
             objects.obj16 = obj;
-            lv_obj_set_pos(obj, 163, 47);
+            lv_obj_set_pos(obj, 163, 34);
             lv_obj_set_size(obj, 154, 50);
             lv_obj_set_style_bg_color(obj, lv_color_hex(0x171a21), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_color(obj, lv_color_hex(0x2a3140), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -526,7 +526,7 @@ void create_screen_gpu() {
         {
             lv_obj_t *obj = lv_obj_create(parent_obj);
             objects.obj18 = obj;
-            lv_obj_set_pos(obj, 321, 47);
+            lv_obj_set_pos(obj, 321, 34);
             lv_obj_set_size(obj, 153, 50);
             lv_obj_set_style_bg_color(obj, lv_color_hex(0x171a21), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_color(obj, lv_color_hex(0x2a3140), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -561,7 +561,7 @@ void create_screen_gpu() {
         {
             lv_obj_t *obj = lv_obj_create(parent_obj);
             objects.obj20 = obj;
-            lv_obj_set_pos(obj, 163, 101);
+            lv_obj_set_pos(obj, 163, 88);
             lv_obj_set_size(obj, 153, 50);
             lv_obj_set_style_bg_color(obj, lv_color_hex(0x171a21), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_color(obj, lv_color_hex(0x2a3140), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -596,7 +596,7 @@ void create_screen_gpu() {
         {
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.obj22 = obj;
-            lv_obj_set_pos(obj, 202, 21);
+            lv_obj_set_pos(obj, 202, 8);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0xff6e39), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_text_font(obj, &ui_font_font_18, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -605,7 +605,7 @@ void create_screen_gpu() {
         {
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.obj23 = obj;
-            lv_obj_set_pos(obj, 231, 21);
+            lv_obj_set_pos(obj, 231, 8);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0xd8deea), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_text_font(obj, &ui_font_font_18, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -614,7 +614,7 @@ void create_screen_gpu() {
         {
             lv_obj_t *obj = lv_obj_create(parent_obj);
             objects.obj24 = obj;
-            lv_obj_set_pos(obj, 6, 100);
+            lv_obj_set_pos(obj, 6, 87);
             lv_obj_set_size(obj, 153, 50);
             lv_obj_set_style_bg_color(obj, lv_color_hex(0x171a21), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_color(obj, lv_color_hex(0x2a3140), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -656,7 +656,7 @@ void create_screen_gpu() {
             // graph_gpu_temp
             lv_obj_t *obj = lv_obj_create(parent_obj);
             objects.graph_gpu_temp = obj;
-            lv_obj_set_pos(obj, 242, 160);
+            lv_obj_set_pos(obj, 242, 141);
             lv_obj_set_size(obj, 232, 160);
             lv_obj_set_style_bg_color(obj, lv_color_hex(0x0f131d), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_color(obj, lv_color_hex(0x232a38), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -737,7 +737,7 @@ void create_screen_fan() {
     lv_obj_t *obj = lv_obj_create(0);
     objects.fan = obj;
     lv_obj_set_pos(obj, 0, 0);
-    lv_obj_set_size(obj, 480, 340);
+    lv_obj_set_size(obj, 480, 320);
     lv_obj_add_event_cb(obj, action_ui_swipe, LV_EVENT_GESTURE, (void *)0);
     add_style_defaut(obj);
     {
@@ -1555,7 +1555,7 @@ void create_screen_meteo() {
                     lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
                     lv_obj_set_style_text_font(obj, &ui_font_ui_16, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_color(obj, lv_color_hex(0xffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_label_set_text_static(obj, "Alerte Meteo");
+                    lv_label_set_text(obj, "");
                 }
             }
         }
@@ -1709,6 +1709,76 @@ void tick_screen_meteo() {
             tick_value_change_obj = NULL;
         }
     }
+    {
+        const char *new_val = get_var_ui_meteo_alert();
+        const char *cur_val = lv_label_get_text(objects.obj52);
+        if (strcmp(new_val, cur_val) != 0) {
+            tick_value_change_obj = objects.obj52;
+            lv_label_set_text(objects.obj52, new_val);
+            tick_value_change_obj = NULL;
+        }
+    }
+}
+
+void create_screen_start() {
+    lv_obj_t *obj = lv_obj_create(0);
+    objects.start = obj;
+    lv_obj_set_pos(obj, 0, 0);
+    lv_obj_set_size(obj, 480, 320);
+    lv_obj_set_style_bg_color(obj, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    {
+        lv_obj_t *parent_obj = obj;
+        {
+            // ui_start_bar
+            lv_obj_t *obj = lv_bar_create(parent_obj);
+            objects.ui_start_bar = obj;
+            lv_obj_set_pos(obj, 165, 155);
+            lv_obj_set_size(obj, 150, 10);
+        }
+        {
+            // ui_start_bar_texte
+            lv_obj_t *obj = lv_label_create(parent_obj);
+            objects.ui_start_bar_texte = obj;
+            lv_obj_set_pos(obj, 140, 127);
+            lv_obj_set_size(obj, 200, LV_SIZE_CONTENT);
+            lv_obj_set_style_text_color(obj, lv_color_hex(0xffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(obj, &ui_font_ui_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_label_set_text(obj, "");
+        }
+        {
+            lv_obj_t *obj = lv_label_create(parent_obj);
+            objects.obj53 = obj;
+            lv_obj_set_pos(obj, 160, 65);
+            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+            lv_obj_set_style_text_color(obj, lv_color_hex(0xffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_text_font(obj, &ui_font_ui_40, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_label_set_text(obj, _("PluseMon"));
+        }
+    }
+    
+    tick_screen_start();
+}
+
+void tick_screen_start() {
+    {
+        int32_t new_val = get_var_ui_start_bar();
+        int32_t cur_val = lv_bar_get_value(objects.ui_start_bar);
+        if (new_val != cur_val) {
+            tick_value_change_obj = objects.ui_start_bar;
+            lv_bar_set_value(objects.ui_start_bar, new_val, LV_ANIM_ON);
+            tick_value_change_obj = NULL;
+        }
+    }
+    {
+        const char *new_val = get_var_ui_start_bar_texte();
+        const char *cur_val = lv_label_get_text(objects.ui_start_bar_texte);
+        if (strcmp(new_val, cur_val) != 0) {
+            tick_value_change_obj = objects.ui_start_bar_texte;
+            lv_label_set_text(objects.ui_start_bar_texte, new_val);
+            tick_value_change_obj = NULL;
+        }
+    }
 }
 
 typedef void (*tick_screen_func_t)();
@@ -1717,9 +1787,10 @@ tick_screen_func_t tick_screen_funcs[] = {
     tick_screen_gpu,
     tick_screen_fan,
     tick_screen_meteo,
+    tick_screen_start,
 };
 void tick_screen(int screen_index) {
-    if (screen_index >= 0 && screen_index < 4) {
+    if (screen_index >= 0 && screen_index < 5) {
         tick_screen_funcs[screen_index]();
     }
 }
@@ -1825,4 +1896,5 @@ void create_screens() {
     create_screen_gpu();
     create_screen_fan();
     create_screen_meteo();
+    create_screen_start();
 }
