@@ -10,6 +10,7 @@
 
 #define VAR_BUF_LEN 64
 #define HOST_META_BUF_LEN 160
+#define METEO_ALERT_BUF_LEN 960
 
 static char g_cpu_pct[VAR_BUF_LEN];
 static char g_cpu_temp[VAR_BUF_LEN];
@@ -40,6 +41,9 @@ static char g_ui_meteo_ft5[VAR_BUF_LEN];
 static char g_ui_meteo_ft6[VAR_BUF_LEN];
 static char g_ui_meteo_houre[VAR_BUF_LEN];
 static char g_ui_meteo_temp[VAR_BUF_LEN];
+static char g_ui_meteo_alert[METEO_ALERT_BUF_LEN];
+static int32_t g_ui_start_bar;
+static char g_ui_start_bar_texte[VAR_BUF_LEN];
 static char g_fan_1_label[VAR_BUF_LEN];
 static int32_t g_fan_1_rpm;
 static char g_fan_1_rpm_text[VAR_BUF_LEN];
@@ -437,6 +441,36 @@ const char *get_var_ui_meteo_temp()
 void set_var_ui_meteo_temp(const char *value)
 {
     set_text(g_ui_meteo_temp, sizeof(g_ui_meteo_temp), value);
+}
+
+const char *get_var_ui_meteo_alert()
+{
+    return g_ui_meteo_alert;
+}
+
+void set_var_ui_meteo_alert(const char *value)
+{
+    set_text(g_ui_meteo_alert, sizeof(g_ui_meteo_alert), value);
+}
+
+int32_t get_var_ui_start_bar()
+{
+    return g_ui_start_bar;
+}
+
+void set_var_ui_start_bar(int32_t value)
+{
+    g_ui_start_bar = value;
+}
+
+const char *get_var_ui_start_bar_texte()
+{
+    return g_ui_start_bar_texte;
+}
+
+void set_var_ui_start_bar_texte(const char *value)
+{
+    set_text(g_ui_start_bar_texte, sizeof(g_ui_start_bar_texte), value);
 }
 
 const char *get_var_fan_1_label()

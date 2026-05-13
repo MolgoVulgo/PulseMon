@@ -45,6 +45,7 @@ from app.services import (
     build_gpu_dashboard_live,
     build_gpu_history,
     build_gpu_meta,
+    GpuSamplerService,
     build_history,
     build_meta,
     save_fans_mapping_config,
@@ -81,6 +82,13 @@ sampler_service = SamplerService(
     history_store=history_store,
     sample_func=lambda: build_dashboard_live(display_ema_alpha=config.display_ema_alpha),
     interval_s=config.sample_interval_s,
+    publish_interval_s=config.publish_interval_s,
+)
+gpu_sampler_service = GpuSamplerService(
+    snapshot_store=gpu_snapshot_store,
+    history_store=gpu_history_store,
+    sample_func=build_gpu_dashboard_live,
+    interval_s=config.publish_interval_s,
     publish_interval_s=config.publish_interval_s,
 )
 
@@ -158,9 +166,11 @@ async def lifespan(_: FastAPI):
             diagnostics_threads[-1].start()
 
     sampler_service.start()
+    gpu_sampler_service.start()
     try:
         yield
     finally:
+        gpu_sampler_service.stop()
         sampler_service.stop()
         for diagnostics_thread in diagnostics_threads:
             diagnostics_thread.join(timeout=0.1)
@@ -241,10 +251,6 @@ def get_meta() -> MetaResponse:
 
 @app.get("/api/v1/gpu/dashboard", response_model=GpuDashboardResponse)
 def get_gpu_dashboard() -> GpuDashboardResponse:
-    snapshot = build_gpu_dashboard_live()
-    now_ms = int(time.time() * 1000)
-    gpu_snapshot_store.set_snapshot(snapshot, tick_ms=now_ms)
-    gpu_history_store.push_snapshot(snapshot, tick_ms=now_ms)
     try:
         return build_gpu_dashboard_from_store(gpu_snapshot_store)
     except GpuSnapshotUnavailableError:
@@ -259,11 +265,6 @@ def get_gpu_history(window: int = WINDOW_DEFAULT, step: int = STEP_DEFAULT, mode
         _raise_api_error(400, "invalid_parameter", "step")
     if mode not in {"display", "raw"}:
         _raise_api_error(400, "invalid_parameter", "mode")
-    if len(gpu_history_store) == 0:
-        warmup = build_gpu_dashboard_live()
-        now_ms = int(time.time() * 1000)
-        gpu_snapshot_store.set_snapshot(warmup, tick_ms=now_ms)
-        gpu_history_store.push_snapshot(warmup, tick_ms=now_ms)
     return build_gpu_history(history_store=gpu_history_store, window_s=window, step_s=step, mode=mode)
 
 

@@ -1,5 +1,7 @@
 #include "sd_storage.h"
 
+#include <dirent.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -41,6 +43,44 @@ static bool sd_pins_valid(void)
 bool sd_storage_is_mounted(void)
 {
     return s_mounted;
+}
+
+esp_err_t sd_storage_log_file_list(const char *path)
+{
+    esp_err_t err = sd_storage_ensure_mounted();
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    const char *list_path = (path != NULL && path[0] != '\0') ? path : PULSEMON_SD_MOUNT_POINT;
+    DIR *dir = opendir(list_path);
+    if (dir == NULL) {
+        ESP_LOGE(TAG, "open dir failed: %s", list_path);
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "sd file list: %s", list_path);
+    struct dirent *entry = NULL;
+    while ((entry = readdir(dir)) != NULL) {
+        char full_path[256];
+        int written = snprintf(full_path, sizeof(full_path), "%s/%s", list_path, entry->d_name);
+        if (written <= 0 || (size_t)written >= sizeof(full_path)) {
+            ESP_LOGW(TAG, "path too long: %s", entry->d_name);
+            continue;
+        }
+
+        struct stat st;
+        if (stat(full_path, &st) == 0) {
+            ESP_LOGI(TAG, "sd entry: %s %s %lu bytes",
+                     S_ISDIR(st.st_mode) ? "dir " : "file",
+                     entry->d_name,
+                     (unsigned long)st.st_size);
+        } else {
+            ESP_LOGI(TAG, "sd entry: ? %s", entry->d_name);
+        }
+    }
+    closedir(dir);
+    return ESP_OK;
 }
 
 esp_err_t sd_storage_ensure_mounted(void)

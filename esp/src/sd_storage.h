@@ -5,4 +5,5 @@
 
 esp_err_t sd_storage_ensure_mounted(void);
 bool sd_storage_is_mounted(void);
+esp_err_t sd_storage_log_file_list(const char *path);
 void sd_storage_deinit(void);

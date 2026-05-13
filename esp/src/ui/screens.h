@@ -15,7 +15,8 @@ enum ScreensEnum {
     SCREEN_ID_GPU = 2,
     SCREEN_ID_FAN = 3,
     SCREEN_ID_METEO = 4,
-    _SCREEN_ID_LAST = 4
+    SCREEN_ID_START = 5,
+    _SCREEN_ID_LAST = 5
 };
 
 typedef struct _objects_t {
@@ -23,6 +24,7 @@ typedef struct _objects_t {
     lv_obj_t *gpu;
     lv_obj_t *fan;
     lv_obj_t *meteo;
+    lv_obj_t *start;
     lv_obj_t *cpu;
     lv_obj_t *obj0;
     lv_obj_t *obj1;
@@ -129,6 +131,9 @@ typedef struct _objects_t {
     lv_obj_t *obj51;
     lv_obj_t *aler_meteo;
     lv_obj_t *obj52;
+    lv_obj_t *ui_start_bar;
+    lv_obj_t *ui_start_bar_texte;
+    lv_obj_t *obj53;
 } objects_t;
 
 extern objects_t objects;
@@ -144,6 +149,9 @@ void tick_screen_fan();
 
 void create_screen_meteo();
 void tick_screen_meteo();
+
+void create_screen_start();
+void tick_screen_start();
 
 void tick_screen_by_id(enum ScreensEnum screenId);
 void tick_screen(int screen_index);

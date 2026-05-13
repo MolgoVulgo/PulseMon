@@ -1,39 +1,28 @@
-# Documentation PulseMon
+# PulseMon documentation
 
-Point d'entree principal:
-- `README.md` (racine)
+This directory is the canonical documentation root for the project.
 
-## Structure
+English is the default language. French documentation is stored in `/docs/fr`.
 
-- `docs/specs/`: specifications fonctionnelles et integration backend/firmware.
-- `docs/plans/`: plan d'implementation et etat d'avancement.
-- `docs/adr/`: decisions d'architecture.
-- `docs/reports/`: rapports dates (photographies historiques).
+## Index
 
-## References normatives actives
+- `overview.md` — project purpose, scope and runtime model.
+- `architecture.md` — backend, firmware, transport and data ownership.
+- `api.md` — HTTP API contract and payloads.
+- `backend.md` — Linux backend implementation behavior.
+- `firmware.md` — ESP32-S3 firmware behavior and screen logic.
+- `configuration.md` — backend, ESP32, weather and news configuration.
+- `gpu.md` — AMD GPU telemetry and smoothing behavior.
+- `fans.md` — fan monitoring, mapping and configuration.
+- `weather-news.md` — autonomous weather and GNews modules.
+- `web-configuration.md` — ESP32 captive portal and configuration API.
+- `development.md` — install, build, tests and contribution workflow.
+- `troubleshooting.md` — diagnostics, common faults and validation paths.
 
-- `api/docs/API_CONTRACT_V1.md`
-- `api/docs/API_GPU_CONTRACT_V1.md`
-- `api/docs/API_FANS_CONTRACT_V1.md`
-- `docs/specs/spec_esp32_integration_stats_linux.md`
-- `docs/specs/cahier_des_charges_stats_linux_esp_32.md`
-- `docs/specs/cahier_fonctionnel_stats_linux_esp_32.md`
-- `docs/specs/cahier_gpu_amd_v1.md`
-- `docs/specs/cahier_fans_config_v1.md`
-- `docs/specs/fan_reference_seed_model.md`
-- `docs/specs/spec_pct_fans_v1.md`
-- `docs/plans/plan_implementation_api_stats_linux.md`
-- `docs/plans/plan_implementation_gpu_monitoring_amd.md`
-- `docs/plans/plan_implementation_fans_config.md`
+## Documentation rules
 
-## Regle pratique
-
-En cas de divergence entre texte et implementation:
-1. le code backend/firmware fait foi;
-2. les tests de contrat backend font foi;
-3. les contrats API (`api/docs/*.md`) priment sur les specs haut niveau.
-
-## Notes de travail (`tmp/`)
-
-Le dossier `tmp/` contient des sources de travail (notes, captures, references materiel).
-Les fichiers `tmp/*.md` peuvent alimenter une spec, mais ne sont pas normatifs tant qu'ils ne sont pas integres dans `docs/specs/` ou `api/docs/`.
+- Keep behavior documentation in `/docs`.
+- Keep French translations in `/docs/fr`.
+- Keep root-level README files short and operational.
+- Keep API field names and endpoint paths exact.
+- Do not duplicate secrets, API keys or private local values.
