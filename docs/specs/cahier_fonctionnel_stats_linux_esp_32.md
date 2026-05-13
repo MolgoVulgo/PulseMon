@@ -23,6 +23,11 @@ Definir le fonctionnement detaille backend + firmware pour la V1.
 - rend les pages LVGL Main/GPU/Fan;
 - signale l'indisponibilite backend.
 
+Etat courant important:
+- les pages Main et GPU sont alimentees par polling HTTP;
+- le client `/api/v1/fans/dashboard` existe, mais le poller firmware ne l'appelle pas encore;
+- la page Fan est donc presente cote UI, mais n'est pas encore synchronisee avec l'API fans.
+
 ## 3. Contrat V1
 
 Prefixe: `/api/v1`
@@ -54,6 +59,20 @@ Historique V1:
 - `GET /api/v1/gpu/dashboard`
 - `GET /api/v1/gpu/history`
 - `GET /api/v1/gpu/meta`
+- `GET /api/v1/fans/dashboard`
+- `GET /api/v1/fans/meta`
+- `GET /api/v1/fans/config`
+- `PUT /api/v1/fans/config`
+- `GET /api/v1/fans/reference`
+- `GET /api/v1/user/config`
+- `PUT /api/v1/user/config`
+- `GET /api/v1/db/data`
+- `GET /api/v1/db/fans`
+- `POST /api/v1/db/fans`
+- `PUT /api/v1/db/fans/{fan_id}`
+- `POST /api/v1/db/fans/{fan_id}/soft-delete`
+- `POST /api/v1/db/fans/{fan_id}/restore`
+- `DELETE /api/v1/db/fans/{fan_id}`
 
 Validation `/history`:
 - `window`: `1..600`
@@ -75,6 +94,7 @@ Backend:
 
 Firmware (etat actuel):
 - consomme `/dashboard` et `/gpu/dashboard`;
+- ne consomme pas encore `/fans/dashboard` malgre le client C disponible;
 - ne consomme pas encore `/history`/`/meta`;
 - graphes locaux issus des snapshots recus;
 - en echec backend, conserve les dernieres valeurs et marque `backend offline`.
@@ -119,5 +139,6 @@ Firmware par defaut:
 ### 8.4 Regles firmware
 
 - pas de remapping cote ESP32;
+- integration poller fans restante: utiliser `/api/v1/fans/dashboard` sans lecture de `/fans/meta` cote firmware;
 - conserver dernier snapshot valide si echec reseau/JSON;
 - signaler stale sans vider l'ecran.

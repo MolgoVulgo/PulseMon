@@ -37,6 +37,12 @@ Extension ventilateurs (ajout fonctionnel) exposee:
 - `/api/v1/fans/config`
 - `/api/v1/fans/reference`
 
+Extensions de configuration locale implementees:
+- `/api/v1/user/config`
+- `/api/v1/db/data`
+- `/api/v1/db/fans`
+- `/api/v1/db/fans/{fan_id}`
+
 ## 4. Contrat JSON
 
 Principes obligatoires:
@@ -81,12 +87,13 @@ Backend:
 Firmware:
 - polling 1 Hz des snapshots;
 - consommation actuelle: `/dashboard` et `/gpu/dashboard`;
+- client `/fans/dashboard` present dans le code, mais non encore appele par le poller courant;
 - graphes locaux bases sur snapshots recus;
 - affichage degrade explicite en cas d'echec backend.
 
 Extension ventilateurs:
 - validation API + UI locale avant integration ESP32;
-- ESP32 consomme uniquement la vue d'affichage ventilos deja mappee.
+- ESP32 doit consommer uniquement la vue d'affichage ventilos deja mappee quand l'integration poller sera activee.
 
 ## 7. Hors perimetre V1
 

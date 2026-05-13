@@ -4,6 +4,7 @@ Prefixe contractuel: `/api/v1`
 
 Extension GPU dediee: `api/docs/API_GPU_CONTRACT_V1.md`
 Extension ventilateurs: `api/docs/API_FANS_CONTRACT_V1.md`
+Configuration utilisateur: `api/docs/API_USER_CONFIG_V1.md`
 
 ## Portee
 
@@ -141,3 +142,11 @@ Erreurs contractuelles principales:
 
 Si `STATS_API_KEY` est definie, toutes les routes `/api/v1/*` exigent le header configure (defaut `X-API-Key`).
 Le champ `field` de l'erreur `unauthorized` est retourne en minuscule (ex: `x-api-key`).
+
+## Extensions locales implementees
+
+Routes hors contrat metrique principal, mais exposees sous `/api/v1`:
+- `/api/v1/fans/*`: affichage, diagnostic, mapping et catalogue ventilateurs.
+- `/api/v1/user/config`: configuration utilisateur libre persistee en SQLite.
+- `/api/v1/db/data`: vue admin de la DB locale.
+- `/api/v1/db/fans/*`: CRUD admin des mappings ventilateurs.

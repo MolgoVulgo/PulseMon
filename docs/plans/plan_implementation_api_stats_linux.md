@@ -31,6 +31,10 @@ Implante:
 - `/api/v1/fans/meta`
 - `/api/v1/fans/config`
 - `/api/v1/fans/reference`
+- `/api/v1/user/config`
+- `/api/v1/db/data`
+- `/api/v1/db/fans`
+- `/api/v1/db/fans/{fan_id}`
 
 Le contrat `dashboard` est base sur enveloppes metriques `value_raw/value_display/source/unit/sampled_at/estimated/valid`.
 
@@ -50,6 +54,12 @@ GPU AMD:
 - temp: `temp*_input` avec priorite labels configurable (`STATS_GPU_TEMP_LABEL_PRIORITY`)
 - power: `power1_average|power1_input`
 - extension: clocks, VRAM used/total/pct, fan rpm/pct
+
+Ventilateurs:
+- detection via `/sys/class/hwmon/hwmon*/fan*_input`
+- `pwm_pct` derive depuis `pwmN`/`pwmN_max` quand disponible
+- mapping et references persistes en SQLite locale
+- `pct_fans` calcule depuis `rpm_min/rpm_max` quand la configuration est complete
 
 ### 2.4 Sampling/store
 
@@ -75,6 +85,8 @@ Assuree par tests `api/tests/`:
 - boucle historique API initialement prevue a 1 Hz -> implementation decouplee 10 Hz acquisition / 2 Hz publication (configurable)
 - endpoint GPU dedie ajoute en V1 (`/api/v1/gpu/*`)
 - contrat dashboard evolue vers enveloppe metrique riche (pas scalaire simple)
+- extension fans/config utilisateur/DB locale ajoutee pour calibration via UI web
+- firmware: client fans present, mais polling fans non encore branche dans `pulsemon_poller.c`
 
 ## 5. Priorites de stabilisation restantes
 
@@ -82,6 +94,7 @@ Assuree par tests `api/tests/`:
 2. conserver la robustesse des fallback capteurs AMD selon machines.
 3. maintenir la compatibilite firmware ESP en cas de metriques absentes.
 4. eviter toute lecture capteur lourde en handler HTTP.
+5. brancher le polling firmware `/api/v1/fans/dashboard` sur la page Fan sans remapping cote ESP32.
 
 ## 6. Commandes de validation backend
 

@@ -31,6 +31,7 @@ Le champ `estimated` est egalement present dans cette enveloppe.
 Etat actuel important:
 - le firmware ne consomme pas encore les endpoints `/history` et `/meta`;
 - les graphes embarques sont alimentes localement par echantillonnage des dernieres valeurs affichees.
+- un client firmware `/api/v1/fans/dashboard` existe, mais le poller ne l'utilise pas encore pour alimenter la page Fan;
 - support fonctionnel confirme pour le moment uniquement avec CPU + GPU AMD;
 - les sondes temperature et ventilateurs sont fonctionnels avec une carte mere MSI utilisant `it87` (`0x8628`).
 

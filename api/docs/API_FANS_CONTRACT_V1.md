@@ -14,6 +14,7 @@ Extension ventilateurs V1:
 - `GET /api/v1/fans/config`
 - `PUT /api/v1/fans/config`
 - `GET /api/v1/fans/reference`
+- `GET /api/v1/db/data`
 - `GET /api/v1/db/fans?include_deleted=1`
 - `POST /api/v1/db/fans`
 - `PUT /api/v1/db/fans/{fan_id}`
@@ -138,6 +139,8 @@ Format minimal:
 
 Ces routes manipulent directement `fan_mappings` en SQLite pour l'UI locale de gestion:
 
+- `GET /api/v1/db/data`
+  - retourne `db_path`, `fan_mappings` actifs et `user_settings`.
 - `GET /api/v1/db/fans?include_deleted=1`
   - retourne `items[]` avec `id`, `deleted`, `mapping`.
 - `POST /api/v1/db/fans`
