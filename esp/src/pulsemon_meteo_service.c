@@ -24,7 +24,18 @@
 #include "ui_backend.h"
 #include "vars.h"
 
+#ifndef PULSEMON_DEBUG
+#define PULSEMON_DEBUG 0
+#endif
+
+#if PULSEMON_DEBUG
 static const char *TAG = "pulsemon_meteo";
+#define METEO_LOGI(fmt, ...) ESP_LOGI(TAG, fmt, ##__VA_ARGS__)
+#define METEO_LOGW(fmt, ...) ESP_LOGW(TAG, fmt, ##__VA_ARGS__)
+#else
+#define METEO_LOGI(fmt, ...) ((void)0)
+#define METEO_LOGW(fmt, ...) ((void)0)
+#endif
 
 #define PULSEMON_METEO_REFRESH_MINUTES 30
 #define PULSEMON_METEO_HTTP_TIMEOUT_MS 8000
@@ -46,7 +57,10 @@ typedef struct {
 
 typedef struct {
     bool has_current;
+    bool has_coords;
     float current_temp_c;
+    double lat;
+    double lon;
     char condition[64];
     int current_condition_id;
     uint8_t current_icon_variant;
@@ -91,13 +105,37 @@ static const char *weekday_short(const char *language, int weekday)
     return table[weekday];
 }
 
-static const char *month_short(const char *language, int month)
+static const char *weekday_long(const char *language, int weekday)
 {
-    static const char *fr[] = {"Jan", "Fev", "Mar", "Avr", "Mai", "Juin", "Juil", "Aou", "Sep", "Oct", "Nov", "Dec"};
-    static const char *en[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-    static const char *de[] = {"Jan", "Feb", "Mar", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"};
-    static const char *es[] = {"Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"};
-    static const char *it[] = {"Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"};
+    static const char *fr[] = {"Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"};
+    static const char *en[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+    static const char *de[] = {"Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"};
+    static const char *es[] = {"Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"};
+    static const char *it[] = {"Domenica", "Lunedi", "Martedi", "Mercoledi", "Giovedi", "Venerdi", "Sabato"};
+    const char **table = fr;
+
+    if (weekday < 0 || weekday > 6) {
+        return "--";
+    }
+    if (strcmp(language, "en") == 0) {
+        table = en;
+    } else if (strcmp(language, "de") == 0) {
+        table = de;
+    } else if (strcmp(language, "es") == 0) {
+        table = es;
+    } else if (strcmp(language, "it") == 0) {
+        table = it;
+    }
+    return table[weekday];
+}
+
+static const char *month_long(const char *language, int month)
+{
+    static const char *fr[] = {"Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin", "Juillet", "Aout", "Septembre", "Octobre", "Novembre", "Decembre"};
+    static const char *en[] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
+    static const char *de[] = {"Januar", "Februar", "Marz", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"};
+    static const char *es[] = {"Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"};
+    static const char *it[] = {"Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"};
     const char **table = fr;
 
     if (month < 0 || month > 11) {
@@ -183,7 +221,7 @@ static bool fetch_url(const char *url, char *body, size_t body_len)
     };
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
     if (client == NULL) {
-        ESP_LOGW(TAG, "http init failed");
+        METEO_LOGW("http init failed");
         return false;
     }
 
@@ -191,15 +229,15 @@ static bool fetch_url(const char *url, char *body, size_t body_len)
     int status = esp_http_client_get_status_code(client);
     esp_http_client_cleanup(client);
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "http request failed: %s", esp_err_to_name(err));
+        METEO_LOGW("http request failed: %s", esp_err_to_name(err));
         return false;
     }
     if (status != 200) {
-        ESP_LOGW(TAG, "http status=%d", status);
+        METEO_LOGW("http status=%d", status);
         return false;
     }
     if (acc.overflow) {
-        ESP_LOGW(TAG, "weather payload truncated");
+        METEO_LOGW("weather payload truncated");
         return false;
     }
     return acc.len > 0;
@@ -291,6 +329,16 @@ static bool parse_current_json(const char *json, meteo_snapshot_t *snapshot)
 
     snapshot->has_current = true;
     snapshot->current_temp_c = temp;
+    cJSON *coord = obj_get(root, "coord");
+    if (cJSON_IsObject(coord)) {
+        cJSON *lat = obj_get(coord, "lat");
+        cJSON *lon = obj_get(coord, "lon");
+        if (cJSON_IsNumber(lat) && cJSON_IsNumber(lon)) {
+            snapshot->has_coords = true;
+            snapshot->lat = lat->valuedouble;
+            snapshot->lon = lon->valuedouble;
+        }
+    }
     parse_weather_item(
         obj_get(root, "weather"),
         &snapshot->current_condition_id,
@@ -313,6 +361,15 @@ static int find_day_slot(meteo_snapshot_t *snapshot, int year, int yday)
         }
     }
     return empty;
+}
+
+static int local_day_index(time_t epoch, int16_t gmt_offset_min)
+{
+    if (epoch < PULSEMON_METEO_VALID_EPOCH_MIN) {
+        return 0;
+    }
+    time_t adjusted = epoch + ((time_t)gmt_offset_min * 60);
+    return (int)(adjusted / 86400);
 }
 
 static void forecast_day_update(meteo_day_t *day, const struct tm *tm, time_t timestamp, float min_c, float max_c, int condition_id, uint8_t variant)
@@ -363,6 +420,10 @@ static bool parse_forecast_json(const char *json, int16_t gmt_offset_min, meteo_
         return false;
     }
 
+    time_t now = 0;
+    time(&now);
+    int today_index = local_day_index(now, gmt_offset_min);
+    int filled = 0;
     int count = cJSON_GetArraySize(list);
     for (int i = 0; i < count; i++) {
         cJSON *item = cJSON_GetArrayItem(list, i);
@@ -372,6 +433,10 @@ static bool parse_forecast_json(const char *json, int16_t gmt_offset_min, meteo_
         time_t timestamp = (time_t)json_int_or(item, "dt", 0);
         struct tm local_tm;
         if (!local_tm_from_epoch(timestamp, gmt_offset_min, &local_tm)) {
+            continue;
+        }
+        int day_offset = local_day_index(timestamp, gmt_offset_min) - today_index;
+        if (day_offset < 1 || day_offset > PULSEMON_METEO_FORECAST_DAYS) {
             continue;
         }
 
@@ -390,11 +455,70 @@ static bool parse_forecast_json(const char *json, int16_t gmt_offset_min, meteo_
         if (slot < 0) {
             break;
         }
+        bool was_valid = snapshot->days[slot].valid;
         forecast_day_update(&snapshot->days[slot], &local_tm, timestamp, min_c, max_c, condition_id, variant);
+        if (!was_valid && snapshot->days[slot].valid) {
+            filled++;
+        }
     }
 
     cJSON_Delete(root);
-    return true;
+    return filled > 0;
+}
+
+static bool parse_onecall_daily_json(const char *json, int16_t gmt_offset_min, meteo_snapshot_t *snapshot)
+{
+    cJSON *root = cJSON_Parse(json);
+    if (!cJSON_IsObject(root)) {
+        if (root != NULL) {
+            cJSON_Delete(root);
+        }
+        return false;
+    }
+
+    cJSON *daily = obj_get(root, "daily");
+    if (!cJSON_IsArray(daily)) {
+        cJSON_Delete(root);
+        return false;
+    }
+
+    int filled = 0;
+    int count = cJSON_GetArraySize(daily);
+    for (int i = 1; i < count && i <= PULSEMON_METEO_FORECAST_DAYS; i++) {
+        cJSON *item = cJSON_GetArrayItem(daily, i);
+        if (!cJSON_IsObject(item)) {
+            continue;
+        }
+        time_t timestamp = (time_t)json_int_or(item, "dt", 0);
+        struct tm local_tm;
+        if (!local_tm_from_epoch(timestamp, gmt_offset_min, &local_tm)) {
+            continue;
+        }
+
+        cJSON *temp = obj_get(item, "temp");
+        float min_c = NAN;
+        float max_c = NAN;
+        if (cJSON_IsObject(temp)) {
+            min_c = json_float_or(temp, "min", min_c);
+            max_c = json_float_or(temp, "max", max_c);
+        }
+        int condition_id = 0;
+        uint8_t variant = 2;
+        parse_weather_item(obj_get(item, "weather"), &condition_id, &variant, NULL, 0);
+
+        int slot = find_day_slot(snapshot, local_tm.tm_year, local_tm.tm_yday);
+        if (slot < 0) {
+            break;
+        }
+        bool was_valid = snapshot->days[slot].valid;
+        forecast_day_update(&snapshot->days[slot], &local_tm, timestamp, min_c, max_c, condition_id, variant);
+        if (!was_valid && snapshot->days[slot].valid) {
+            filled++;
+        }
+    }
+
+    cJSON_Delete(root);
+    return filled > 0;
 }
 
 static void apply_clock_ui(const pulsemon_settings_t *settings)
@@ -408,13 +532,13 @@ static void apply_clock_ui(const pulsemon_settings_t *settings)
 
     char time_buf[16];
     char date_buf[40];
-    snprintf(time_buf, sizeof(time_buf), "%02d:%02d", local_tm.tm_hour, local_tm.tm_min);
+    snprintf(time_buf, sizeof(time_buf), "%02d:%02d:%02d", local_tm.tm_hour, local_tm.tm_min, local_tm.tm_sec);
     snprintf(date_buf,
              sizeof(date_buf),
-             "%s %02d %s",
-             weekday_short(settings->language, local_tm.tm_wday),
+             "%s %d %s",
+             weekday_long(settings->language, local_tm.tm_wday),
              local_tm.tm_mday,
-             month_short(settings->language, local_tm.tm_mon));
+             month_long(settings->language, local_tm.tm_mon));
 
     if (bsp_display_lock(pdMS_TO_TICKS(50))) {
         set_var_ui_meteo_houre(time_buf);
@@ -429,13 +553,13 @@ static void apply_weather_ui(const meteo_snapshot_t *snapshot, const pulsemon_se
         return;
     }
     if (!bsp_display_lock(pdMS_TO_TICKS(100))) {
-        ESP_LOGW(TAG, "ui lock failed");
+        METEO_LOGW("ui lock failed");
         return;
     }
 
     if (snapshot->has_current) {
         char temp_buf[16];
-        snprintf(temp_buf, sizeof(temp_buf), "%.1fC", (double)snapshot->current_temp_c);
+        snprintf(temp_buf, sizeof(temp_buf), "%.1f°C", (double)snapshot->current_temp_c);
         set_var_ui_meteo_temp(temp_buf);
         set_var_ui_meteo_condition(snapshot->condition[0] != '\0' ? snapshot->condition : "--");
         if (snapshot->current_condition_id != 0) {
@@ -452,7 +576,7 @@ static void apply_weather_ui(const meteo_snapshot_t *snapshot, const pulsemon_se
                 snprintf(day_buf, sizeof(day_buf), "%s", weekday_short(settings->language, day_tm.tm_wday));
             }
             if (!isnanf(snapshot->days[i].min_c) && !isnanf(snapshot->days[i].max_c)) {
-                snprintf(temp_buf, sizeof(temp_buf), "%.0f/%.0fC", (double)snapshot->days[i].min_c, (double)snapshot->days[i].max_c);
+                snprintf(temp_buf, sizeof(temp_buf), "%.0f°/%.0f°", (double)snapshot->days[i].min_c, (double)snapshot->days[i].max_c);
             }
             if (snapshot->days[i].condition_id != 0) {
                 lv_obj_t *icon = ui_weather_forecast_icon((size_t)i);
@@ -512,7 +636,7 @@ static void fetch_weather_once(void)
     pulsemon_settings_t settings;
     esp_err_t err = pulsemon_settings_load(&settings);
     if (err != ESP_OK && err != ESP_ERR_INVALID_SIZE) {
-        ESP_LOGW(TAG, "settings load failed: %s", esp_err_to_name(err));
+        METEO_LOGW("settings load failed: %s", esp_err_to_name(err));
         apply_config_missing_ui("Config meteo");
         return;
     }
@@ -528,18 +652,18 @@ static void fetch_weather_once(void)
         return;
     }
     if (!netif_ready()) {
-        ESP_LOGW(TAG, "network not ready");
+        METEO_LOGW("network not ready");
         return;
     }
 
     char *body = (char *)calloc(1, PULSEMON_METEO_BODY_CAP);
     if (body == NULL) {
-        ESP_LOGW(TAG, "weather body alloc failed");
+        METEO_LOGW("weather body alloc failed");
         return;
     }
 
     meteo_snapshot_t snapshot = {0};
-    char url[256];
+    char url[320];
     snprintf(url,
              sizeof(url),
              "http://api.openweathermap.org/data/2.5/weather?id=%lu&appid=%s&units=metric&lang=%s",
@@ -547,7 +671,7 @@ static void fetch_weather_once(void)
              settings.openweather_key,
              settings.language);
     if (!fetch_url(url, body, PULSEMON_METEO_BODY_CAP) || !parse_current_json(body, &snapshot)) {
-        ESP_LOGW(TAG, "current weather update failed");
+        METEO_LOGW("current weather update failed");
         if (s_has_last_snapshot) {
             apply_weather_ui(&s_last_snapshot, &settings);
         }
@@ -555,15 +679,30 @@ static void fetch_weather_once(void)
         return;
     }
 
-    memset(body, 0, PULSEMON_METEO_BODY_CAP);
-    snprintf(url,
-             sizeof(url),
-             "http://api.openweathermap.org/data/2.5/forecast?id=%lu&appid=%s&units=metric&lang=%s",
-             (unsigned long)settings.openweather_city_id,
-             settings.openweather_key,
-             settings.language);
-    if (!fetch_url(url, body, PULSEMON_METEO_BODY_CAP) || !parse_forecast_json(body, settings.gmt_offset_min, &snapshot)) {
-        ESP_LOGW(TAG, "forecast update failed");
+    bool forecast_ok = false;
+    if (snapshot.has_coords) {
+        memset(body, 0, PULSEMON_METEO_BODY_CAP);
+        snprintf(url,
+                 sizeof(url),
+                 "http://api.openweathermap.org/data/3.0/onecall?lat=%.6f&lon=%.6f&exclude=current,minutely,hourly,alerts&appid=%s&units=metric&lang=%s",
+                 snapshot.lat,
+                 snapshot.lon,
+                 settings.openweather_key,
+                 settings.language);
+        forecast_ok = fetch_url(url, body, PULSEMON_METEO_BODY_CAP) && parse_onecall_daily_json(body, settings.gmt_offset_min, &snapshot);
+    }
+    if (!forecast_ok) {
+        memset(body, 0, PULSEMON_METEO_BODY_CAP);
+        snprintf(url,
+                 sizeof(url),
+                 "http://api.openweathermap.org/data/2.5/forecast?id=%lu&appid=%s&units=metric&lang=%s",
+                 (unsigned long)settings.openweather_city_id,
+                 settings.openweather_key,
+                 settings.language);
+        forecast_ok = fetch_url(url, body, PULSEMON_METEO_BODY_CAP) && parse_forecast_json(body, settings.gmt_offset_min, &snapshot);
+    }
+    if (!forecast_ok) {
+        METEO_LOGW("forecast update failed");
     }
 
     s_last_snapshot = snapshot;
@@ -608,7 +747,7 @@ static void start_sntp(void)
     esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
     esp_sntp_setservername(0, "pool.ntp.org");
     esp_sntp_init();
-    ESP_LOGI(TAG, "sntp started");
+    METEO_LOGI("sntp started");
 }
 
 esp_err_t pulsemon_meteo_service_start(void)

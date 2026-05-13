@@ -16,7 +16,18 @@
 #define WEATHER_ICON_CACHE_MAX 12
 #define WEATHER_ICON_SLOT_MAX 8
 
+#ifndef PULSEMON_DEBUG
+#define PULSEMON_DEBUG 0
+#endif
+
+#if PULSEMON_DEBUG
 static const char *TAG = "weather_icons";
+#define WEATHER_ICON_LOGI(fmt, ...) ESP_LOGI(TAG, fmt, ##__VA_ARGS__)
+#define WEATHER_ICON_LOGW(fmt, ...) ESP_LOGW(TAG, fmt, ##__VA_ARGS__)
+#else
+#define WEATHER_ICON_LOGI(fmt, ...) ((void)0)
+#define WEATHER_ICON_LOGW(fmt, ...) ((void)0)
+#endif
 
 typedef struct {
     lv_img_dsc_t dsc;
@@ -237,7 +248,7 @@ static esp_err_t find_icon_offset(FILE *fp, uint16_t *io_code, uint8_t variant, 
                 err = svg2bin_find_entry_offset_stream(fp, fallback, SVG2BIN_VARIANT_NEUTRAL, out_offset);
             }
             if (err == ESP_OK) {
-                ESP_LOGW(TAG, "icon fallback: %u -> %u", (unsigned)*io_code, (unsigned)fallback);
+                WEATHER_ICON_LOGW("icon fallback: %u -> %u", (unsigned)*io_code, (unsigned)fallback);
                 *io_code = fallback;
             }
         }
@@ -249,17 +260,23 @@ esp_err_t pulsemon_weather_icons_init(void)
 {
     esp_err_t err = sd_storage_ensure_mounted();
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "sd unavailable for weather icons: %s", esp_err_to_name(err));
+        WEATHER_ICON_LOGW("sd unavailable for weather icons: %s", esp_err_to_name(err));
         return err;
     }
+#if PULSEMON_DEBUG
     sd_storage_log_file_list(PULSEMON_SD_MOUNT_POINT);
     pulsemon_weather_icons_log_index("icon_150.bin");
     pulsemon_weather_icons_log_index("icon_50.bin");
+#endif
     return ESP_OK;
 }
 
 esp_err_t pulsemon_weather_icons_log_index(const char *bin_name)
 {
+#if !PULSEMON_DEBUG
+    (void)bin_name;
+    return ESP_OK;
+#else
     esp_err_t err = sd_storage_ensure_mounted();
     if (err != ESP_OK) {
         return err;
@@ -267,14 +284,15 @@ esp_err_t pulsemon_weather_icons_log_index(const char *bin_name)
     const char *bin = bin_name != NULL ? bin_name : "icon_150.bin";
     FILE *fp = open_icon_bin(bin);
     if (fp == NULL) {
-        ESP_LOGW(TAG, "weather icon bin not found: %s/%s", PULSEMON_SD_MOUNT_POINT, bin);
+        WEATHER_ICON_LOGW("weather icon bin not found: %s/%s", PULSEMON_SD_MOUNT_POINT, bin);
         return ESP_ERR_NOT_FOUND;
     }
 
-    ESP_LOGI(TAG, "weather icon index: %s", bin);
+    WEATHER_ICON_LOGI("weather icon index: %s", bin);
     err = svg2bin_log_index_stream(fp, TAG);
     fclose(fp);
     return err;
+#endif
 }
 
 esp_err_t pulsemon_weather_icons_set_object(lv_obj_t *target, const char *bin_name, uint16_t code, uint8_t variant)
@@ -306,7 +324,7 @@ esp_err_t pulsemon_weather_icons_set_object(lv_obj_t *target, const char *bin_na
 
     FILE *fp = open_icon_bin(bin);
     if (fp == NULL) {
-        ESP_LOGW(TAG, "weather icon bin not found: %s", bin);
+        WEATHER_ICON_LOGW("weather icon bin not found: %s", bin);
         return ESP_ERR_NOT_FOUND;
     }
 
@@ -318,7 +336,7 @@ esp_err_t pulsemon_weather_icons_set_object(lv_obj_t *target, const char *bin_na
     }
     fclose(fp);
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "icon decode failed code=%u variant=%u: %s", (unsigned)code, (unsigned)variant, esp_err_to_name(err));
+        WEATHER_ICON_LOGW("icon decode failed code=%u variant=%u: %s", (unsigned)code, (unsigned)variant, esp_err_to_name(err));
         return err;
     }
 

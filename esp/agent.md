@@ -369,6 +369,7 @@ Style attendu :
 - Faire des commits par unité logique cohérente et testable.
 - Ne jamais faire de commit automatiquement sans demande explicite de l’utilisateur.
 - Ne jamais pousser soi-même.
+- Quand un commit est explicitement demandé, inclure systématiquement `eez/pulsmon/pulsmon.eez-project-ui-state` si ce fichier est modifié.
 - Messages en anglais.
 - Conventional commit recommandé :
 

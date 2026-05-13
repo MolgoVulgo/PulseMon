@@ -20,6 +20,10 @@
 
 static const char *TAG = "pulsemon";
 
+#ifndef PULSEMON_DEBUG
+#define PULSEMON_DEBUG 0
+#endif
+
 static void pulsemon_on_wifi_connected(void)
 {
     pulsemon_poller_start();
@@ -113,9 +117,13 @@ void app_main(void)
     ESP_LOGI(TAG, "ui started");
 
     esp_err_t icons_ret = pulsemon_weather_icons_init();
+#if PULSEMON_DEBUG
     if (icons_ret != ESP_OK) {
         ESP_LOGW(TAG, "weather icons init skipped: %s", esp_err_to_name(icons_ret));
     }
+#else
+    (void)icons_ret;
+#endif
 
     esp_err_t wifi_ret = pulsemon_wifi_manager_init(pulsemon_on_wifi_connected);
     if (wifi_ret != ESP_OK) {
@@ -124,9 +132,13 @@ void app_main(void)
 
     if (wifi_ret == ESP_OK) {
         esp_err_t meteo_ret = pulsemon_meteo_service_start();
+#if PULSEMON_DEBUG
         if (meteo_ret != ESP_OK) {
             ESP_LOGE(TAG, "meteo service init failed: %s", esp_err_to_name(meteo_ret));
         }
+#else
+        (void)meteo_ret;
+#endif
     }
 
     esp_err_t web_ret = pulsemon_wifi_config_server_start();
