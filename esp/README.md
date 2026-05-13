@@ -1,116 +1,31 @@
-# Firmware ESP32-S3 (PulseMon)
+# PulseMon ESP32-S3 firmware
 
-Firmware ESP-IDF + LVGL du projet PulseMon.
+This directory contains the ESP32-S3 firmware entry point and firmware-specific files.
 
-## Objectif
+The firmware connects to Wi-Fi, locates the backend, polls the HTTP API, parses compact JSON payloads, stores the latest valid values locally, updates LVGL screens, and displays connection/freshness state.
 
-Afficher les metriques backend sur ecran local:
-- page `Main`: CPU / RAM / GPU (snapshot global)
-- page `GPU`: details GPU AMD
-- page `Meteo`: presente dans l'UI, sans integration de donnees pour le moment
+It also contains autonomous device-side features such as the configuration portal, weather display, weather icons, and GNews headline retrieval. These features do not depend on the Linux backend once the ESP32-S3 has network access and the required API keys are stored in NVS.
 
-## Arborescence utile
+The canonical firmware documentation is available in:
 
-```text
-esp/
-├── platformio.ini
-├── boards/320x480.json
-├── sdkconfig.defaults
-└── src/
-    ├── main.c
-    ├── pulsemon_api_client.c
-    ├── pulsemon_poller.c
-    ├── ui_screen.c
-    ├── ui_graphs.c
-    ├── vars.c
-    └── ui/   (genere, ne pas modifier)
-```
+- `/docs/firmware.md` for runtime behavior;
+- `/docs/web-configuration.md` for the ESP32 configuration portal;
+- `/docs/weather-news.md` for weather and news modules;
+- `/docs/api.md` for backend endpoints consumed by the firmware;
+- `/docs/development.md` for build and maintenance rules.
 
-## Endpoints consommes actuellement
-
-Le firmware consomme en production:
-- `GET /api/v1/dashboard`
-- `GET /api/v1/gpu/dashboard`
-
-Important:
-- le code ne consomme pas encore `/api/v1/history` ni `/api/v1/gpu/history`;
-- le code ne consomme plus `/api/v1/fans/dashboard` depuis l'UI firmware;
-- les graphes LVGL sont alimentes localement (echantillonnage des variables affichees a 1 Hz).
-
-## Comportement runtime
-
-- Poller: `PULSEMON_DASHBOARD_POLL_MS` (defaut `1000` ms)
-- Si ecran actif = `Main`: fetch `/dashboard`
-- Si ecran actif = `GPU`: fetch `/gpu/dashboard`
-- Si ecran actif = `Meteo`: fetch `/dashboard` uniquement, sans mapping meteo
-- En echec fetch: message `backend offline` et conservation implicite des dernieres valeurs UI
-- Parsing JSON tolerant:
-  - priorite `value_display`
-  - fallback `value_raw`
-  - fallback scalaire direct si necessaire
-
-Comportement page Fan:
-- page generee encore presente dans les sources UI;
-- navigation runtime desactivee;
-- aucun polling `/fans/dashboard` depuis l'UI firmware.
-
-Navigation swipe:
-- `Main` swipe gauche -> `GPU`
-- `GPU` swipe droite -> `Main`
-- `GPU` swipe gauche -> `Meteo`
-- `Meteo` swipe droite -> `GPU`
-
-## Configuration API firmware
-
-Definie dans `src/pulsemon_api_config.h`:
-- `PULSEMON_API_HOST`
-- `PULSEMON_API_PORT`
-- `PULSEMON_API_BASE_URL`
-- `PULSEMON_HTTP_TIMEOUT_MS`
-- `PULSEMON_DASHBOARD_POLL_MS`
-
-La valeur par defaut est une URL LAN statique (`192.168.0.10`).
-
-## Configuration Wi-Fi firmware
-
-Les credentials Wi-Fi STA ne sont pas compiles dans le firmware. Ils sont stockes en NVS dans le namespace `pulsemon_wifi`.
-
-Au boot:
-- si des credentials valides existent en NVS, le firmware tente la connexion STA;
-- sinon, ou apres echec de connexion, le firmware ouvre l'AP de configuration `PulseMon-Setup`;
-- le portail est disponible sur `http://192.168.4.1/` depuis l'AP;
-- un DNS captif local redirige les noms de domaine vers `192.168.4.1` pour declencher l'ouverture automatique du portail sur les clients compatibles;
-- la page permet de scanner les SSID, saisir le mot de passe, sauvegarder en NVS et reconnecter immediatement.
-
-Constantes non sensibles definies dans `src/wifi_config.h`:
-- `PULSEMON_WIFI_AP_SSID`
-- `PULSEMON_WIFI_AP_PASSWORD` (vide par defaut: AP ouvert)
-- `PULSEMON_WIFI_MAX_RETRY`
-- `PULSEMON_WIFI_SCAN_MAX_RESULTS`
+The `esp/docs` path is a symbolic link to `/docs`.
 
 ## Build
 
 ```bash
-cd esp
 pio run -e LVGL-320-480
 ```
 
-## Regles de maintenance
+## Runtime rules
 
-- Ne jamais modifier `src/ui/` directement (fichiers generes).
-- Preserver le decouplage: reseau -> parsing -> vars -> rendu UI.
-- Eviter les allocations dynamiques non necessaires dans le chemin nominal.
-
-## Debug latence
-
-Flags de build (dans `platformio.ini`):
-- `PULSEMON_LATENCY_DEBUG`
-- `PULSEMON_UI_WARN_MS`
-- `PULSEMON_HTTP_WARN_MS`
-
-## Capture LCD periodique (debug)
-
-Si `PULSEMON_SCREENSHOT_DEBUG=1`:
-- capture framebuffer RGB565 periodique;
-- ecriture BMP sur SD (`PULSEMON_SCREENSHOT_DIR`);
-- intervalle: `PULSEMON_SCREENSHOT_INTERVAL_MS`.
+- Wi-Fi credentials are stored in NVS.
+- Backend polling is separated from LVGL rendering.
+- The UI uses the last valid local cache, not direct HTTP state.
+- Generated files under `src/ui/` must not be edited directly.
+- API keys must not be logged, displayed or returned by configuration endpoints.

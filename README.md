@@ -1,89 +1,122 @@
 # PulseMon
 
-PulseMon est un systeme de supervision locale en deux briques:
-- backend Linux en Python/FastAPI;
-- firmware ESP32-S3 en ESP-IDF/LVGL.
+PulseMon is a local monitoring system for a Linux workstation and an ESP32-S3 display.
 
-## Ce que le code fait aujourd'hui
+It collects Linux metrics on the host, exposes them through a local HTTP API, and displays the current state on a dedicated ESP32-S3 screen built with LVGL. The project is designed for a private LAN, with no cloud dependency and no external broker.
 
-### Backend (`api/`)
+## What the project does
 
-- collecte CPU/RAM/GPU (psutil + sysfs/hwmon/DRM amdgpu);
-- publie un snapshot V1 via `GET /api/v1/dashboard`;
-- publie un historique court via `GET /api/v1/history`;
-- expose une extension GPU dediee (`/api/v1/gpu/*`);
-- fournit une UI web locale de debug (`/ui`).
-- expose la configuration fans via API (`/api/v1/fans/config`).
-- persiste la configuration fans + utilisateur en SQLite locale (`/api/v1/fans/config`, `/api/v1/user/config`).
-- expose aussi un CRUD DB local des mappings ventilateurs (`/api/v1/db/fans/*`) pour la page GUI admin.
+PulseMon provides:
 
-Le contrat `dashboard` est base sur une enveloppe metrique (`value_raw`, `value_display`, `source`, `unit`, `sampled_at`, `valid`).
-Le champ `estimated` est egalement present dans cette enveloppe.
+- a Python/FastAPI backend for Linux system telemetry;
+- CPU, memory, AMD GPU and fan monitoring;
+- a local HTTP API consumed by the ESP32-S3 firmware;
+- short in-memory history for charts;
+- a local debug/admin web UI exposed by the backend;
+- an ESP32-S3 firmware with Wi-Fi setup, API polling, LVGL rendering, weather display and autonomous news headlines;
+- local configuration storage for backend and firmware settings.
 
-### Firmware (`esp/`)
+## What it is for
 
-- connecte le module au Wi-Fi;
-- interroge l'API toutes les secondes;
-- met a jour l'ecran LVGL avec:
-  - `/api/v1/dashboard` (page Main)
-  - `/api/v1/gpu/dashboard` (page GPU)
+PulseMon is intended to provide a small always-on hardware dashboard for a Linux workstation. It gives immediate visibility on CPU, RAM, GPU, fan and runtime state without opening a desktop dashboard or relying on remote services.
 
-Etat actuel important:
-- le firmware ne consomme pas encore les endpoints `/history` et `/meta`;
-- les graphes embarques sont alimentes localement par echantillonnage des dernieres valeurs affichees.
-- un client firmware `/api/v1/fans/dashboard` existe, mais le poller ne l'utilise pas encore pour alimenter la page Fan;
-- support fonctionnel confirme pour le moment uniquement avec CPU + GPU AMD;
-- les sondes temperature et ventilateurs sont fonctionnels avec une carte mere MSI utilisant `it87` (`0x8628`).
+The ESP32-S3 can also display useful autonomous information when the Linux host is unavailable, such as weather data and news headlines, provided the required API keys are configured on the device.
 
-## Structure
+## Repository layout
 
 ```text
 PulseMon/
-├── api/                    # backend FastAPI + tests + contrat API
-├── esp/                    # firmware ESP32-S3 (PlatformIO + ESP-IDF)
-├── docs/                   # specs, plans, ADR, rapports
-├── pulsemon-api.service    # unite systemd
-├── pulsemon-api.conf       # config runtime backend
-└── PKGBUILD                # packaging Arch Linux
+├── api/                  # Linux backend entry point and backend-specific files
+├── esp/                  # ESP32-S3 firmware entry point and firmware-specific files
+├── docs/                 # canonical English documentation
+│   └── fr/               # French documentation
+├── README.md             # default English README
+└── README.fr.md          # French README
 ```
 
-## Backend rapide
+The canonical documentation is stored in `/docs`. The `api/docs` and `esp/docs` paths are symbolic links to `/docs`.
+
+## Prerequisites
+
+Backend:
+
+- Linux host;
+- Python 3.11 or newer;
+- FastAPI;
+- uvicorn;
+- psutil;
+- Pydantic;
+- pytest and httpx for tests;
+- access to Linux sysfs, hwmon and DRM paths for AMD CPU/GPU telemetry.
+
+Firmware:
+
+- ESP32-S3 board with display;
+- PlatformIO with ESP-IDF support;
+- LVGL;
+- Wi-Fi network access;
+- optional SD card for weather icon assets;
+- optional OpenWeather and GNews API keys for autonomous weather/news features.
+
+## Install the backend
 
 ```bash
 cd api
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Tests backend:
+## Run the backend
 
 ```bash
 cd api
-.venv/bin/pytest -q
+.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-## Firmware
+The backend exposes the API under `/api/v1/*` and the local debug/admin UI under `/ui`.
+
+## Build the firmware
 
 ```bash
 cd esp
 pio run -e LVGL-320-480
 ```
 
-## Contrat et documentation de reference
+Wi-Fi credentials are not compiled into the firmware. They are stored in NVS through the ESP32-S3 configuration portal.
 
-- `api/docs/API_CONTRACT_V1.md`
-- `api/docs/API_GPU_CONTRACT_V1.md`
-- `api/docs/API_FANS_CONTRACT_V1.md`
-- `docs/specs/spec_esp32_integration_stats_linux.md`
-- `docs/specs/cahier_des_charges_stats_linux_esp_32.md`
-- `docs/specs/cahier_fonctionnel_stats_linux_esp_32.md`
-- `docs/plans/plan_implementation_api_stats_linux.md`
+## Configure the project
 
-## Hors perimetre V1
+Backend configuration is handled through environment variables. The main settings are host, port, sampling cadence, history capacity, optional API key, GPU detection hints, diagnostics and local SQLite configuration storage.
 
-- MQTT
-- cloud/broker
-- multi-machines
-- persistance longue duree
-- ecriture/pilotage de la machine Linux
+ESP32-S3 configuration is handled through NVS and the local configuration portal. It stores Wi-Fi credentials, backend API address, OpenWeather settings, GNews settings and display-related options. API keys must not be printed, logged or returned by configuration endpoints.
+
+Detailed configuration is documented in `/docs/configuration.md`.
+
+## Contribute
+
+Contributions should preserve these rules:
+
+- keep the backend, API contract, firmware polling and LVGL rendering separated;
+- keep JSON payloads stable and compact;
+- keep unavailable metrics nullable instead of removing fields;
+- do not edit generated ESP32 UI files directly;
+- keep secrets out of logs, URLs, screens and exported configuration;
+- add tests for API contract changes;
+- update `/docs` and `/docs/fr` when behavior changes.
+
+## Detailed documentation
+
+- `/docs/README.md` — documentation index;
+- `/docs/overview.md` — project overview;
+- `/docs/architecture.md` — backend/firmware architecture;
+- `/docs/api.md` — HTTP API contract;
+- `/docs/backend.md` — Linux backend behavior;
+- `/docs/firmware.md` — ESP32-S3 firmware behavior;
+- `/docs/configuration.md` — backend and device configuration;
+- `/docs/gpu.md` — AMD GPU monitoring;
+- `/docs/fans.md` — fan monitoring and configuration;
+- `/docs/weather-news.md` — weather and autonomous news modules;
+- `/docs/web-configuration.md` — ESP32 configuration portal;
+- `/docs/development.md` — build, tests and contribution workflow;
+- `/docs/troubleshooting.md` — diagnostics and operational notes;
+- `/docs/fr/` — French documentation.
