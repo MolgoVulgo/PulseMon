@@ -74,6 +74,10 @@ Validation:
 - Faire defiler les titres de droite a gauche en scroll circulaire.
 - Afficher les titres les uns apres les autres, avec `max_items` par defaut a 5.
 - Rendre la vitesse de defilement configurable depuis la page web.
+- Eviter de reappliquer le meme texte si le contenu et `slide_speed` sont inchanges,
+  tout en garantissant que le label reste configure en scroll circulaire.
+- Ajouter les glyphes necessaires a la fonte via le projet EEZ, puis regenerer
+  `src/ui/`; ne pas editer directement les fichiers generes.
 - Ne jamais masquer une alerte meteo active par une news.
 - Garder les messages techniques hors affichage nominal.
 
@@ -82,6 +86,8 @@ Validation:
 - alerte meteo prioritaire;
 - news affichee seulement sans alerte;
 - cache affiche en degrade si GNews echoue.
+- le defilement reste actif apres changement de page ou rafraichissement UI;
+- le glyphe `…` est disponible dans la fonte utilisee par la ligne info.
 
 ## Hors perimetre V1
 

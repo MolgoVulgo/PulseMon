@@ -497,6 +497,15 @@ Pseudo-contrat UI :
 
 La logique de priorité doit être centralisée dans un composant d’orchestration UI, pas dispersée dans les widgets LVGL.
 
+Rendu LVGL attendu :
+
+- le texte final est publié dans la variable générée `ui_meteo_alert` ;
+- le label associé doit rester en `LV_LABEL_LONG_SCROLL_CIRCULAR` ;
+- la vitesse de défilement est issue de la configuration `slide_speed` ;
+- la réapplication du texte peut être évitée si le texte et la vitesse sont inchangés, mais la configuration LVGL doit rester garantie après toute réinitialisation ou recréation d’objet.
+
+La ligne peut concaténer plusieurs titres valides. Dans ce cas, le séparateur affiché doit rester sobre et stable pour limiter la largeur et les allocations.
+
 ---
 
 ## 19. États d’affichage
@@ -605,6 +614,8 @@ Découpage logique :
 | `ui_status` | affichage diagnostic si nécessaire |
 
 Le rendu LVGL ne doit jamais appeler directement le client HTTPS.
+
+Les fichiers sous `src/ui/` sont générés par EEZ. Toute évolution de la ligne info qui nécessite un nouveau glyphe, une police ou une variable UI doit être portée dans `eez/pulsmon/pulsmon.eez-project`, puis propagée par génération. Les fichiers générés ne doivent pas être édités comme source fonctionnelle.
 
 ---
 
@@ -715,4 +726,3 @@ Le module récupère jusqu’à 5 titres français récents, sélectionne le pre
 La règle d’affichage reste inchangée : l’alerte météo prime toujours sur la brève d’actualité.
 
 Si aucune alerte météo n’est active et qu’aucune news valide n’est disponible, la ligne reste vide. NewsAPI n’est pas utilisé en fallback.
-

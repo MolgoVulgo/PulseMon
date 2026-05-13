@@ -68,6 +68,8 @@ static esp_timer_handle_t s_news_timer;
 static bool s_started;
 static news_cache_t s_cache;
 static time_t s_next_allowed_fetch;
+static char s_applied_line[NEWS_LINE_MAX_LEN];
+static uint16_t s_applied_slide_speed;
 
 static bool netif_ready(void)
 {
@@ -445,15 +447,22 @@ static void build_news_line(const news_cache_t *cache, char *out, size_t out_len
 
 static void apply_info_line(const char *text, uint16_t slide_speed)
 {
+    const char *safe_text = text != NULL ? text : "";
+    if (s_applied_slide_speed == slide_speed && strcmp(s_applied_line, safe_text) == 0) {
+        return;
+    }
+
     if (bsp_display_lock(pdMS_TO_TICKS(100))) {
         if (objects.obj52 != NULL) {
             lv_obj_set_pos(objects.obj52, 0, 5);
             lv_obj_set_width(objects.obj52, 431);
             lv_label_set_long_mode(objects.obj52, LV_LABEL_LONG_SCROLL_CIRCULAR);
             lv_obj_set_style_anim_speed(objects.obj52, slide_speed, LV_PART_MAIN | LV_STATE_DEFAULT);
-            lv_label_set_text(objects.obj52, text != NULL ? text : "");
+            lv_label_set_text(objects.obj52, safe_text);
         }
-        set_var_ui_meteo_alert(text != NULL ? text : "");
+        set_var_ui_meteo_alert(safe_text);
+        snprintf(s_applied_line, sizeof(s_applied_line), "%s", safe_text);
+        s_applied_slide_speed = slide_speed;
         bsp_display_unlock();
     }
 }
