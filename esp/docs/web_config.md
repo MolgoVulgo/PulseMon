@@ -25,6 +25,8 @@ Unknown `GET` paths still fall back to `/` for captive portal behavior.
 - `clear_openweather_key`
 - `gnews_key`
 - `clear_gnews_key`
+- `news_max_items`
+- `news_slide_speed`
 - `gmt_offset_min`
 - `openweather_city_id`
 - `language`
@@ -51,6 +53,7 @@ News configuration is stored in the `news` namespace:
 - `lang`: GNews language.
 - `country`: GNews country.
 - `max_items`: maximum article count requested.
+- `slide_speed`: LVGL circular scroll speed in pixels per second.
 - `max_age_days`: maximum article age.
 - `last_ok_ts`: last successful fetch timestamp.
 - `last_error`: last compact error code.

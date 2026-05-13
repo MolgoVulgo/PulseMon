@@ -22,6 +22,7 @@ typedef struct {
     char lang[NEWS_LANG_MAX_LEN + 1];
     char country[NEWS_COUNTRY_MAX_LEN + 1];
     uint8_t max_items;
+    uint16_t slide_speed;
     uint8_t max_age_days;
     int64_t last_ok_ts;
     char last_error[NEWS_LAST_ERROR_MAX_LEN + 1];

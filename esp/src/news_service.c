@@ -20,6 +20,7 @@
 #include "freertos/task.h"
 
 #include "news_settings.h"
+#include "ui/screens.h"
 #include "vars.h"
 
 #ifndef PULSEMON_NEWS_DEBUG
@@ -38,7 +39,9 @@ static const char *TAG = "pulsemon_news";
 #define NEWS_HTTP_TIMEOUT_MS 8000
 #define NEWS_BODY_CAP 16384
 #define NEWS_TITLE_MAX_LEN 160
+#define NEWS_LINE_MAX_LEN 768
 #define NEWS_SOURCE_MAX_LEN 48
+#define NEWS_MAX_ITEMS 5
 #define NEWS_VALID_EPOCH_MIN 1609459200L
 #define NEWS_CACHE_STALE_SECONDS (6 * 60 * 60)
 #define NEWS_RETRY_BACKOFF_SECONDS (30 * 60)
@@ -53,9 +56,10 @@ typedef struct {
 
 typedef struct {
     bool valid;
-    char title[NEWS_TITLE_MAX_LEN + 1];
-    char source[NEWS_SOURCE_MAX_LEN + 1];
-    time_t published_ts;
+    uint8_t count;
+    char titles[NEWS_MAX_ITEMS][NEWS_TITLE_MAX_LEN + 1];
+    char sources[NEWS_MAX_ITEMS][NEWS_SOURCE_MAX_LEN + 1];
+    time_t published_ts[NEWS_MAX_ITEMS];
     time_t fetch_ts;
 } news_cache_t;
 
@@ -197,6 +201,40 @@ static void clean_title(const char *in, char *out, size_t out_len)
             }
             continue;
         }
+        if (c == 0xC3) {
+            unsigned char d = (unsigned char)in[si + 1];
+            char repl = '\0';
+            if (d >= 0x80 && d <= 0x85) {
+                repl = 'A';
+            } else if (d == 0x87) {
+                repl = 'C';
+            } else if (d >= 0x88 && d <= 0x8B) {
+                repl = 'E';
+            } else if (d >= 0x8C && d <= 0x8F) {
+                repl = 'I';
+            } else if (d >= 0x92 && d <= 0x96) {
+                repl = 'O';
+            } else if (d >= 0x99 && d <= 0x9C) {
+                repl = 'U';
+            } else if (d == 0x9D) {
+                repl = 'Y';
+            }
+            if (repl != '\0') {
+                out[di++] = repl;
+                last_space = false;
+                si++;
+                continue;
+            }
+        }
+        if (c == 0xC5 && (unsigned char)in[si + 1] == 0x92) {
+            if (di + 2 < out_len) {
+                out[di++] = 'O';
+                out[di++] = 'E';
+                last_space = false;
+            }
+            si++;
+            continue;
+        }
         out[di++] = (char)c;
         last_space = false;
     }
@@ -237,7 +275,11 @@ static bool parse_gnews_json(const char *json, const news_settings_t *settings, 
 
     time_t cutoff = now - ((time_t)settings->max_age_days * 86400);
     int count = cJSON_GetArraySize(articles);
+    memset(out, 0, sizeof(*out));
     for (int i = 0; i < count; i++) {
+        if (out->count >= settings->max_items || out->count >= NEWS_MAX_ITEMS) {
+            break;
+        }
         cJSON *article = cJSON_GetArrayItem(articles, i);
         if (!cJSON_IsObject(article)) {
             continue;
@@ -259,26 +301,33 @@ static bool parse_gnews_json(const char *json, const news_settings_t *settings, 
             continue;
         }
 
-        memset(out, 0, sizeof(*out));
-        clean_title(title, out->title, sizeof(out->title));
+        uint8_t slot = out->count;
+        clean_title(title, out->titles[slot], sizeof(out->titles[slot]));
         cJSON *source = obj_get(article, "source");
         if (cJSON_IsObject(source)) {
             const char *source_name = json_string_or(source, "name");
             if (source_name != NULL) {
-                clean_title(source_name, out->source, sizeof(out->source));
+                clean_title(source_name, out->sources[slot], sizeof(out->sources[slot]));
             }
         }
-        out->published_ts = published_ts;
+        out->published_ts[slot] = published_ts;
         out->fetch_ts = now;
-        out->valid = out->title[0] != '\0';
-        NEWS_LOGI("article[%d] selected title_len=%u source=%s", i, (unsigned)strlen(out->title), out->source);
-        cJSON_Delete(root);
-        return out->valid;
+        if (out->titles[slot][0] != '\0') {
+            out->count++;
+            out->valid = true;
+            NEWS_LOGI("article[%d] selected slot=%u title_len=%u source=%s",
+                      i,
+                      (unsigned)slot,
+                      (unsigned)strlen(out->titles[slot]),
+                      out->sources[slot]);
+        }
     }
 
     cJSON_Delete(root);
-    NEWS_LOGW("empty_result: no valid article in %d item(s)", count);
-    return false;
+    if (!out->valid) {
+        NEWS_LOGW("empty_result: no valid article in %d item(s)", count);
+    }
+    return out->valid;
 }
 
 static bool build_gnews_url(const news_settings_t *settings, time_t now, char *url, size_t url_len)
@@ -364,20 +413,60 @@ static bool fetch_gnews(const news_settings_t *settings, time_t now, char *body,
     return acc.len > 0;
 }
 
-static void apply_info_line(const char *text)
+static void build_news_line(const news_cache_t *cache, char *out, size_t out_len)
+{
+    size_t len = 0;
+    if (out_len == 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (cache == NULL || !cache->valid) {
+        return;
+    }
+    for (uint8_t i = 0; i < cache->count && i < NEWS_MAX_ITEMS; i++) {
+        if (cache->titles[i][0] == '\0') {
+            continue;
+        }
+        int written = snprintf(out + len,
+                               out_len - len,
+                               "%s%s",
+                               len == 0 ? "" : "   |   ",
+                               cache->titles[i]);
+        if (written < 0) {
+            break;
+        }
+        if ((size_t)written >= out_len - len) {
+            len = out_len - 1;
+            break;
+        }
+        len += (size_t)written;
+    }
+}
+
+static void apply_info_line(const char *text, uint16_t slide_speed)
 {
     if (bsp_display_lock(pdMS_TO_TICKS(100))) {
+        if (objects.obj52 != NULL) {
+            lv_obj_set_pos(objects.obj52, 0, 5);
+            lv_obj_set_width(objects.obj52, 431);
+            lv_label_set_long_mode(objects.obj52, LV_LABEL_LONG_SCROLL_CIRCULAR);
+            lv_obj_set_style_anim_speed(objects.obj52, slide_speed, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_label_set_text(objects.obj52, text != NULL ? text : "");
+        }
         set_var_ui_meteo_alert(text != NULL ? text : "");
         bsp_display_unlock();
     }
 }
 
-static void apply_cache_if_available(time_t now)
+static void apply_cache_if_available(time_t now, const news_settings_t *settings)
 {
+    uint16_t slide_speed = settings != NULL ? settings->slide_speed : 35;
     if (s_cache.valid && s_cache.fetch_ts > 0 && now - s_cache.fetch_ts <= NEWS_CACHE_STALE_SECONDS) {
-        apply_info_line(s_cache.title);
+        char line[NEWS_LINE_MAX_LEN];
+        build_news_line(&s_cache, line, sizeof(line));
+        apply_info_line(line, slide_speed);
     } else {
-        apply_info_line("");
+        apply_info_line("", slide_speed);
     }
 }
 
@@ -393,34 +482,34 @@ static void fetch_news_once(void)
     time_t now = 0;
     if (!time_ready(&now)) {
         NEWS_LOGW("skip time_invalid");
-        apply_cache_if_available(now);
+        apply_cache_if_available(now, &settings);
         return;
     }
     if (!settings.enabled) {
         NEWS_LOGI("skip disabled");
-        apply_info_line("");
+        apply_info_line("", settings.slide_speed);
         return;
     }
     if (settings.gnews_key[0] == '\0') {
         NEWS_LOGI("skip missing_key");
-        apply_cache_if_available(now);
+        apply_cache_if_available(now, &settings);
         return;
     }
     if (!netif_ready()) {
         NEWS_LOGW("skip wifi_down");
-        apply_cache_if_available(now);
+        apply_cache_if_available(now, &settings);
         return;
     }
     if (now < s_next_allowed_fetch) {
         NEWS_LOGI("skip backoff remaining=%llds", (long long)(s_next_allowed_fetch - now));
-        apply_cache_if_available(now);
+        apply_cache_if_available(now, &settings);
         return;
     }
 
     char *body = (char *)calloc(1, NEWS_BODY_CAP);
     if (body == NULL) {
         NEWS_LOGW("body alloc failed");
-        apply_cache_if_available(now);
+        apply_cache_if_available(now, &settings);
         return;
     }
 
@@ -430,8 +519,10 @@ static void fetch_news_once(void)
         parse_gnews_json(body, &settings, now, &fresh)) {
         s_cache = fresh;
         s_next_allowed_fetch = now + ((time_t)settings.refresh_min * 60);
-        apply_info_line(s_cache.title);
-        NEWS_LOGI("cache updated next_fetch_in=%dm", (int)settings.refresh_min);
+        char line[NEWS_LINE_MAX_LEN];
+        build_news_line(&s_cache, line, sizeof(line));
+        apply_info_line(line, settings.slide_speed);
+        NEWS_LOGI("cache updated count=%u next_fetch_in=%dm", (unsigned)s_cache.count, (int)settings.refresh_min);
         free(body);
         return;
     }
@@ -443,7 +534,7 @@ static void fetch_news_once(void)
     } else {
         s_next_allowed_fetch = now + NEWS_RETRY_BACKOFF_SECONDS;
     }
-    apply_cache_if_available(now);
+    apply_cache_if_available(now, &settings);
     NEWS_LOGW("update failed status=%d next_retry_in=%llds", status, (long long)(s_next_allowed_fetch - now));
     free(body);
 }

@@ -28,6 +28,7 @@ static const char *NVS_KEY_CATEGORY = "category";
 static const char *NVS_KEY_LANG = "lang";
 static const char *NVS_KEY_COUNTRY = "country";
 static const char *NVS_KEY_MAX_ITEMS = "max_items";
+static const char *NVS_KEY_SLIDE_SPEED = "slide_speed";
 static const char *NVS_KEY_MAX_AGE_DAYS = "max_age_days";
 static const char *NVS_KEY_LAST_OK_TS = "last_ok_ts";
 static const char *NVS_KEY_LAST_ERROR = "last_error";
@@ -50,6 +51,7 @@ void news_settings_defaults(news_settings_t *out)
     snprintf(out->lang, sizeof(out->lang), "fr");
     snprintf(out->country, sizeof(out->country), "fr");
     out->max_items = 5;
+    out->slide_speed = 35;
     out->max_age_days = 15;
     snprintf(out->last_error, sizeof(out->last_error), "none");
 }
@@ -73,6 +75,9 @@ bool news_settings_validate(const news_settings_t *settings)
         return false;
     }
     if (settings->max_items == 0 || settings->max_items > 5) {
+        return false;
+    }
+    if (settings->slide_speed < 10 || settings->slide_speed > 200) {
         return false;
     }
     if (settings->max_age_days == 0 || settings->max_age_days > 15) {
@@ -157,6 +162,15 @@ esp_err_t news_settings_load(news_settings_t *out)
         }
     }
     if (err == ESP_OK) {
+        uint16_t slide_speed = out->slide_speed;
+        esp_err_t read_err = nvs_get_u16(handle, NVS_KEY_SLIDE_SPEED, &slide_speed);
+        if (read_err == ESP_OK) {
+            out->slide_speed = slide_speed;
+        } else if (read_err != ESP_ERR_NVS_NOT_FOUND) {
+            err = read_err;
+        }
+    }
+    if (err == ESP_OK) {
         int64_t last_ok_ts = out->last_ok_ts;
         esp_err_t read_err = nvs_get_i64(handle, NVS_KEY_LAST_OK_TS, &last_ok_ts);
         if (read_err == ESP_OK) {
@@ -179,7 +193,7 @@ esp_err_t news_settings_load(news_settings_t *out)
         NEWS_LOGW("settings invalid after load");
         return ESP_ERR_INVALID_SIZE;
     }
-    NEWS_LOGI("settings load provider=%s enabled=%d key_set=%d key_len=%u refresh=%d category=%s lang=%s country=%s max=%u age_days=%u",
+    NEWS_LOGI("settings load provider=%s enabled=%d key_set=%d key_len=%u refresh=%d category=%s lang=%s country=%s max=%u slide_speed=%u age_days=%u",
               out->provider,
               out->enabled,
               out->gnews_key[0] != '\0',
@@ -189,6 +203,7 @@ esp_err_t news_settings_load(news_settings_t *out)
               out->lang,
               out->country,
               (unsigned)out->max_items,
+              (unsigned)out->slide_speed,
               (unsigned)out->max_age_days);
     return ESP_OK;
 }
@@ -206,7 +221,7 @@ esp_err_t news_settings_save(const news_settings_t *settings)
         return err;
     }
 
-    NEWS_LOGI("settings save provider=%s enabled=%d key_set=%d key_len=%u refresh=%d category=%s lang=%s country=%s max=%u age_days=%u",
+    NEWS_LOGI("settings save provider=%s enabled=%d key_set=%d key_len=%u refresh=%d category=%s lang=%s country=%s max=%u slide_speed=%u age_days=%u",
               settings->provider,
               settings->enabled,
               settings->gnews_key[0] != '\0',
@@ -216,6 +231,7 @@ esp_err_t news_settings_save(const news_settings_t *settings)
               settings->lang,
               settings->country,
               (unsigned)settings->max_items,
+              (unsigned)settings->slide_speed,
               (unsigned)settings->max_age_days);
 
     err = nvs_set_str(handle, NVS_KEY_PROVIDER, settings->provider);
@@ -247,6 +263,9 @@ esp_err_t news_settings_save(const news_settings_t *settings)
     }
     if (err == ESP_OK) {
         err = nvs_set_u8(handle, NVS_KEY_MAX_AGE_DAYS, settings->max_age_days);
+    }
+    if (err == ESP_OK) {
+        err = nvs_set_u16(handle, NVS_KEY_SLIDE_SPEED, settings->slide_speed);
     }
     if (err == ESP_OK) {
         err = nvs_set_i64(handle, NVS_KEY_LAST_OK_TS, settings->last_ok_ts);

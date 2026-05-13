@@ -10,6 +10,7 @@
 
 #define VAR_BUF_LEN 64
 #define HOST_META_BUF_LEN 160
+#define METEO_ALERT_BUF_LEN 960
 
 static char g_cpu_pct[VAR_BUF_LEN];
 static char g_cpu_temp[VAR_BUF_LEN];
@@ -40,7 +41,7 @@ static char g_ui_meteo_ft5[VAR_BUF_LEN];
 static char g_ui_meteo_ft6[VAR_BUF_LEN];
 static char g_ui_meteo_houre[VAR_BUF_LEN];
 static char g_ui_meteo_temp[VAR_BUF_LEN];
-static char g_ui_meteo_alert[VAR_BUF_LEN];
+static char g_ui_meteo_alert[METEO_ALERT_BUF_LEN];
 static int32_t g_ui_start_bar;
 static char g_ui_start_bar_texte[VAR_BUF_LEN];
 static char g_fan_1_label[VAR_BUF_LEN];

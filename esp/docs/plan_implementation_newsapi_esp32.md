@@ -10,9 +10,9 @@ Ajouter un module GNews autonome cote ESP32 pour alimenter la ligne info de
 - Ajouter le stockage NVS `news`.
 - Stocker la cle `gnews_key` sans jamais la retourner dans l'API web.
 - Stocker les parametres V1: `provider`, `enabled`, `refresh_min`, `category`, `lang`,
-  `country`, `max_items`, `max_age_days`, `last_ok_ts`, `last_error`.
+  `country`, `max_items`, `slide_speed`, `max_age_days`, `last_ok_ts`, `last_error`.
 - Ajouter la saisie/effacement de la cle GNews sur la page `/`.
-- Exposer uniquement `gnews_key_set` via `GET /api/config`.
+- Exposer `gnews_key_set`, `news_max_items` et `news_slide_speed` via `GET /api/config`.
 
 Validation:
 
@@ -71,6 +71,9 @@ Validation:
 
 - Centraliser l'arbitrage de la ligne info.
 - Priorite stricte: alerte meteo, news valide, cache news, rien.
+- Faire defiler les titres de droite a gauche en scroll circulaire.
+- Afficher les titres les uns apres les autres, avec `max_items` par defaut a 5.
+- Rendre la vitesse de defilement configurable depuis la page web.
 - Ne jamais masquer une alerte meteo active par une news.
 - Garder les messages techniques hors affichage nominal.
 
