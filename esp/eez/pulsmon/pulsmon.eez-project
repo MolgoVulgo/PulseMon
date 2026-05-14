@@ -437,6 +437,15 @@
         "defaultValue": "\"\"",
         "persistent": false,
         "native": false
+      },
+      {
+        "objID": "ee552942-b507-4c6c-88fb-0374c647c026",
+        "name": "gpu_fan_rpm_1",
+        "type": "string",
+        "size": null,
+        "defaultValue": "\"\"",
+        "persistent": false,
+        "native": false
       }
     ],
     "structures": [],
@@ -777,7 +786,7 @@
                 {
                   "objID": "e5cda43d-6859-448a-bb2a-e8e4662396df",
                   "type": "LVGLLabelWidget",
-                  "left": 8,
+                  "left": 0,
                   "top": 40,
                   "width": 32,
                   "height": 17,
@@ -1245,7 +1254,7 @@
                 {
                   "objID": "80e29be3-2c01-41b4-d0d0-62c9a2fd8b0f",
                   "type": "LVGLLabelWidget",
-                  "left": 8,
+                  "left": 0,
                   "top": 39,
                   "width": 32,
                   "height": 17,
@@ -1757,7 +1766,7 @@
                 {
                   "objID": "97934fdc-98b1-48d6-81f1-0d32d35bafd1",
                   "type": "LVGLLabelWidget",
-                  "left": 8,
+                  "left": 0,
                   "top": 39,
                   "width": 32,
                   "height": 17,
@@ -2390,8 +2399,7 @@
                     "DEFAULT": {
                       "bg_color": "#0f131d",
                       "border_color": "#232a38",
-                      "border_width": 1,
-                      "text_align": "RIGHT"
+                      "border_width": 1
                     }
                   }
                 }
@@ -3421,7 +3429,7 @@
                   "type": "LVGLLabelWidget",
                   "left": 35,
                   "top": 22,
-                  "width": 24,
+                  "width": 40,
                   "height": 17,
                   "customInputs": [],
                   "customOutputs": [],
@@ -3462,7 +3470,111 @@
                   },
                   "group": "",
                   "groupIndex": 0,
-                  "text": "RPM",
+                  "text": "RPM |",
+                  "textType": "literal",
+                  "longMode": "WRAP",
+                  "recolor": false,
+                  "previewValue": " 1125 "
+                },
+                {
+                  "objID": "eded9650-e902-4cf8-d810-cd78238f6af3",
+                  "type": "LVGLLabelWidget",
+                  "left": 78,
+                  "top": 22,
+                  "width": 24,
+                  "height": 17,
+                  "customInputs": [],
+                  "customOutputs": [],
+                  "style": {
+                    "objID": "dd4199a9-7983-4d15-b71f-83a067847bf7",
+                    "useStyle": "default",
+                    "conditionalStyles": [],
+                    "childStyles": []
+                  },
+                  "timeline": [],
+                  "eventHandlers": [],
+                  "identifier": "gpu_pct_6",
+                  "leftUnit": "px",
+                  "topUnit": "px",
+                  "widthUnit": "px",
+                  "heightUnit": "content",
+                  "children": [],
+                  "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                  "hiddenFlagType": "literal",
+                  "clickableFlagType": "literal",
+                  "flagScrollbarMode": "",
+                  "flagScrollDirection": "",
+                  "scrollSnapX": "",
+                  "scrollSnapY": "",
+                  "checkedStateType": "literal",
+                  "disabledStateType": "literal",
+                  "states": "",
+                  "localStyles": {
+                    "objID": "3259d10f-0a2c-4575-de90-a61e0e7335b3",
+                    "definition": {
+                      "MAIN": {
+                        "DEFAULT": {
+                          "text_color": "#d8deea",
+                          "text_align": "RIGHT"
+                        }
+                      }
+                    }
+                  },
+                  "group": "",
+                  "groupIndex": 0,
+                  "text": "gpu_fan_rpm_1",
+                  "textType": "expression",
+                  "longMode": "WRAP",
+                  "recolor": false,
+                  "previewValue": "100"
+                },
+                {
+                  "objID": "092a1a67-4d65-4b7d-b905-0da53d4732bc",
+                  "type": "LVGLLabelWidget",
+                  "left": 102,
+                  "top": 22,
+                  "width": 8,
+                  "height": 17,
+                  "customInputs": [],
+                  "customOutputs": [],
+                  "style": {
+                    "objID": "e7865d48-9a84-45e6-c5ae-8cb3bc70572a",
+                    "useStyle": "default",
+                    "conditionalStyles": [],
+                    "childStyles": []
+                  },
+                  "timeline": [],
+                  "eventHandlers": [],
+                  "identifier": "gpu_pct_7",
+                  "leftUnit": "px",
+                  "topUnit": "px",
+                  "widthUnit": "content",
+                  "heightUnit": "content",
+                  "children": [],
+                  "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                  "hiddenFlagType": "literal",
+                  "clickableFlagType": "literal",
+                  "flagScrollbarMode": "",
+                  "flagScrollDirection": "",
+                  "scrollSnapX": "",
+                  "scrollSnapY": "",
+                  "checkedStateType": "literal",
+                  "disabledStateType": "literal",
+                  "states": "",
+                  "localStyles": {
+                    "objID": "82221f2a-d508-4888-f672-43d95e532afa",
+                    "definition": {
+                      "MAIN": {
+                        "DEFAULT": {
+                          "text_color": "#d8deea",
+                          "text_align": "RIGHT"
+                        }
+                      }
+                    }
+                  },
+                  "group": "",
+                  "groupIndex": 0,
+                  "text": "%",
                   "textType": "literal",
                   "longMode": "WRAP",
                   "recolor": false,
@@ -7252,7 +7364,7 @@
                     "text_color": "#90a0bc",
                     "border_side": "BOTTOM",
                     "border_width": 1,
-                    "border_color": "#D31B1B"
+                    "border_color": "#535385"
                   }
                 }
               }

@@ -80,6 +80,8 @@ typedef struct _objects_t {
     lv_obj_t *obj21;
     lv_obj_t *gpu_pct_4;
     lv_obj_t *gpu_pct_5;
+    lv_obj_t *gpu_pct_6;
+    lv_obj_t *gpu_pct_7;
     lv_obj_t *obj22;
     lv_obj_t *obj23;
     lv_obj_t *obj24;

@@ -147,16 +147,13 @@ static void update_ui_from_gpu_dashboard(const pulsemon_gpu_dashboard_t *g)
 
     if (g->fan_rpm_valid) {
         char fan_buf[32];
-        if (g->fan_pct_valid) {
-            snprintf(fan_buf, sizeof(fan_buf), "%.0f RPM (%.0f%%)", (double)g->fan_rpm, (double)g->fan_pct);
-        } else {
-            snprintf(fan_buf, sizeof(fan_buf), "%.0f RPM", (double)g->fan_rpm);
-        }
+        snprintf(fan_buf, sizeof(fan_buf), "%.0f", (double)g->fan_rpm);
         fan_buf[sizeof(fan_buf) - 1] = '\0';
         set_var_gpu_fan_rpm(fan_buf);
     } else {
         set_var_gpu_fan_rpm("--");
     }
+    set_float_or_dash(set_var_gpu_fan_rpm_1, g->fan_pct, g->fan_pct_valid, "%.0f");
 
     if (g->vram_pct_valid) {
         int vram_pct = (int)(g->vram_pct + 0.5f);

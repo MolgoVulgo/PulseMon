@@ -53,7 +53,8 @@ enum FlowGlobalVariables {
     FLOW_GLOBAL_VARIABLE_UI_METEO_TEMP = 37,
     FLOW_GLOBAL_VARIABLE_UI_METEO_ALERT = 38,
     FLOW_GLOBAL_VARIABLE_UI_START_BAR = 39,
-    FLOW_GLOBAL_VARIABLE_UI_START_BAR_TEXTE = 40
+    FLOW_GLOBAL_VARIABLE_UI_START_BAR_TEXTE = 40,
+    FLOW_GLOBAL_VARIABLE_GPU_FAN_RPM_1 = 41
 };
 
 // Native global variables
@@ -140,6 +141,8 @@ extern int32_t get_var_ui_start_bar();
 extern void set_var_ui_start_bar(int32_t value);
 extern const char *get_var_ui_start_bar_texte();
 extern void set_var_ui_start_bar_texte(const char *value);
+extern const char *get_var_gpu_fan_rpm_1();
+extern void set_var_gpu_fan_rpm_1(const char *value);
 
 #ifdef __cplusplus
 }

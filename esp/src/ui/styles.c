@@ -74,7 +74,7 @@ void init_style_titre_MAIN_DEFAULT(lv_style_t *style) {
     lv_style_set_text_color(style, lv_color_hex(0x90a0bc));
     lv_style_set_border_side(style, LV_BORDER_SIDE_BOTTOM);
     lv_style_set_border_width(style, 1);
-    lv_style_set_border_color(style, lv_color_hex(0xd31b1b));
+    lv_style_set_border_color(style, lv_color_hex(0x535385));
 };
 
 lv_style_t *get_style_titre_MAIN_DEFAULT() {
