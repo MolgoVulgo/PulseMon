@@ -203,7 +203,9 @@ static void poller_task(void *arg)
         } else {
             ok = pulsemon_fetch_dashboard(&dashboard, err, sizeof(err));
         }
+#if PULSEMON_LATENCY_DEBUG
         int64_t fetch_ms = (esp_timer_get_time() - t_cycle_start_us) / 1000;
+#endif
         int64_t lock_wait_ms = -1;
         int64_t ui_apply_ms = -1;
         bool got_lock = false;
@@ -242,6 +244,7 @@ static void poller_task(void *arg)
         }
 
         int64_t cycle_ms = (esp_timer_get_time() - t_cycle_start_us) / 1000;
+#if PULSEMON_LATENCY_DEBUG
         LAT_DEBUG("tick=%lu screen=%s ok=%d fetch=%lldms lock=%lldms ui=%lldms cycle=%lldms",
                   (unsigned long)tick_seq,
                   gpu_page_active ? "gpu" : (active_screen == SCREEN_ID_METEO ? "meteo" : "main"),
@@ -250,6 +253,7 @@ static void poller_task(void *arg)
                   (long long)lock_wait_ms,
                   (long long)ui_apply_ms,
                   (long long)cycle_ms);
+#endif
         if (!got_lock) {
             ESP_LOGW(TAG, "ui lock timeout tick=%lu", (unsigned long)tick_seq);
         }

@@ -453,12 +453,11 @@ static void apply_info_line(const char *text, uint16_t slide_speed)
     }
 
     if (bsp_display_lock(pdMS_TO_TICKS(100))) {
-        if (objects.obj52 != NULL) {
-            lv_obj_set_pos(objects.obj52, 0, 5);
-            lv_obj_set_width(objects.obj52, 431);
-            lv_label_set_long_mode(objects.obj52, LV_LABEL_LONG_SCROLL_CIRCULAR);
-            lv_obj_set_style_anim_speed(objects.obj52, slide_speed, LV_PART_MAIN | LV_STATE_DEFAULT);
-            lv_label_set_text(objects.obj52, safe_text);
+        if (objects.meteo_alert != NULL) {
+            lv_obj_set_width(objects.meteo_alert, 430);
+            lv_label_set_long_mode(objects.meteo_alert, LV_LABEL_LONG_SCROLL_CIRCULAR);
+            lv_obj_set_style_anim_speed(objects.meteo_alert, slide_speed, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_label_set_text(objects.meteo_alert, safe_text);
         }
         set_var_ui_meteo_alert(safe_text);
         snprintf(s_applied_line, sizeof(s_applied_line), "%s", safe_text);

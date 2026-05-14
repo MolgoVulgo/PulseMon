@@ -4,6 +4,8 @@
 #include "esp_log.h"
 #include "rom/ets_sys.h"
 
+#include <stdint.h>
+
 #include "esp_bsp.h"
 #include "display.h"
 #include "ui/ui.h"
@@ -24,6 +26,16 @@ static const char *TAG = "pulsemon";
 #ifndef PULSEMON_DEBUG
 #define PULSEMON_DEBUG 0
 #endif
+
+static void startup_progress(int32_t pct, const char *text)
+{
+    if (bsp_display_lock(pdMS_TO_TICKS(1000))) {
+        ui_screen_set_start_progress(pct, text);
+        bsp_display_unlock();
+    } else {
+        ESP_LOGW(TAG, "startup progress lock timeout");
+    }
+}
 
 static void pulsemon_on_wifi_connected(void)
 {
@@ -97,10 +109,14 @@ void app_main(void)
     set_var_ui_meteo_ft4("--");
     set_var_ui_meteo_ft5("--");
     set_var_ui_meteo_ft6("--");
+    set_var_ui_start_bar(0);
+    set_var_ui_start_bar_texte("Demarrage");
     set_var_host_meta("waiting backend");
 
     ui_init();
+    ui_screen_set_start_progress(10, "UI");
     ui_screen_start();
+    ui_screen_set_start_progress(20, "Mire prete");
 
 #if PULSEMON_SCREENSHOT_DEBUG
     const lcd_capture_cfg_t capture_cfg = {
@@ -119,6 +135,7 @@ void app_main(void)
 
     ESP_LOGI(TAG, "ui started");
 
+    startup_progress(30, "Meteo: icones");
     esp_err_t icons_ret = pulsemon_weather_icons_init();
 #if PULSEMON_DEBUG
     if (icons_ret != ESP_OK) {
@@ -128,12 +145,14 @@ void app_main(void)
     (void)icons_ret;
 #endif
 
+    startup_progress(40, "Reseau: init");
     esp_err_t wifi_ret = pulsemon_wifi_manager_init(pulsemon_on_wifi_connected);
     if (wifi_ret != ESP_OK) {
         ESP_LOGE(TAG, "wifi manager init failed: %s", esp_err_to_name(wifi_ret));
     }
 
     if (wifi_ret == ESP_OK) {
+        startup_progress(55, "Meteo: service");
         esp_err_t meteo_ret = pulsemon_meteo_service_start();
 #if PULSEMON_DEBUG
         if (meteo_ret != ESP_OK) {
@@ -142,6 +161,7 @@ void app_main(void)
 #else
         (void)meteo_ret;
 #endif
+        startup_progress(70, "News: service");
         esp_err_t news_ret = news_service_start();
 #if PULSEMON_NEWS_DEBUG
         if (news_ret != ESP_OK) {
@@ -150,23 +170,37 @@ void app_main(void)
 #else
         (void)news_ret;
 #endif
+    } else {
+        startup_progress(70, "Services reseau indisponibles");
     }
 
+    startup_progress(80, "Config locale");
     esp_err_t web_ret = pulsemon_wifi_config_server_start();
     if (web_ret != ESP_OK) {
         ESP_LOGE(TAG, "wifi config server init failed: %s", esp_err_to_name(web_ret));
     }
 
+    startup_progress(85, "DNS captif");
     esp_err_t dns_ret = pulsemon_wifi_captive_dns_start();
     if (dns_ret != ESP_OK) {
         ESP_LOGE(TAG, "wifi captive dns init failed: %s", esp_err_to_name(dns_ret));
     }
 
     if (wifi_ret == ESP_OK) {
+        startup_progress(90, "Monitoring: Wi-Fi");
         wifi_ret = pulsemon_wifi_manager_start();
         if (wifi_ret != ESP_OK) {
             ESP_LOGE(TAG, "wifi manager start failed: %s", esp_err_to_name(wifi_ret));
         }
+    }
+
+    startup_progress(100, wifi_ret == ESP_OK ? "Monitoring: pret" : "Monitoring: Wi-Fi indisponible");
+    vTaskDelay(pdMS_TO_TICKS(250));
+    if (bsp_display_lock(pdMS_TO_TICKS(1000))) {
+        ui_screen_show_main_and_release_start();
+        bsp_display_unlock();
+    } else {
+        ESP_LOGW(TAG, "startup main screen lock timeout");
     }
 
     while (1) {

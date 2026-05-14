@@ -14,6 +14,17 @@ static lv_timer_t *s_graph_timer;
 static bool s_started;
 static enum ScreensEnum s_active_screen = SCREEN_ID_MAIN;
 
+static int32_t clamp_start_progress(int32_t pct)
+{
+    if (pct < 0) {
+        return 0;
+    }
+    if (pct > 100) {
+        return 100;
+    }
+    return pct;
+}
+
 static void ui_apply_fan_runtime_patch(void)
 {
     if (objects.fan == NULL) {
@@ -125,6 +136,41 @@ void ui_screen_start(void)
 
     ui_labels_tick(NULL);
     ui_graphs_tick(NULL);
+}
+
+void ui_screen_set_start_progress(int32_t pct, const char *text)
+{
+    pct = clamp_start_progress(pct);
+    set_var_ui_start_bar(pct);
+    if (text != NULL) {
+        set_var_ui_start_bar_texte(text);
+    }
+
+    if (objects.ui_start_bar != NULL) {
+        lv_bar_set_value(objects.ui_start_bar, pct, LV_ANIM_ON);
+    }
+    if (objects.ui_start_bar_texte != NULL) {
+        lv_label_set_text(objects.ui_start_bar_texte, get_var_ui_start_bar_texte());
+    }
+}
+
+void ui_screen_show_main_and_release_start(void)
+{
+    if (objects.main == NULL) {
+        return;
+    }
+
+    lv_obj_t *start = objects.start;
+    bool release_start = start != NULL && lv_scr_act() == start;
+    lv_scr_load_anim(objects.main, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, release_start);
+    s_active_screen = SCREEN_ID_MAIN;
+    if (release_start) {
+        objects.start = NULL;
+        objects.ui_start_bar = NULL;
+        objects.ui_start_bar_texte = NULL;
+        objects.obj0 = NULL;
+    }
+    tick_screen_by_id(SCREEN_ID_MAIN);
 }
 
 void ui_screen_set_active(enum ScreensEnum screen_id)

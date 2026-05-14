@@ -2,8 +2,9 @@
   "navigation": {
     "selectedUserPageObject": "[pulsmon.eez-project]:/userPages/3",
     "selectedActionObject": "[pulsmon.eez-project]:/actions/0",
-    "selectedGlobalVariableObject": "[pulsmon.eez-project]:/variables/globalVariables/17",
-    "selectedFontObject": "[pulsmon.eez-project]:/fonts/0",
+    "selectedGlobalVariableObject": "[pulsmon.eez-project]:/variables/globalVariables/38",
+    "selectedFontObject": "[pulsmon.eez-project]:/fonts/2",
+    "selectedGlyphObject": "[pulsmon.eez-project]:/fonts/2/glyphs/-1",
     "subnavigationSelectedItems": {
       "variables-tab/sub-navigation/selected-item": "Global"
     }
@@ -26,7 +27,6 @@
           },
           {
             "type": "border",
-            "selected": 2,
             "size": 240,
             "location": "right",
             "children": [
@@ -74,6 +74,7 @@
           },
           {
             "type": "border",
+            "selected": 0,
             "location": "bottom",
             "children": [
               {
@@ -191,11 +192,25 @@
             {
               "type": "tabset",
               "id": "EDITORS",
-              "weight": 76.63433908045977,
-              "selected": 1,
+              "weight": 56.361350574712645,
+              "selected": 2,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
+                {
+                  "type": "tab",
+                  "id": "#fbd4cc6a-4bd3-420b-84ef-919ac082f26a",
+                  "name": "ui_16",
+                  "component": "editor",
+                  "config": {
+                    "objectPath": "[pulsmon.eez-project]:/fonts/2",
+                    "params": {
+                      "forceOpenEditor": true
+                    },
+                    "permanent": false
+                  },
+                  "icon": "material:font_download"
+                },
                 {
                   "type": "tab",
                   "id": "#457f4539-33ab-46e9-9aec-0f32e83a1700",
@@ -219,13 +234,12 @@
                   },
                   "icon": "svg:page"
                 }
-              ],
-              "active": true
+              ]
             },
             {
               "type": "row",
               "id": "#e24489e9-733c-45f8-88ba-7a79bcfb49e2",
-              "weight": 8.36566091954023,
+              "weight": 28.638649425287355,
               "children": [
                 {
                   "type": "tabset",
@@ -240,7 +254,8 @@
                       "enableClose": false,
                       "icon": "svg:properties"
                     }
-                  ]
+                  ],
+                  "active": true
                 },
                 {
                   "type": "tabset",
@@ -701,7 +716,8 @@
                   "component": "editor",
                   "enableClose": false
                 }
-              ]
+              ],
+              "active": true
             }
           ]
         }
@@ -1070,20 +1086,13 @@
     "[pulsmon.eez-project]:/userPages/0[flow-state]": {
       "selectionFront": {},
       "selectionBack": {
-        "0": {
-          "0": {},
-          "1": {},
-          "2": {},
-          "3": {},
-          "4": {},
-          "6": {},
-          "7": {}
-        }
+        "0": {},
+        "$selected": true
       },
       "transform": {
         "translate": {
-          "x": -499.6428571428571,
-          "y": -295.78571428571433
+          "x": -240,
+          "y": -160
         },
         "scale": 1.1
       },
@@ -1099,19 +1108,16 @@
       "selectionBack": {
         "0": {
           "0": {
-            "0": {}
-          },
-          "1": {
+            "0": {},
             "$selected": true
           },
+          "1": {},
           "2": {},
           "3": {},
           "4": {},
           "5": {},
           "6": {},
-          "7": {},
-          "8": {},
-          "9": {}
+          "7": {}
         }
       },
       "transform": {
@@ -1159,13 +1165,37 @@
       "selectionFront": {},
       "selectionBack": {
         "0": {
-          "1": {}
+          "1": {},
+          "31": {
+            "0": {
+              "$selected": true
+            }
+          }
         }
       },
       "transform": {
         "translate": {
-          "x": -26.20833333333337,
-          "y": -69.775
+          "x": -421.00911458333337,
+          "y": -225.2984375
+        },
+        "scale": 1.1
+      },
+      "timeline": {
+        "isEditorActive": false,
+        "position": 0,
+        "secondToPx": 200,
+        "scrollLeft": 0
+      }
+    },
+    "[pulsmon.eez-project]:/userPages/4[flow-state]": {
+      "selectionFront": {},
+      "selectionBack": {
+        "0": {}
+      },
+      "transform": {
+        "translate": {
+          "x": -240,
+          "y": -160
         },
         "scale": 1.1
       },
