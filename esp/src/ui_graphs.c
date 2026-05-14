@@ -77,7 +77,6 @@ static lv_obj_t *create_axis_value_label(lv_obj_t *parent)
 {
     lv_obj_t *label = lv_label_create(parent);
     lv_obj_set_style_text_color(label, lv_color_hex(0x90a0bc), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_label_set_text(label, "-");
     return label;
 }
