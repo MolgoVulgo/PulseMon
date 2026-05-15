@@ -132,7 +132,7 @@ static void update_chart_axis_labels(lv_obj_t *chart, lv_obj_t *labels[AXIS_LABE
 
 static void init_chart_common(lv_obj_t *chart)
 {
-    lv_obj_set_pos(chart, 20, 8);
+    lv_obj_set_pos(chart, 15, 8);
     lv_obj_set_size(chart, 186, 114);
     lv_obj_clear_flag(chart, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_bg_color(chart, lv_color_hex(0x0f131d), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -153,10 +153,10 @@ static void init_chart_common(lv_obj_t *chart)
 static void init_chart_common_for_panel(lv_obj_t *chart, lv_coord_t panel_h)
 {
     if (panel_h <= 90) {
-        lv_obj_set_pos(chart, 30, 1);
+        lv_obj_set_pos(chart, 15, 1);
         lv_obj_set_size(chart, 186, 53);
     } else {
-        lv_obj_set_pos(chart, 30, 8);
+        lv_obj_set_pos(chart, 15, 8);
         lv_obj_set_size(chart, 186, 114);
     }
     lv_obj_clear_flag(chart, LV_OBJ_FLAG_SCROLLABLE);

@@ -57,7 +57,7 @@ static void set_bytes_gib_or_dash(void (*setter)(const char *), unsigned long lo
     }
     char buf[32];
     double gib = (double)value / (1024.0 * 1024.0 * 1024.0);
-    snprintf(buf, sizeof(buf), "%.2f GiB", gib);
+    snprintf(buf, sizeof(buf), "%.2f", gib);
     buf[sizeof(buf) - 1] = '\0';
     setter(buf);
 }
@@ -111,14 +111,14 @@ static void update_ui_from_dashboard(const pulsemon_dashboard_t *d)
         return;
     }
 
-    set_float_or_dash(set_var_cpu_pct, d->cpu_pct, d->cpu_pct_valid, "%.1f%%");
-    set_float_or_dash(set_var_cpu_temp, d->cpu_temp_c, d->cpu_temp_c_valid, "%.1fC");
-    set_float_or_dash(set_var_mem_pct, d->mem_pct, d->mem_pct_valid, "%.1f%%");
+    set_float_or_dash(set_var_cpu_pct, d->cpu_pct, d->cpu_pct_valid, "%.1f");
+    set_float_or_dash(set_var_cpu_temp, d->cpu_temp_c, d->cpu_temp_c_valid, "%.1f");
+    set_float_or_dash(set_var_mem_pct, d->mem_pct, d->mem_pct_valid, "%.1f");
     set_bytes_gib_or_dash(set_var_mem_used, d->mem_used_b, d->mem_used_b_valid);
     set_bytes_gib_or_dash(set_var_mem_total, d->mem_total_b, d->mem_total_b_valid);
-    set_float_or_dash(set_var_gpu_pct, d->gpu_pct, d->gpu_pct_valid, "%.1f%%");
-    set_float_or_dash(set_var_gpu_temp, d->gpu_temp_c, d->gpu_temp_c_valid, "%.1fC");
-    set_float_or_dash(set_var_gpu_power, d->gpu_power_w, d->gpu_power_w_valid, "%.0fW");
+    set_float_or_dash(set_var_gpu_pct, d->gpu_pct, d->gpu_pct_valid, "%.1f");
+    set_float_or_dash(set_var_gpu_temp, d->gpu_temp_c, d->gpu_temp_c_valid, "%.1f");
+    set_float_or_dash(set_var_gpu_power, d->gpu_power_w, d->gpu_power_w_valid, "%.0f");
 
     char meta[128];
     const char *host = d->host_valid ? d->host : "host?";
@@ -134,9 +134,9 @@ static void update_ui_from_gpu_dashboard(const pulsemon_gpu_dashboard_t *g)
         return;
     }
 
-    set_float_or_dash(set_var_gpu_pct, g->pct, g->pct_valid, "%.1f%%");
-    set_float_or_dash(set_var_gpu_temp, g->temp_c, g->temp_c_valid, "%.1fC");
-    set_float_or_dash(set_var_gpu_power, g->power_w, g->power_w_valid, "%.0fW");
+    set_float_or_dash(set_var_gpu_pct, g->pct, g->pct_valid, "%.1f");
+    set_float_or_dash(set_var_gpu_temp, g->temp_c, g->temp_c_valid, "%.1f");
+    set_float_or_dash(set_var_gpu_power, g->power_w, g->power_w_valid, "%.0f");
     set_gpu_vram_used_total_or_dash(
         set_var_gpu_vram_total,
         g->vram_used_b,
@@ -147,16 +147,13 @@ static void update_ui_from_gpu_dashboard(const pulsemon_gpu_dashboard_t *g)
 
     if (g->fan_rpm_valid) {
         char fan_buf[32];
-        if (g->fan_pct_valid) {
-            snprintf(fan_buf, sizeof(fan_buf), "%.0f RPM (%.0f%%)", (double)g->fan_rpm, (double)g->fan_pct);
-        } else {
-            snprintf(fan_buf, sizeof(fan_buf), "%.0f RPM", (double)g->fan_rpm);
-        }
+        snprintf(fan_buf, sizeof(fan_buf), "%.0f", (double)g->fan_rpm);
         fan_buf[sizeof(fan_buf) - 1] = '\0';
         set_var_gpu_fan_rpm(fan_buf);
     } else {
         set_var_gpu_fan_rpm("--");
     }
+    set_float_or_dash(set_var_gpu_fan_rpm_1, g->fan_pct, g->fan_pct_valid, "%.0f");
 
     if (g->vram_pct_valid) {
         int vram_pct = (int)(g->vram_pct + 0.5f);

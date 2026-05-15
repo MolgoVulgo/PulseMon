@@ -19,6 +19,9 @@ typedef struct {
 
 void vars_get_graph_sample(vars_graph_sample_t *out);
 
+const char *get_var_gpu_fan_rpm_1(void);
+void set_var_gpu_fan_rpm_1(const char *value);
+
 /* Fan numeric helpers for runtime patches. Generated RPM vars are text labels. */
 int32_t vars_get_fan_1_rpm_value(void);
 int32_t vars_get_fan_2_rpm_value(void);

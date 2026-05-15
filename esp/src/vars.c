@@ -23,6 +23,7 @@ static char g_gpu_power[VAR_BUF_LEN];
 static char g_gpu_vram_total[VAR_BUF_LEN];
 static char g_gpu_mem_clock[VAR_BUF_LEN];
 static char g_gpu_fan_rpm[VAR_BUF_LEN];
+static char g_gpu_fan_rpm_1[VAR_BUF_LEN];
 static char g_host_meta[HOST_META_BUF_LEN];
 static int32_t g_gpu_vram_used;
 static char g_ui_meteo_condition[VAR_BUF_LEN];
@@ -253,6 +254,16 @@ const char *get_var_gpu_fan_rpm()
 void set_var_gpu_fan_rpm(const char *value)
 {
     set_text(g_gpu_fan_rpm, sizeof(g_gpu_fan_rpm), value);
+}
+
+const char *get_var_gpu_fan_rpm_1(void)
+{
+    return g_gpu_fan_rpm_1;
+}
+
+void set_var_gpu_fan_rpm_1(const char *value)
+{
+    set_text(g_gpu_fan_rpm_1, sizeof(g_gpu_fan_rpm_1), value);
 }
 
 int32_t get_var_gpu_vram_used()

@@ -82,6 +82,7 @@ void app_main(void)
     set_var_gpu_vram_total("--");
     set_var_gpu_mem_clock("--");
     set_var_gpu_fan_rpm("--");
+    set_var_gpu_fan_rpm_1("--");
     set_var_gpu_vram_used(0);
     set_var_fan_1_label("Fan 1");
     set_var_fan_1_rpm("0");
