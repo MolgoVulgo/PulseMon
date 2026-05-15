@@ -1,10 +1,10 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[pulsmon.eez-project]:/userPages/3",
+    "selectedUserPageObject": "[pulsmon.eez-project]:/userPages/4",
     "selectedActionObject": "[pulsmon.eez-project]:/actions/0",
-    "selectedGlobalVariableObject": "[pulsmon.eez-project]:/variables/globalVariables/38",
+    "selectedGlobalVariableObject": "[pulsmon.eez-project]:/variables/globalVariables/41",
+    "selectedStyleObject": "[pulsmon.eez-project]:/lvglStyles/styles/1/childStyles/0",
     "selectedFontObject": "[pulsmon.eez-project]:/fonts/2",
-    "selectedGlyphObject": "[pulsmon.eez-project]:/fonts/2/glyphs/-1",
     "subnavigationSelectedItems": {
       "variables-tab/sub-navigation/selected-item": "Global"
     }
@@ -27,6 +27,7 @@
           },
           {
             "type": "border",
+            "selected": 0,
             "size": 240,
             "location": "right",
             "children": [
@@ -75,6 +76,7 @@
           {
             "type": "border",
             "selected": 0,
+            "size": 77.5,
             "location": "bottom",
             "children": [
               {
@@ -229,12 +231,13 @@
                   "name": "meteo",
                   "component": "editor",
                   "config": {
-                    "objectPath": "[pulsmon.eez-project]:/userPages/3",
+                    "objectPath": "[pulsmon.eez-project]:/userPages/4",
                     "permanent": false
                   },
                   "icon": "svg:page"
                 }
-              ]
+              ],
+              "active": true
             },
             {
               "type": "row",
@@ -254,8 +257,7 @@
                       "enableClose": false,
                       "icon": "svg:properties"
                     }
-                  ],
-                  "active": true
+                  ]
                 },
                 {
                   "type": "tabset",
@@ -874,7 +876,8 @@
                       "component": "styles",
                       "enableClose": false
                     }
-                  ]
+                  ],
+                  "active": true
                 },
                 {
                   "type": "tabset",
@@ -1086,8 +1089,7 @@
     "[pulsmon.eez-project]:/userPages/0[flow-state]": {
       "selectionFront": {},
       "selectionBack": {
-        "0": {},
-        "$selected": true
+        "0": {}
       },
       "transform": {
         "translate": {
@@ -1109,23 +1111,26 @@
         "0": {
           "0": {
             "0": {},
-            "$selected": true
+            "1": {}
           },
-          "1": {},
+          "1": {
+            "0": {
+              "$selected": true
+            }
+          },
           "2": {},
           "3": {},
           "4": {},
           "5": {},
-          "6": {},
-          "7": {}
+          "6": {}
         }
       },
       "transform": {
         "translate": {
-          "x": -370.7167968750001,
-          "y": -224.51705729166667
+          "x": -472.8405776515152,
+          "y": -351.90883049242416
         },
-        "scale": 1.1
+        "scale": 2
       },
       "timeline": {
         "isEditorActive": false,
@@ -1141,18 +1146,24 @@
           "0": {},
           "1": {},
           "2": {},
+          "3": {},
           "4": {},
+          "5": {},
+          "6": {},
           "7": {},
           "8": {},
-          "9": {}
+          "9": {},
+          "10": {
+            "$selected": true
+          }
         }
       },
       "transform": {
         "translate": {
           "x": -451.14453125,
-          "y": -174.62109375
+          "y": -414.62109375
         },
-        "scale": 1.1
+        "scale": 2
       },
       "timeline": {
         "isEditorActive": false,
@@ -1165,12 +1176,7 @@
       "selectionFront": {},
       "selectionBack": {
         "0": {
-          "1": {},
-          "31": {
-            "0": {
-              "$selected": true
-            }
-          }
+          "1": {}
         }
       },
       "transform": {
@@ -1178,7 +1184,7 @@
           "x": -421.00911458333337,
           "y": -225.2984375
         },
-        "scale": 1.1
+        "scale": 2
       },
       "timeline": {
         "isEditorActive": false,
@@ -1194,16 +1200,26 @@
       },
       "transform": {
         "translate": {
-          "x": -240,
-          "y": -160
+          "x": -403.33203125,
+          "y": -279.08203125
         },
-        "scale": 1.1
+        "scale": 2
       },
       "timeline": {
         "isEditorActive": false,
         "position": 0,
         "secondToPx": 200,
         "scrollLeft": 0
+      }
+    },
+    "[pulsmon.eez-project]:/lvglStyles/styles[tree-state]": {
+      "0": {
+        "$selected": true
+      },
+      "1": {
+        "0": {
+          "$selected": true
+        }
       }
     }
   },
@@ -1221,11 +1237,11 @@
   "lvglPart": "MAIN",
   "lvglState": "DEFAULT",
   "lvglExpandedPropertiesGroup": [
-    "TEXT",
-    "MISCELLANEOUS"
+    "BORDER",
+    "TEXT"
   ],
   "showInactiveFlowsInDebugger": true,
   "globalFlowZoom": true,
-  "flowZoom": 1.1,
+  "flowZoom": 2,
   "implementationLanguage": "C"
 }

@@ -786,7 +786,7 @@
                 {
                   "objID": "e5cda43d-6859-448a-bb2a-e8e4662396df",
                   "type": "LVGLLabelWidget",
-                  "left": 0,
+                  "left": 5,
                   "top": 40,
                   "width": 32,
                   "height": 17,
@@ -889,7 +889,7 @@
                 {
                   "objID": "084b43a5-8bdb-4656-bd98-62612a8fb869",
                   "type": "LVGLLabelWidget",
-                  "left": 0,
+                  "left": 5,
                   "top": 24,
                   "width": 40,
                   "height": 17,
@@ -1254,7 +1254,7 @@
                 {
                   "objID": "80e29be3-2c01-41b4-d0d0-62c9a2fd8b0f",
                   "type": "LVGLLabelWidget",
-                  "left": 0,
+                  "left": 5,
                   "top": 39,
                   "width": 32,
                   "height": 17,
@@ -1303,7 +1303,7 @@
                 {
                   "objID": "c03b1b0f-0870-4307-e3cc-5f6c18725dfc",
                   "type": "LVGLLabelWidget",
-                  "left": 0,
+                  "left": 5,
                   "top": 56,
                   "width": 40,
                   "height": 17,
@@ -1456,7 +1456,7 @@
                 {
                   "objID": "c4e202bd-547f-4031-c937-0b3d21c0b96b",
                   "type": "LVGLLabelWidget",
-                  "left": 0,
+                  "left": 5,
                   "top": 24,
                   "width": 40,
                   "height": 17,
@@ -1766,7 +1766,7 @@
                 {
                   "objID": "97934fdc-98b1-48d6-81f1-0d32d35bafd1",
                   "type": "LVGLLabelWidget",
-                  "left": 0,
+                  "left": 5,
                   "top": 39,
                   "width": 32,
                   "height": 17,
@@ -1832,7 +1832,7 @@
                   "identifier": "gpu_temp",
                   "leftUnit": "px",
                   "topUnit": "px",
-                  "widthUnit": "content",
+                  "widthUnit": "px",
                   "heightUnit": "content",
                   "children": [],
                   "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
@@ -1867,7 +1867,7 @@
                 {
                   "objID": "f81e5a7c-8dfc-4068-8285-d412f08a450f",
                   "type": "LVGLLabelWidget",
-                  "left": 0,
+                  "left": 5,
                   "top": 56,
                   "width": 40,
                   "height": 17,
@@ -1933,7 +1933,7 @@
                   "identifier": "gpu_power",
                   "leftUnit": "px",
                   "topUnit": "px",
-                  "widthUnit": "content",
+                  "widthUnit": "px",
                   "heightUnit": "content",
                   "children": [],
                   "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
@@ -1985,7 +1985,7 @@
                   "identifier": "gpu_pct",
                   "leftUnit": "px",
                   "topUnit": "px",
-                  "widthUnit": "content",
+                  "widthUnit": "px",
                   "heightUnit": "content",
                   "children": [],
                   "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
@@ -2020,7 +2020,7 @@
                 {
                   "objID": "5bd99ba2-5a3b-4e85-f31b-32db14cb7f4f",
                   "type": "LVGLLabelWidget",
-                  "left": 0,
+                  "left": 5,
                   "top": 24,
                   "width": 40,
                   "height": 17,
@@ -2069,7 +2069,7 @@
                 {
                   "objID": "50560ec1-11f9-4854-9fa5-29ccb58b9162",
                   "type": "LVGLLabelWidget",
-                  "left": 115,
+                  "left": 111,
                   "top": 24,
                   "width": 8,
                   "height": 17,
@@ -2173,7 +2173,7 @@
                 {
                   "objID": "4b26ff26-456f-4af6-b5ee-df63979076c3",
                   "type": "LVGLLabelWidget",
-                  "left": 115,
+                  "left": 111,
                   "top": 56,
                   "width": 8,
                   "height": 17,
@@ -2599,7 +2599,7 @@
                 {
                   "objID": "b5d9cc04-46e9-43f5-8826-83c17cc75dd3",
                   "type": "LVGLLabelWidget",
-                  "left": 0,
+                  "left": 5,
                   "top": 22,
                   "width": 32,
                   "height": 17,
@@ -2616,7 +2616,7 @@
                   "identifier": "gpu_pct_1",
                   "leftUnit": "px",
                   "topUnit": "px",
-                  "widthUnit": "content",
+                  "widthUnit": "px",
                   "heightUnit": "content",
                   "children": [],
                   "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
@@ -2651,7 +2651,7 @@
                 {
                   "objID": "056504ba-1290-4bb3-b78a-6a977c7f3b85",
                   "type": "LVGLLabelWidget",
-                  "left": 36,
+                  "left": 40,
                   "top": 22,
                   "width": 8,
                   "height": 17,
@@ -2959,7 +2959,7 @@
                 {
                   "objID": "ab04c015-b42f-4baa-e4c1-25658b6b7471",
                   "type": "LVGLLabelWidget",
-                  "left": 0,
+                  "left": 5,
                   "top": 22,
                   "width": 32,
                   "height": 17,
@@ -3011,7 +3011,7 @@
                 {
                   "objID": "42c2ad9b-9726-4e40-b13a-037fb328637a",
                   "type": "LVGLLabelWidget",
-                  "left": 36,
+                  "left": 40,
                   "top": 22,
                   "width": 16,
                   "height": 17,
@@ -3167,7 +3167,7 @@
                 {
                   "objID": "3461f8d7-ac12-4adf-c15b-d074527f34d9",
                   "type": "LVGLLabelWidget",
-                  "left": 0,
+                  "left": 5,
                   "top": 22,
                   "width": 24,
                   "height": 17,
@@ -3219,7 +3219,7 @@
                 {
                   "objID": "3d049823-2d1d-4b78-cb79-0919ad288c50",
                   "type": "LVGLLabelWidget",
-                  "left": 28,
+                  "left": 35,
                   "top": 22,
                   "width": 32,
                   "height": 17,
@@ -3531,7 +3531,7 @@
                 {
                   "objID": "092a1a67-4d65-4b7d-b905-0da53d4732bc",
                   "type": "LVGLLabelWidget",
-                  "left": 102,
+                  "left": 104,
                   "top": 22,
                   "width": 8,
                   "height": 17,
@@ -5604,10 +5604,12 @@
             }
           ],
           "widgetFlags": "CLICKABLE|PRESS_LOCK|CLICK_FOCUSABLE|GESTURE_BUBBLE|SNAPPABLE|SCROLLABLE|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER",
+          "hiddenFlag": true,
           "hiddenFlagType": "literal",
           "clickableFlag": true,
           "clickableFlagType": "literal",
           "checkedStateType": "literal",
+          "disabledState": true,
           "disabledStateType": "literal",
           "states": "",
           "useStyle": "defaut",
