@@ -1,67 +1,36 @@
-# ESP32 web configuration
+# ESP32 local web configuration
 
-The ESP32-S3 firmware exposes a small local web interface on its HTTP configuration server. This portal is for device setup, not for a rich monitoring dashboard.
+The firmware starts an ESP-IDF HTTP configuration server during normal startup. The server is used for Wi-Fi, weather and news settings; it is not a monitoring dashboard.
 
-## Pages
+## Pages and routes
 
-- `GET /` serves the PulseMon configuration page.
-- `GET /wifi` serves the Wi-Fi configuration page.
+- `GET /` — weather/news configuration page;
+- `GET /wifi` — Wi-Fi configuration page;
+- `GET /api/config` — non-secret weather/news state;
+- `POST /api/config` — update weather/news settings;
+- `POST /api/config/clear` — clear weather and news namespaces;
+- `GET /api/wifi/status` — current station/AP status;
+- `GET /api/wifi/scan` — scan visible networks;
+- `POST /api/wifi` — save and apply station credentials;
+- `POST /api/wifi/clear` — clear credentials and enable the setup AP;
+- unknown GET paths — serve the main page for captive-portal behavior.
 
-Unknown `GET` paths can fall back to `/` to support captive portal behavior.
+## Configuration fields
 
-## Configuration API
+`POST /api/config` accepts form fields:
 
-The firmware configuration API includes:
+- `openweather_key` and `clear_openweather_key`;
+- `gnews_key` and `clear_gnews_key`;
+- required `gmt_offset_min`;
+- optional `openweather_city_id`;
+- required `language`;
+- optional `news_max_items`;
+- optional `news_slide_speed`.
 
-- `GET /api/config`;
-- `POST /api/config`;
-- `POST /api/config/clear`.
+`GET /api/config` returns key-presence flags, not key values.
 
-`POST /api/config` accepts `application/x-www-form-urlencoded` fields such as:
+## Wi-Fi AP behavior
 
-- `openweather_key`;
-- `clear_openweather_key`;
-- `gnews_key`;
-- `clear_gnews_key`;
-- `news_max_items`;
-- `news_slide_speed`;
-- `gmt_offset_min`;
-- `openweather_city_id`;
-- `language`.
+The setup AP is `PulseMon-Setup` with an empty password in the current configuration. It is enabled when credentials are missing or the station connection repeatedly fails, and disabled after a successful station connection.
 
-## NVS namespaces
-
-Main PulseMon configuration is stored in `pulsemon_cfg`:
-
-| Key | Purpose |
-|---|---|
-| `ow_key` | OpenWeather API key |
-| `gmt_min` | GMT offset in minutes |
-| `ow_city` | OpenWeather city id |
-| `lang` | UI/weather language |
-
-News configuration is stored in `news`:
-
-| Key | Purpose |
-|---|---|
-| `provider` | active provider, fixed to GNews |
-| `gnews_key` | GNews key |
-| `enabled` | news module enable flag |
-| `refresh_min` | refresh interval |
-| `category` | GNews category |
-| `lang` | GNews language |
-| `country` | GNews country |
-| `max_items` | maximum article count |
-| `slide_speed` | LVGL circular scroll speed |
-| `max_age_days` | maximum article age |
-| `last_ok_ts` | last successful fetch timestamp |
-| `last_error` | compact last error code |
-
-## Secret handling
-
-`GET /api/config` must not return API keys. It should only return presence flags such as:
-
-- `openweather_key_set`;
-- `gnews_key_set`.
-
-Reset operations must clear the related keys from NVS.
+The HTTP server and captive DNS are started independently from AP activation. The server has no application-level authentication in the current implementation. This is acceptable only within the intended trusted local network and should remain a conscious limitation.

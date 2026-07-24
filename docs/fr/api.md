@@ -1,173 +1,80 @@
 # API HTTP
 
-Le backend PulseMon expose une API HTTP locale en lecture sous `/api/v1`.
+Le backend expose des routes JSON versionnées sous `/api/v1` et une UI HTML locale sous `/ui`.
 
-L’API est optimisée pour un client embarqué : clés stables, payloads compacts, unités fixes, valeurs numériques, métriques indisponibles nullables et historique borné.
+## Règles de contrat
 
-## Règles générales
+- les modèles de réponse utilisent des champs Pydantic stricts ;
+- les payloads versionnés utilisent `v: 1` ;
+- la télémétrie indisponible reste présente avec `valid: false`, des valeurs `null` ou des points d’historique `null` ;
+- les enveloppes métriques contiennent `value_raw`, `value_display`, `source`, `unit`, `sampled_at`, `estimated` et `valid` ;
+- les tableaux d’historique restent alignés avec `ts_ms` ;
+- l’authentification, si activée, utilise `STATS_API_KEY_HEADER`, par défaut `X-API-Key`.
 
-- Tous les payloads contiennent `v`.
-- Les timestamps sont Unix ou en millisecondes quand le nom du champ l’indique.
-- Les pourcentages sont numériques.
-- Les températures sont en degrés Celsius.
-- Les puissances sont en watts.
-- Les tailles mémoire sont en octets.
-- Les métriques absentes restent présentes avec `null` ou une enveloppe invalide.
-- La clé API est transmise par header quand l’authentification est activée.
+## Routes de supervision actives
 
-## Santé service
+- `GET /api/v1/health`
+- `GET /api/v1/dashboard`
+- `GET /api/v1/history`
+- `GET /api/v1/meta`
+- `GET /api/v1/gpu/dashboard`
+- `GET /api/v1/gpu/history`
+- `GET /api/v1/gpu/meta`
 
-`GET /api/v1/health`
+Métriques dashboard principal :
 
-Rôle : vérifier la disponibilité minimale du service.
-
-Réponse typique :
-
-```json
-{
-  "v": 1,
-  "ts": 1774256402,
-  "ok": true,
-  "service": "stats-linux-api"
-}
+```text
+cpu.pct, cpu.temp_c, cpu.power_w
+mem.used_b, mem.total_b, mem.pct
+gpu.pct, gpu.temp_c, gpu.power_w
+state.ok, state.stale_ms
 ```
 
-## Dashboard principal
+Séries historiques principales :
 
-`GET /api/v1/dashboard`
-
-Rôle : fournir le snapshot courant pour l’écran principal.
-
-L’implémentation active utilise des enveloppes métriques pour la télémétrie affichée. Chaque enveloppe peut contenir :
-
-- `value_raw` — valeur brute collectée ;
-- `value_display` — valeur lissée ou prête à afficher ;
-- `source` — source de télémétrie retenue ;
-- `unit` — unité fixe ;
-- `sampled_at` — timestamp d’échantillonnage ;
-- `estimated` — indique si la valeur est estimée ;
-- `valid` — indique si la valeur est exploitable.
-
-Le firmware priorise `value_display`, bascule sur `value_raw`, puis peut tolérer une valeur scalaire directe pour compatibilité.
-
-## Historique principal
-
-`GET /api/v1/history?window=300&step=1&mode=display`
-
-Rôle : fournir un historique court aligné pour graphes ou diagnostics.
-
-Paramètres :
-
-- `window` : entier, minimum `1`, maximum `600`, défaut `300` ;
-- `step` : entier, minimum `1`, maximum `10`, défaut `1` ;
-- `mode` : `display` ou `raw`, défaut `display` ;
-- `since_ts_ms` : timestamp optionnel en millisecondes pour récupération delta.
-
-La réponse contient des séries alignées et une timeline explicite `ts_ms`. Le client embarqué ne doit pas réaligner les tableaux lui-même.
-
-Erreur de paramètre invalide :
-
-```json
-{
-  "v": 1,
-  "error": "invalid_parameter",
-  "field": "window"
-}
+```text
+cpu_pct, cpu_temp_c, gpu_pct, gpu_temp_c
 ```
 
-## Métadonnées
+Métriques dashboard GPU :
 
-`GET /api/v1/meta`
+```text
+gpu.pct, gpu.core_clock_mhz, gpu.mem_clock_mhz
+gpu.vram_used_b, gpu.vram_total_b, gpu.vram_pct
+gpu.temp_c, gpu.power_w, gpu.fan_rpm, gpu.fan_pct
+```
 
-Rôle : exposer l’hôte, les métriques disponibles, les séries historiques et les capacités pour diagnostic et validation.
+Séries historiques GPU :
 
-## Endpoints GPU
+```text
+gpu_pct, gpu_core_clock_mhz, gpu_vram_used_b, gpu_temp_c,
+gpu_power_w, gpu_mem_clock_mhz, gpu_fan_rpm
+```
 
-`GET /api/v1/gpu/dashboard`
+## Routes utilisateur et base
 
-Rôle : état détaillé du GPU AMD pour l’écran GPU.
-
-`GET /api/v1/gpu/history?window=300&step=1&mode=display`
-
-Rôle : historique GPU borné pour affichage ou diagnostic.
-
-`GET /api/v1/gpu/meta`
-
-Rôle : métadonnées de source et de capacité GPU.
-
-## Endpoints ventilateurs
-
-`GET /api/v1/fans/dashboard`
-
-Rôle : télémétrie ventilateurs courante et pourcentages calculés.
-
-`GET /api/v1/fans/meta`
-
-Rôle : métadonnées ventilateurs.
-
-`GET /api/v1/fans/config`
-
-Rôle : lire le mapping ventilateurs configuré.
-
-`PUT /api/v1/fans/config`
-
-Rôle : mettre à jour le mapping et les valeurs de calibration.
-
-`GET /api/v1/fans/reference`
-
-Rôle : fournir les références ventilateurs utilisées par l’UI admin.
-
-## Configuration utilisateur
-
-`GET /api/v1/user/config`
-
-Rôle : lire la configuration UI utilisateur côté backend.
-
-`PUT /api/v1/user/config`
-
-Rôle : modifier la configuration UI utilisateur côté backend.
-
-## Administration base locale
-
-Le backend peut exposer des routes d’administration locale pour les mappings ventilateurs :
-
+- `GET /api/v1/user/config`
+- `PUT /api/v1/user/config`
 - `GET /api/v1/db/data`
-- `GET /api/v1/db/fans?include_deleted=1`
+
+`user/config` stocke un objet JSON libre en SQLite.
+
+## Routes FAN conservées
+
+Ces routes restent implémentées mais ne sont pas consommées par le flux firmware actif :
+
+- `GET /api/v1/fans/dashboard`
+- `GET /api/v1/fans/meta`
+- `GET /api/v1/fans/config`
+- `PUT /api/v1/fans/config`
+- `GET /api/v1/fans/reference`
+- `GET /api/v1/db/fans`
 - `POST /api/v1/db/fans`
 - `PUT /api/v1/db/fans/{fan_id}`
 - `POST /api/v1/db/fans/{fan_id}/soft-delete`
 - `POST /api/v1/db/fans/{fan_id}/restore`
 - `DELETE /api/v1/db/fans/{fan_id}`
 
-Ces routes sont des outils d’administration locale, pas des dépendances d’affichage firmware.
+## Limite d’authentification client
 
-## UI locale
-
-`GET /ui`
-
-Rôle : interface locale backend de debug/admin.
-
-## Payload configuration utilisateur
-
-`GET /api/v1/user/config` retourne :
-
-```json
-{
-  "v": 1,
-  "settings": {}
-}
-```
-
-`PUT /api/v1/user/config` remplace tout l’objet de configuration utilisateur. L’objet `settings` est un JSON libre stocké en SQLite par clé.
-
-Exemple :
-
-```json
-{
-  "settings": {
-    "refresh_hz": 1,
-    "fans_view_mode": "meta",
-    "show_gpu_graph": true
-  }
-}
-```
+Si `STATS_API_KEY` est activée, toutes les requêtes `/api/v1/*` exigent le header configuré. Le firmware et l’UI backend courants ne l’envoient pas ; l’activation de la clé nécessite donc une modification des clients.

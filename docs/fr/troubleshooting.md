@@ -1,84 +1,76 @@
 # Dépannage
 
-## Le backend n’expose pas les métriques
+## Backend indisponible
 
 Vérifier :
 
-- le processus service est lancé ;
-- le bind host et le port sont corrects ;
-- l’utilisateur Linux peut lire sysfs, hwmon et DRM ;
-- la sélection de chemin GPU AMD est correcte ;
-- le mode diagnostics indique les chemins capteurs retenus ;
-- le header API key est présent si l’authentification est activée.
+- état du processus ou service systemd ;
+- adresse de bind et port ;
+- route `GET /api/v1/health` ;
+- permissions sur sysfs, hwmon et DRM ;
+- configuration optionnelle `STATS_API_KEY`.
 
-## Les valeurs GPU manquent
+Ne pas activer `STATS_API_KEY` pour le flux ESP/UI courant standard : ces clients n’envoient pas encore le header.
 
-Vérifier :
+## Configuration SQLite non persistante
 
-- le GPU est visible sous `/sys/class/drm/card*/device` ;
-- le pilote amdgpu expose `gpu_busy_percent` ou une télémétrie équivalente ;
-- les entrées hwmon exposent des labels température ;
-- `STATS_GPU_PCI_SLOT` est défini si la sélection automatique prend la mauvaise carte ;
-- `STATS_GPU_TEMP_LABEL_PRIORITY` correspond aux labels exposés.
+Vérifier le chemin résolu via `/api/v1/db/data` ou les logs. Définir explicitement `STATS_CONFIG_DB_PATH` pour un chemin persistant fixe. Sans cette variable, le backend utilise `~/.config/pulsemon/config.db` si possible, sinon `/tmp/pulsemon/config.db`.
 
-## La courbe GPU est trop nerveuse
+## L’ESP32 affiche backend offline
 
-Utiliser les valeurs d’affichage pour l’UI et les valeurs brutes pour diagnostics. Vérifier `STATS_DISPLAY_EMA_ALPHA` et comparer les captures raw/display.
+L’endpoint backend est compilé dans `esp/src/pulsemon_api_config.h`. Vérifier :
 
-## Le pourcentage ventilateur vaut null
+- `PULSEMON_API_HOST` ;
+- cohérence de `PULSEMON_API_PORT` et `PULSEMON_API_BASE_URL` ;
+- routage LAN et firewall ;
+- port backend 8000 sauf modification aux deux extrémités ;
+- timeout HTTP.
 
-Vérifier :
+Il n’existe actuellement aucun réglage portail ou NVS pour l’adresse backend.
 
-- le canal ventilateur est détecté ;
-- le mapping existe dans la configuration SQLite ;
-- `rpm_min` et `rpm_max` sont valides ;
-- la valeur runtime est dans une plage plausible ;
-- l’import legacy n’a pas échoué silencieusement.
-
-## L’ESP32 ne se connecte pas au Wi-Fi
+## Configuration Wi-Fi ESP32
 
 Vérifier :
 
-- les credentials stockés en NVS ;
-- la disponibilité du portail `PulseMon-Setup` ;
-- l’adresse captive `http://192.168.4.1/` ;
-- les constantes de retry ;
-- la puissance du signal et la visibilité du SSID.
+- namespace NVS `pulsemon_wifi` ;
+- AP `PulseMon-Setup` si identifiants absents ou retries épuisés ;
+- `GET /api/wifi/status` ;
+- réseaux visibles via `GET /api/wifi/scan`.
 
-## L’ESP32 indique backend offline
-
-Vérifier :
-
-- le backend est joignable depuis le même LAN ;
-- l’hôte, port et base URL configurés ;
-- les règles firewall ;
-- le header API key optionnel ;
-- le timeout HTTP ;
-- la route backend `/api/v1/health`.
-
-## Météo ou news absentes
+## Météo indisponible
 
 Vérifier :
 
-- Wi-Fi connecté ;
+- présence clé OpenWeather et ID ville ;
+- langue et décalage GMT valides ;
+- Wi-Fi et DNS ;
+- accès HTTP clair à `api.openweathermap.org` dans l’implémentation courante ;
+- fichiers d’icônes SD si seules les icônes manquent.
+
+OpenWeather en HTTP est un défaut connu, pas l’état de sécurité final visé.
+
+## Actualités indisponibles
+
+Vérifier :
+
 - heure SNTP valide ;
-- indicateur de présence de clé OpenWeather ou GNews à true ;
-- clés stockées en NVS ;
-- absence d’erreur quota ou autorisation active ;
-- priorité d’alerte météo ne masquant pas les news ;
-- backoff news écoulé ;
-- fichiers d’icônes présents sur SD si l’affichage icônes est impacté.
+- présence de la clé GNews ;
+- accès HTTPS/DNS à GNews ;
+- intervalle de rafraîchissement et backoff ;
+- règles d’âge et validation des articles.
 
-## Diagnostics utiles
+## FAN
 
-Comparaison GPU brut/affichage :
+FAN est conservé mais inactif dans le firmware. L’absence de navigation ou polling FAN est le comportement courant attendu, pas une panne opérationnelle.
+
+## Diagnostics backend
 
 ```bash
+cd api
 .venv/bin/python -m app.diagnostics.raw_capture --mode compare --duration-s 60 --sample-hz 10 --ema-alpha 0.25 --output diagnostics/raw_vs_display_gpu_pct.jsonl
 ```
 
-Capture brute multi-métriques :
-
 ```bash
+cd api
 .venv/bin/python -m app.diagnostics.raw_capture --mode raw --duration-s 60 --sample-hz 10 --output diagnostics/raw_metrics.jsonl
 ```

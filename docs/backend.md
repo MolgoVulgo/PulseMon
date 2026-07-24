@@ -1,67 +1,49 @@
 # Linux backend
 
-The backend is a Python/FastAPI service that collects Linux telemetry and exposes it through local HTTP endpoints.
+The backend is a Python 3.11+/FastAPI service.
 
-## Runtime responsibilities
+## Runtime structure
 
-The backend must:
+- collectors: `api/app/collectors/`;
+- response models: `api/app/models/`;
+- orchestration services: `api/app/services/`;
+- current snapshots and histories: `api/app/store/`;
+- HTTP entry point: `api/app/main.py`;
+- local UI: `api/app/ui.py` and `api/app/ui/index.html`.
 
-- collect CPU, memory, AMD GPU and fan metrics;
-- normalize units;
-- apply stable fallback rules;
-- keep missing values explicit;
-- maintain a current snapshot;
-- maintain bounded in-memory history;
-- serialize compact JSON;
-- expose diagnostics without flooding logs;
-- avoid heavy sensor access in HTTP handlers.
+## Sampling and publication
 
-## Recommended module boundaries
+Defaults from `api/app/config.py`:
 
-A clean implementation separates:
+- sensor acquisition: `0.1 s`;
+- snapshot/history publication: `0.5 s`;
+- history capacity: `600` entries;
+- display EMA alpha: `0.25`.
 
-- configuration loading;
-- domain and API models;
-- sensor collectors;
-- normalization;
-- snapshot and history stores;
-- services that assemble responses;
-- HTTP route handlers;
-- diagnostics and raw capture tools.
+Main and GPU snapshots are served from memory. Missing metrics stay present through invalid metric envelopes or nullable history points.
 
-## Sampling and publishing
+## SQLite configuration
 
-The backend uses two runtime cadences:
+`api/app/store/config_db.py` stores:
 
-- sensor acquisition, controlled by `STATS_SAMPLE_INTERVAL_S`;
-- snapshot/history publication, controlled by `STATS_PUBLISH_INTERVAL_S`.
+- retained `fan_mappings`;
+- free-form `user_settings`;
+- schema migration metadata.
 
-The default behavior can sample faster than it publishes, then expose display-ready values from memory.
+Path resolution:
 
-## History
+1. `STATS_CONFIG_DB_PATH` when set;
+2. `~/.config/pulsemon/config.db` when writable;
+3. `/tmp/pulsemon/config.db` fallback.
 
-History is kept in memory with bounded capacity controlled by `STATS_HISTORY_CAPACITY`.
+SQLite WAL mode is enabled.
 
-History responses must remain compact, aligned and bounded. The embedded client must receive arrays that can be displayed without realignment.
+## Optional API key
 
-## Smoothing
+When `STATS_API_KEY` is set, `/api/v1/*` routes require the configured header, default `X-API-Key`.
 
-Display smoothing can be applied to percentage values before publication. The documented active behavior uses a median window followed by EMA smoothing controlled by `STATS_DISPLAY_EMA_ALPHA`.
+Current integration limitation: the ESP32 firmware and backend web UI do not add this header. The standard local deployment therefore leaves `STATS_API_KEY` unset until those clients are updated.
 
-Raw values remain useful for diagnostics. Display values are preferred for UI stability.
+## FAN status
 
-## Sensor failure policy
-
-A failure on one metric must not collapse the whole snapshot.
-
-Rules:
-
-- keep the field present;
-- mark the metric invalid or return `null` depending on payload form;
-- preserve the last coherent service state;
-- log actionable diagnostics;
-- avoid fabricating values.
-
-## Authentication
-
-Authentication is optional for private LAN use. When `STATS_API_KEY` is configured, API routes require the configured header, defaulting to `X-API-Key`.
+The backend FAN implementation remains functional and tested, but it is retained legacy scope. It must not be used as evidence that FAN is active in the current firmware product flow.

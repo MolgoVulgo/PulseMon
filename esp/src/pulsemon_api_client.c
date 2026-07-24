@@ -147,7 +147,9 @@ static int parse_int_value(cJSON *value, bool *valid)
 
 bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_len)
 {
+#if PULSEMON_LATENCY_DEBUG
     int64_t t_total_start_us = esp_timer_get_time();
+#endif
     if (out == NULL) {
         set_err(err, err_len, "out=null");
         return false;
@@ -186,9 +188,13 @@ bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_l
         return false;
     }
 
+#if PULSEMON_LATENCY_DEBUG
     int64_t t_http_start_us = esp_timer_get_time();
+#endif
     esp_err_t rc = esp_http_client_perform(client);
+#if PULSEMON_LATENCY_DEBUG
     int64_t http_ms = (esp_timer_get_time() - t_http_start_us) / 1000;
+#endif
     if (rc != ESP_OK) {
         ESP_LOGW(TAG, "dashboard request failed: %s", esp_err_to_name(rc));
         set_err(err, err_len, "http_perform_failed");
@@ -205,9 +211,13 @@ bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_l
         return false;
     }
 
+#if PULSEMON_LATENCY_DEBUG
     int64_t t_parse_start_us = esp_timer_get_time();
+#endif
     cJSON *root = cJSON_Parse(body);
+#if PULSEMON_LATENCY_DEBUG
     int64_t parse_ms = (esp_timer_get_time() - t_parse_start_us) / 1000;
+#endif
     if (!cJSON_IsObject(root)) {
         set_err(err, err_len, "json_parse_failed");
         if (root) {
@@ -259,6 +269,7 @@ bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_l
     cJSON_Delete(root);
     free(body);
 
+#if PULSEMON_LATENCY_DEBUG
     int64_t total_ms = (esp_timer_get_time() - t_total_start_us) / 1000;
     LAT_DEBUG("dashboard latency http=%lldms parse=%lldms total=%lldms body=%uB status=%d",
               (long long)http_ms,
@@ -269,6 +280,7 @@ bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_l
     if (http_ms > PULSEMON_HTTP_WARN_MS) {
         ESP_LOGW(TAG, "dashboard http latency high=%lldms", (long long)http_ms);
     }
+#endif
     return true;
 }
 

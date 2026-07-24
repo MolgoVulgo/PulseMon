@@ -1,19 +1,14 @@
 # PulseMon API
 
-This directory contains the Linux backend entry point and backend-specific files.
+This directory contains the active Linux backend.
 
-The backend is responsible for collecting Linux telemetry, normalizing sensor values, maintaining the current snapshot and short history, exposing the HTTP API, serving the local debug/admin UI, and storing local configuration when needed.
+Runtime entry point:
 
-The canonical backend documentation is available in:
+```text
+api/app/main.py
+```
 
-- `/docs/api.md` for the HTTP contract;
-- `/docs/backend.md` for runtime behavior;
-- `/docs/configuration.md` for environment variables and storage;
-- `/docs/gpu.md` for AMD GPU telemetry;
-- `/docs/fans.md` for fan monitoring and configuration;
-- `/docs/development.md` for tests and contribution rules.
-
-The `api/docs` path is a symbolic link to `/docs`.
+The backend collects Linux telemetry, normalizes values, publishes current snapshots and bounded in-memory histories, serves the HTTP API and local UI, and stores local configuration in SQLite.
 
 ## Setup
 
@@ -34,7 +29,7 @@ python3 -m venv .venv
 .venv/bin/pytest -q
 ```
 
-## Main endpoints
+## Active monitoring endpoints
 
 - `GET /api/v1/health`
 - `GET /api/v1/dashboard`
@@ -43,11 +38,27 @@ python3 -m venv .venv
 - `GET /api/v1/gpu/dashboard`
 - `GET /api/v1/gpu/history`
 - `GET /api/v1/gpu/meta`
+- `GET /api/v1/user/config`
+- `PUT /api/v1/user/config`
+- `GET /api/v1/db/data`
+- `GET /ui`
+
+## Retained FAN endpoints
+
+The following routes remain implemented, but FAN is no longer an active firmware feature:
+
 - `GET /api/v1/fans/dashboard`
 - `GET /api/v1/fans/meta`
 - `GET /api/v1/fans/config`
 - `PUT /api/v1/fans/config`
 - `GET /api/v1/fans/reference`
-- `GET /api/v1/user/config`
-- `PUT /api/v1/user/config`
-- `GET /ui`
+- `GET /api/v1/db/fans`
+- `POST /api/v1/db/fans`
+- `PUT /api/v1/db/fans/{fan_id}`
+- `POST /api/v1/db/fans/{fan_id}/soft-delete`
+- `POST /api/v1/db/fans/{fan_id}/restore`
+- `DELETE /api/v1/db/fans/{fan_id}`
+
+## Documentation
+
+Canonical documentation is under `../docs/`. In the supplied snapshot, `api/docs` contains the relative target `../docs`.

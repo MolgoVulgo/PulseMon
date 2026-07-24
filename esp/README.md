@@ -1,31 +1,57 @@
 # PulseMon ESP32-S3 firmware
 
-This directory contains the ESP32-S3 firmware entry point and firmware-specific files.
+This directory contains the ESP32-S3 firmware built with PlatformIO, ESP-IDF and LVGL 8.4.
 
-The firmware connects to Wi-Fi, locates the backend, polls the HTTP API, parses compact JSON payloads, stores the latest valid values locally, updates LVGL screens, and displays connection/freshness state.
+Runtime entry point:
 
-It also contains autonomous device-side features such as the configuration portal, weather display, weather icons, and GNews headline retrieval. These features do not depend on the Linux backend once the ESP32-S3 has network access and the required API keys are stored in NVS.
-
-The canonical firmware documentation is available in:
-
-- `/docs/firmware.md` for runtime behavior;
-- `/docs/web-configuration.md` for the ESP32 configuration portal;
-- `/docs/weather-news.md` for weather and news modules;
-- `/docs/api.md` for backend endpoints consumed by the firmware;
-- `/docs/development.md` for build and maintenance rules.
-
-The `esp/docs` path is a symbolic link to `/docs`.
-
-## Build
-
-```bash
-pio run -e LVGL-320-480
+```text
+esp/src/main.c
 ```
 
-## Runtime rules
+## Build environments
 
-- Wi-Fi credentials are stored in NVS.
-- Backend polling is separated from LVGL rendering.
-- The UI uses the last valid local cache, not direct HTTP state.
-- Generated files under `src/ui/` must not be edited directly.
-- API keys must not be logged, displayed or returned by configuration endpoints.
+Main release environment:
+
+```bash
+pio run -e pulsmon-esp32s3-display
+```
+
+Development environment:
+
+```bash
+pio run -e pulsmon-esp32s3-display-dev
+```
+
+`pulsmon-esp32s3-display` is the default environment.
+
+## Current runtime
+
+The firmware:
+
+- stores Wi-Fi credentials in NVS;
+- polls the backend dashboard and GPU dashboard;
+- caches the last valid metrics;
+- renders active Main, GPU and Weather screens;
+- fetches OpenWeather data and GNews headlines independently from the backend;
+- exposes a local configuration web server for Wi-Fi, weather and news settings.
+
+The backend URL is compiled in `src/pulsemon_api_config.h`. It is not configurable through NVS or the web portal in the current implementation. The firmware does not currently send the optional backend API-key header.
+
+## FAN status
+
+FAN client types, parsing code, generated UI objects and dormant runtime helpers remain in the source tree. The FAN screen is intentionally excluded from active navigation and the poller does not call the fan endpoint.
+
+## EEZ ownership rules
+
+```text
+esp/src/ui/              -> UI output compiled by the firmware; never edit directly
+esp/eez/pulsmon/         -> EEZ Studio project and saved application state; edit only through EEZ Studio
+```
+
+Changes to generated UI behavior must originate in EEZ Studio and then be regenerated. Runtime integration outside generated output belongs in files such as `vars.c`, `actions.c`, `ui_screen.c`, `ui_graphs.c` and `ui_backend.h`.
+
+## Known transport issue
+
+OpenWeather requests currently use plain HTTP. GNews requests use HTTPS with the `X-Api-Key` header.
+
+Canonical documentation is under `../docs/`. In the supplied snapshot, `esp/docs` contains the relative target `../docs`.

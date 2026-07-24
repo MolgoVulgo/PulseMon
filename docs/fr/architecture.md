@@ -1,61 +1,58 @@
 # Architecture
 
-PulseMon est séparé en deux composants runtime : le backend Linux et le firmware ESP32-S3.
+PulseMon possède deux runtimes actifs.
 
 ## Backend Linux
 
-Le backend est responsable de :
+Point d’entrée : `api/app/main.py`.
 
-- collecter les métriques Linux ;
-- lire la télémétrie CPU, mémoire, GPU AMD et ventilateurs ;
-- appliquer les fallbacks capteurs ordonnés ;
-- normaliser les unités et la précision numérique ;
-- conserver le snapshot courant en mémoire ;
-- conserver un historique court en mémoire ;
-- exposer l’API HTTP ;
-- exposer une UI locale de debug/admin ;
-- persister les configurations utilisateur et ventilateurs si nécessaire.
+Responsabilités :
 
-Le backend ne doit pas faire de lectures capteurs lourdes dans les handlers HTTP. Les handlers lisent le store mémoire déjà normalisé.
+- collecter CPU, mémoire, GPU AMD et télémétrie ventilateurs conservée ;
+- normaliser les valeurs et préserver les états invalides explicites ;
+- publier les snapshots principal et GPU ;
+- maintenir des historiques mémoire bornés ;
+- exposer l’API HTTP et l’UI locale ;
+- persister la configuration utilisateur et les mappings FAN conservés en SQLite.
+
+Les handlers HTTP consomment les services et stores. Ils n’exécutent pas eux-mêmes la boucle normale d’échantillonnage haute fréquence.
 
 ## Firmware ESP32-S3
 
-Le firmware est responsable de :
+Point d’entrée : `esp/src/main.c`.
 
-- se connecter au Wi-Fi ;
-- fournir un point d’accès et un portail captif si nécessaire ;
-- localiser ou utiliser l’adresse backend configurée ;
-- interroger les endpoints backend ;
-- parser les payloads JSON ;
-- maintenir les caches d’affichage locaux ;
-- mettre à jour les écrans LVGL ;
-- afficher l’état réseau et la fraîcheur des données ;
-- récupérer météo et actualités autonomes si configurées.
+Responsabilités :
 
-Le firmware ne doit pas calculer les métriques Linux, inférer les champs manquants ou dépendre d’une requête HTTP active pendant le rendu.
+- gérer le Wi-Fi et le portail local ;
+- interroger les endpoints dashboard backend ;
+- parser le JSON et conserver les dernières valeurs valides ;
+- mettre à jour les variables runtime et les écrans LVGL ;
+- récupérer directement météo et contenu GNews ;
+- stocker les paramètres appareil en NVS.
+
+L’endpoint backend est compilé dans `esp/src/pulsemon_api_config.h`. Il n’existe pas de découverte backend active ni de paramètre d’adresse backend en NVS.
+
+## Navigation firmware active
+
+```text
+Main <-> GPU <-> Météo
+```
+
+L’écran FAN généré et ses helpers restent dans l’arborescence mais sont volontairement exclus de la navigation active.
 
 ## Propriété des données
 
-Le backend possède la télémétrie Linux et la génération des payloads API.
+```text
+Backend : télémétrie Linux, payloads API, historiques mémoire, configuration SQLite
+Firmware : état Wi-Fi, cache d’affichage, navigation LVGL, météo/news, paramètres NVS
+```
 
-Le firmware possède l’état d’affichage, la navigation UI, l’état Wi-Fi, la météo, les actualités autonomes et la configuration locale de l’appareil.
+## Propriété EEZ
+
+- `esp/src/ui/` : sortie générée compilée par le firmware ; ne jamais modifier directement.
+- `esp/eez/pulsmon/` : projet EEZ Studio et état sauvegardé de l’application ; modifier uniquement via EEZ Studio.
+- L’intégration runtime hors fichiers générés appartient à `vars.c`, `actions.c`, `ui_screen.c`, `ui_graphs.c` et modules non générés associés.
 
 ## Transport
 
-Le backend et le firmware communiquent en HTTP local avec JSON compact. Le polling est retenu car le déploiement cible contient un client embarqué principal sur réseau privé.
-
-MQTT et l’architecture à broker ne font pas partie de l’architecture active.
-
-## Séparation runtime
-
-Pipeline firmware :
-
-```text
-réseau -> client HTTP -> parseur JSON -> cache local -> variables LVGL -> écrans rendus
-```
-
-Pipeline backend :
-
-```text
-lectures capteurs -> normalisation -> store snapshot/historique -> sérialisation API
-```
+La télémétrie backend utilise HTTP local avec JSON. La météo utilise actuellement OpenWeather en HTTP clair. GNews utilise HTTPS et le header `X-Api-Key`.

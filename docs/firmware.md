@@ -1,71 +1,54 @@
 # ESP32-S3 firmware
 
-The firmware is built with ESP-IDF and LVGL. It displays backend metrics on a local screen and provides autonomous device-side functions.
+The firmware uses PlatformIO, ESP-IDF and LVGL 8.4 on the custom `jc3248w535c` board definition.
 
-## Main responsibilities
+## Build environments
 
-The firmware must:
+- `pulsmon-esp32s3-display`: default release build;
+- `pulsmon-esp32s3-display-dev`: debug build with PulseMon diagnostics flags.
 
-- connect to Wi-Fi;
-- open a setup access point and captive portal when needed;
-- poll the backend API;
-- parse JSON safely;
-- cache the latest valid values;
-- update LVGL variables and screens;
-- preserve display state during transient network failures;
-- show backend connectivity and freshness state;
-- keep weather and news services independent from backend availability.
+## Startup
 
-## Screens
+`esp/src/main.c` initializes:
 
-The active screen set includes:
+1. display and generated UI;
+2. weather icon support;
+3. Wi-Fi manager and NVS;
+4. weather and news services;
+5. local configuration HTTP server;
+6. captive DNS;
+7. Wi-Fi connection and backend poller after station connection.
 
-- Main: CPU, RAM and GPU summary from `/api/v1/dashboard`;
-- GPU: AMD GPU detail from `/api/v1/gpu/dashboard`;
-- Weather: autonomous weather information and information line.
+## Active screens and navigation
 
-Fan UI sources can remain present, but navigation and polling must reflect the active firmware behavior.
+```text
+Main --left--> GPU --left--> Weather
+Main <--right-- GPU <--right-- Weather
+```
 
-## Polling
+The FAN screen exists in generated sources but is not a valid navigation target.
 
-The main poller is controlled by `PULSEMON_DASHBOARD_POLL_MS`, defaulting to `1000` ms.
+## Backend polling
 
-Current runtime behavior:
+`PULSEMON_DASHBOARD_POLL_MS` defaults to `1000 ms`.
 
-- Main screen fetches `/api/v1/dashboard`;
-- GPU screen fetches `/api/v1/gpu/dashboard`;
-- Weather screen keeps backend polling minimal and does not use backend data for weather;
-- graph data can be fed from local display samples when backend history is not consumed.
+- GPU screen: request `/api/v1/gpu/dashboard`.
+- Other active screens: request `/api/v1/dashboard`.
+- On backend failure: keep the last display values, mark backend offline and automatically switch to Weather.
+- When the backend returns after an automatic offline switch: return to Main.
 
-## JSON parsing
+The backend base URL is compiled in `pulsemon_api_config.h`. The firmware does not use backend discovery, NVS backend configuration or an API-key header.
 
-The parser should use this priority for metric values:
+## Weather and news
 
-1. `value_display`;
-2. `value_raw`;
-3. direct scalar value where compatibility is needed.
+Weather and GNews run independently from backend availability once Wi-Fi and required keys are available. Weather and news keep local cached state according to their service implementations.
 
-Invalid or incomplete JSON must be rejected without clearing the last valid UI values.
+## EEZ files
 
-## Navigation
+- `esp/src/ui/` is generated firmware output. Never edit it directly.
+- `esp/eez/pulsmon/` is the EEZ Studio project and saved application state. Modify it only through EEZ Studio.
+- Non-generated runtime integration remains outside those generated files.
 
-The documented swipe model is:
+## Retained FAN code
 
-- Main swipe left to GPU;
-- GPU swipe right to Main;
-- GPU swipe left to Weather;
-- Weather swipe right to GPU.
-
-## Generated UI files
-
-Files generated under `src/ui/` must not be edited directly. UI changes that require new variables, glyphs or layout updates must be made in the source UI project and regenerated.
-
-## Failure behavior
-
-On backend fetch failure, the firmware should:
-
-- retain the last valid display values;
-- mark backend state as offline or stale;
-- avoid blocking the UI thread;
-- retry according to the nominal polling cycle;
-- keep autonomous weather/news features operational when Wi-Fi and keys are valid.
+FAN structures and helpers remain, but the firmware poller does not fetch FAN data and active navigation cannot load the FAN screen.

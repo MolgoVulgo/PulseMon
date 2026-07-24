@@ -1,32 +1,41 @@
 # Overview
 
-PulseMon is a local monitoring stack composed of a Linux backend and an ESP32-S3 display firmware.
+PulseMon is a local monitoring stack for one Linux workstation and one ESP32-S3 display on a private LAN.
 
-The Linux backend collects host telemetry and exposes it through a compact HTTP API. The ESP32-S3 firmware polls the API, parses the data, caches the latest valid values, and renders the information through LVGL.
+## Active scope
 
-The project targets a personal workstation on a private LAN. It favors deterministic behavior, compact payloads, simple deployment, and local autonomy over large-scale monitoring features.
-
-## Scope
-
-PulseMon covers:
+The Linux backend currently provides:
 
 - CPU usage, temperature and optional power;
-- memory usage and capacity;
-- AMD GPU usage, temperature, power and detailed GPU screen data;
-- fan speed monitoring and fan configuration mapping;
-- short runtime history for charts;
-- local debug/admin web UI;
-- ESP32-S3 screens for main metrics, GPU data, weather and information line;
-- autonomous weather and news retrieval from the ESP32-S3.
+- memory used, total and percentage;
+- AMD GPU usage, clocks, VRAM, temperatures, power and GPU fan telemetry when exposed by the driver;
+- current dashboard snapshots;
+- bounded main and GPU histories in memory;
+- a local debug/admin UI;
+- SQLite-backed user configuration.
+
+The ESP32-S3 currently provides:
+
+- Wi-Fi station setup with fallback configuration AP;
+- polling of the main and GPU backend dashboards;
+- local caching of the last valid display values;
+- active Main, GPU and Weather screens;
+- autonomous weather and GNews headline retrieval;
+- local web configuration for Wi-Fi, weather and news settings.
+
+## Retained FAN code
+
+Fan collection, mappings, API routes and admin storage remain implemented on the backend. Related firmware client and UI code also remains, but FAN is not active in the current device navigation and is not polled by the firmware.
 
 ## Runtime model
 
-The backend samples the host at a fixed cadence, stores the current snapshot in memory, stores short history in a ring buffer, and serves API responses from that memory state.
+```text
+Linux sensors -> collectors -> services -> in-memory stores -> FastAPI JSON
+FastAPI JSON -> ESP HTTP client -> parser/cache -> runtime variables -> LVGL screens
+```
 
-The firmware never calculates Linux metrics itself. It consumes the backend contract, accepts null values for unavailable metrics, and keeps the last valid display state when network or parsing errors occur.
+Weather and news are fetched directly by the ESP32-S3 and do not transit through the Linux backend.
 
 ## Non-goals
 
-PulseMon is not a cloud monitoring service, a multi-host observability platform, a process-level profiler, a remote-control tool, or a public Internet-facing API.
-
-It does not require MQTT, a broker, long-term database storage, strong multi-user authentication, or a rich web dashboard for normal operation.
+The current project is not a cloud service, multi-host observability platform, remote-control system, long-term metrics database or public Internet API. MQTT, an external broker and strong multi-user security are outside the active design.

@@ -46,7 +46,9 @@ static void pulsemon_on_wifi_connected(void)
 
 void app_main(void)
 {
+#if PULSEMON_DEBUG
     ets_printf("pulsemon: app_main enter\n");
+#endif
     ESP_LOGI(TAG, "app_main start");
 
     const bsp_display_cfg_t bsp_cfg = {

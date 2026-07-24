@@ -1,71 +1,54 @@
 # Firmware ESP32-S3
 
-Le firmware est construit avec ESP-IDF et LVGL. Il affiche les métriques backend sur un écran local et fournit des fonctions autonomes côté appareil.
+Le firmware utilise PlatformIO, ESP-IDF et LVGL 8.4 avec la définition de carte custom `jc3248w535c`.
 
-## Responsabilités principales
+## Environnements de build
 
-Le firmware doit :
+- `pulsmon-esp32s3-display` : build release par défaut ;
+- `pulsmon-esp32s3-display-dev` : build debug avec flags de diagnostics PulseMon.
 
-- se connecter au Wi-Fi ;
-- ouvrir un point d’accès et un portail de configuration si nécessaire ;
-- interroger l’API backend ;
-- parser le JSON de manière sûre ;
-- cacher les dernières valeurs valides ;
-- mettre à jour les variables et écrans LVGL ;
-- préserver l’état d’affichage pendant les erreurs réseau temporaires ;
-- afficher l’état de connectivité backend et la fraîcheur des données ;
-- maintenir météo et actualités indépendantes de la disponibilité backend.
+## Démarrage
 
-## Écrans
+`esp/src/main.c` initialise :
 
-Les écrans actifs incluent :
+1. écran et UI générée ;
+2. support des icônes météo ;
+3. gestionnaire Wi-Fi et NVS ;
+4. services météo et news ;
+5. serveur HTTP local de configuration ;
+6. DNS captif ;
+7. connexion Wi-Fi et poller backend après connexion station.
 
-- Main : synthèse CPU, RAM et GPU depuis `/api/v1/dashboard` ;
-- GPU : détail GPU AMD depuis `/api/v1/gpu/dashboard` ;
-- Weather : météo autonome et ligne d’information.
+## Écrans actifs et navigation
 
-Des sources UI ventilateurs peuvent rester présentes. La navigation et le polling runtime doivent refléter uniquement le comportement effectivement câblé.
+```text
+Main --gauche--> GPU --gauche--> Météo
+Main <--droite-- GPU <--droite-- Météo
+```
 
-## Polling
+L’écran FAN existe dans les sources générées mais n’est pas une cible de navigation valide.
 
-Le poller principal est contrôlé par `PULSEMON_DASHBOARD_POLL_MS`, par défaut `1000` ms.
+## Polling backend
 
-Comportement runtime courant :
+`PULSEMON_DASHBOARD_POLL_MS` vaut par défaut `1000 ms`.
 
-- l’écran Main interroge `/api/v1/dashboard` ;
-- l’écran GPU interroge `/api/v1/gpu/dashboard` ;
-- l’écran Weather limite le polling backend et n’utilise pas le backend pour la météo ;
-- les graphes peuvent être alimentés par des échantillons d’affichage locaux si l’historique backend n’est pas consommé.
+- Écran GPU : requête `/api/v1/gpu/dashboard`.
+- Autres écrans actifs : requête `/api/v1/dashboard`.
+- En cas d’échec backend : conserver les dernières valeurs, marquer le backend offline et basculer automatiquement vers Météo.
+- Au retour du backend après bascule offline automatique : revenir sur Main.
 
-## Parsing JSON
+L’URL backend est compilée dans `pulsemon_api_config.h`. Le firmware n’utilise ni découverte backend, ni configuration backend en NVS, ni header de clé API.
 
-Le parseur doit utiliser cette priorité :
+## Météo et actualités
 
-1. `value_display` ;
-2. `value_raw` ;
-3. valeur scalaire directe si compatibilité nécessaire.
+Météo et GNews fonctionnent indépendamment du backend dès que le Wi-Fi et les clés nécessaires sont disponibles. Les services conservent leur état local selon leur implémentation.
 
-Un JSON invalide ou incomplet doit être rejeté sans effacer les dernières valeurs UI valides.
+## Fichiers EEZ
 
-## Navigation
+- `esp/src/ui/` est la sortie générée compilée par le firmware. Ne jamais la modifier directement.
+- `esp/eez/pulsmon/` est le projet EEZ Studio et l’état sauvegardé de l’application. Modifier uniquement via EEZ Studio.
+- L’intégration runtime non générée reste hors de ces fichiers générés.
 
-Modèle swipe documenté :
+## Code FAN conservé
 
-- Main vers GPU par swipe gauche ;
-- GPU vers Main par swipe droite ;
-- GPU vers Weather par swipe gauche ;
-- Weather vers GPU par swipe droite.
-
-## Fichiers UI générés
-
-Les fichiers générés sous `src/ui/` ne doivent pas être modifiés directement. Toute modification nécessitant variables, glyphes ou layout doit être faite dans le projet UI source puis régénérée.
-
-## Comportement en échec
-
-En cas d’échec backend, le firmware doit :
-
-- conserver les dernières valeurs affichables ;
-- marquer le backend offline ou stale ;
-- ne pas bloquer le thread UI ;
-- retenter selon le cycle nominal ;
-- garder la météo et les news autonomes opérationnelles si Wi-Fi et clés sont valides.
+Les structures et helpers FAN restent présents, mais le poller firmware ne récupère pas les données FAN et la navigation active ne peut pas charger l’écran FAN.

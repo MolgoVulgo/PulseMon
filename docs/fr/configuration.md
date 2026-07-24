@@ -1,79 +1,96 @@
 # Configuration
 
-La configuration PulseMon est séparée entre le backend Linux et le firmware ESP32-S3.
+## Environnement backend
 
-## Variables d’environnement backend
+Variables lues par `api/app/config.py` :
 
-Paramètres backend principaux :
+| Variable | Défaut | Rôle |
+|---|---:|---|
+| `STATS_BIND_HOST` | `0.0.0.0` | adresse de bind |
+| `STATS_BIND_PORT` | `8000` | port HTTP |
+| `STATS_SAMPLE_INTERVAL_S` | `0.1` | intervalle d’acquisition capteurs |
+| `STATS_PUBLISH_INTERVAL_S` | `0.5` | intervalle de publication snapshot/historique |
+| `STATS_HISTORY_CAPACITY` | `600` | capacité d’historique mémoire |
+| `STATS_API_KEY` | non définie | clé optionnelle pour `/api/v1/*` |
+| `STATS_API_KEY_HEADER` | `X-API-Key` | nom du header d’authentification |
+| `STATS_LOG_LEVEL` | `INFO` | niveau de logs application |
+| `STATS_DIAGNOSTICS` | `0` | activation diagnostics |
+| `STATS_DIAG_RAW_CAPTURE` | `0` | activation capture brute |
+| `STATS_DIAG_RAW_HZ` | `8.0` | fréquence capture brute |
+| `STATS_DIAG_RAW_DURATION_S` | `60` | durée capture brute |
+| `STATS_DIAG_RAW_LOG_PATH` | `api/diagnostics/raw_metrics.jsonl` | chemin capture brute |
+| `STATS_DIAG_COMPARE_CAPTURE` | `0` | activation comparaison brut/affichage |
+| `STATS_DIAG_COMPARE_HZ` | `10.0` | fréquence comparaison |
+| `STATS_DIAG_COMPARE_DURATION_S` | `60` | durée comparaison |
+| `STATS_DIAG_COMPARE_LOG_PATH` | `api/diagnostics/raw_vs_display_gpu_pct.jsonl` | chemin comparaison |
+| `STATS_DISPLAY_EMA_ALPHA` | `0.25` | alpha EMA d’affichage |
 
-| Variable | Rôle |
-|---|---|
-| `STATS_BIND_HOST` | adresse de bind HTTP, défaut `0.0.0.0` |
-| `STATS_BIND_PORT` | port HTTP, défaut `8000` |
-| `STATS_SAMPLE_INTERVAL_S` | intervalle d’acquisition capteurs |
-| `STATS_PUBLISH_INTERVAL_S` | intervalle de publication snapshot/historique |
-| `STATS_HISTORY_CAPACITY` | capacité d’historique mémoire |
-| `STATS_DISPLAY_EMA_ALPHA` | facteur EMA pour les pourcentages affichés |
-| `STATS_API_KEY` | clé API optionnelle |
-| `STATS_API_KEY_HEADER` | header de clé API, défaut `X-API-Key` |
-| `STATS_LOG_LEVEL` | niveau de logs |
-| `STATS_GPU_PCI_SLOT` | forçage optionnel du GPU AMD |
-| `STATS_GPU_TEMP_LABEL_PRIORITY` | priorité des labels température GPU |
-| `STATS_DIAGNOSTICS` | activation diagnostics |
-| `STATS_FANS_MAPPING_FILE` | fichier legacy optionnel de mapping ventilateurs |
-| `STATS_CONFIG_DB_PATH` | chemin de base SQLite de configuration |
+Variables lues directement par les collecteurs ou services :
 
-Paramètres de capture diagnostics :
+| Variable | Défaut/comportement | Rôle |
+|---|---|---|
+| `STATS_GPU_PCI_SLOT` | sélection automatique | forcer un slot PCI AMD |
+| `STATS_GPU_TEMP_LABEL_PRIORITY` | `edge,junction,mem,unknown` | priorité des labels température GPU |
+| `STATS_CONFIG_DB_PATH` | résolution ci-dessous | chemin base SQLite |
+| `STATS_FANS_MAPPING_FILE` | chaîne de fallback service | import legacy mapping FAN |
+| `STATS_FANS_REFERENCE_SEED_FILE` | fichier dépôt `tmp/fan_reference_seed.json` sauf override | catalogue de références FAN conservé |
 
-| Variable | Rôle |
-|---|---|
-| `STATS_DIAG_RAW_CAPTURE` | active la capture brute |
-| `STATS_DIAG_RAW_HZ` | fréquence de capture brute |
-| `STATS_DIAG_RAW_DURATION_S` | durée de capture brute |
-| `STATS_DIAG_RAW_LOG_PATH` | chemin de sortie brute |
-| `STATS_DIAG_COMPARE_CAPTURE` | active la comparaison brut/affichage |
-| `STATS_DIAG_COMPARE_HZ` | fréquence de comparaison |
-| `STATS_DIAG_COMPARE_DURATION_S` | durée de comparaison |
-| `STATS_DIAG_COMPARE_LOG_PATH` | chemin de sortie comparaison |
+## Chemin SQLite
 
-## Stockage backend local
+Ordre de résolution :
 
-Le backend utilise SQLite pour la configuration locale persistante, notamment le mapping ventilateurs et la configuration UI utilisateur.
+1. `STATS_CONFIG_DB_PATH` ;
+2. `~/.config/pulsemon/config.db` si inscriptible ;
+3. `/tmp/pulsemon/config.db`.
 
-Si la base est vide, le backend peut importer un mapping legacy JSON ou générer un mapping initial depuis les canaux détectés.
+Le fichier `pulsemon-api.conf` fourni ne définit actuellement pas `STATS_CONFIG_DB_PATH` ; un déploiement exigeant un chemin persistant fixe doit le définir explicitement.
 
-## Configuration API firmware
+## Endpoint backend firmware
 
-L’accès backend est défini dans les headers de configuration firmware :
+L’endpoint backend est compilé dans `esp/src/pulsemon_api_config.h` :
 
-- `PULSEMON_API_HOST` ;
-- `PULSEMON_API_PORT` ;
-- `PULSEMON_API_BASE_URL` ;
-- `PULSEMON_HTTP_TIMEOUT_MS` ;
-- `PULSEMON_DASHBOARD_POLL_MS`.
+```text
+PULSEMON_API_HOST
+PULSEMON_API_PORT
+PULSEMON_API_BASE_URL
+PULSEMON_HTTP_TIMEOUT_MS
+PULSEMON_DASHBOARD_POLL_MS
+```
 
-Une adresse LAN statique peut être utilisée. Un hostname ou une découverte mDNS reste compatible avec l’architecture.
+Les valeurs courantes contiennent une adresse LAN statique et un port HTTP. Elles ne sont pas stockées en NVS et ne sont pas modifiables depuis le portail local.
 
-## Configuration Wi-Fi firmware
+Le firmware n’envoie actuellement pas `STATS_API_KEY_HEADER`.
 
-Les identifiants Wi-Fi sont stockés en NVS, pas compilés dans le firmware.
+## Namespaces NVS firmware
 
-Au boot :
+Identifiants Wi-Fi :
 
-1. le firmware vérifie les credentials station stockés ;
-2. il tente la connexion Wi-Fi ;
-3. si les credentials sont absents ou invalides, il ouvre l’AP `PulseMon-Setup` ;
-4. le portail local est disponible sur `http://192.168.4.1/` ;
-5. le DNS captif redirige les noms courants vers le portail.
+```text
+namespace : pulsemon_wifi
+clés : ssid, password
+```
 
-## Gestion des secrets
+Paramètres météo :
 
-Les clés API ne doivent jamais être :
+```text
+namespace : pulsemon_cfg
+clés : ow_key, gmt_min, ow_city, lang
+```
 
-- affichées à l’écran ;
-- écrites dans les logs ;
-- retournées par les APIs de configuration ;
-- intégrées en query string quand un header est disponible ;
-- documentées avec des valeurs locales réelles.
+Paramètres news :
 
-Les APIs de configuration doivent exposer uniquement des indicateurs de présence comme `openweather_key_set` ou `gnews_key_set`.
+```text
+namespace : news
+clés : provider, gnews_key, enabled, refresh_min, category, lang,
+       country, max_items, slide_speed, max_age_days, last_ok_ts, last_error
+```
+
+Les valeurs météo par défaut sont un décalage GMT de `+60 minutes`, la langue `fr`, sans ville ni clé. Les valeurs news par défaut sont GNews activé, rafraîchissement `30 minutes`, catégorie `general`, langue/pays `fr`, maximum `5` items, vitesse `35` et âge maximal `15 jours`.
+
+## Comportement Wi-Fi
+
+- Avec des identifiants stockés, le firmware démarre en mode station et se connecte.
+- Sans identifiants valides, il démarre en mode AP+station et expose l’AP ouvert `PulseMon-Setup`.
+- Après plusieurs échecs station, l’AP de configuration est activé.
+- Après connexion station réussie, l’AP est désactivé.
+- Le serveur HTTP de configuration et le DNS captif sont démarrés pendant le démarrage firmware normal.

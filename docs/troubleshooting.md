@@ -1,84 +1,76 @@
 # Troubleshooting
 
-## Backend does not expose metrics
+## Backend unavailable
 
 Check:
 
-- service process is running;
-- bind host and port are correct;
-- Linux user can read sysfs, hwmon and DRM paths;
-- AMD GPU path selection is correct;
-- diagnostics mode reports selected sensor paths;
-- API key header is present when authentication is enabled.
+- process or systemd service state;
+- bind host and port;
+- route `GET /api/v1/health`;
+- permissions on sysfs, hwmon and DRM paths;
+- optional `STATS_API_KEY` configuration.
 
-## GPU values are missing
+Do not enable `STATS_API_KEY` for the standard current ESP/UI flow: those clients do not send the header yet.
 
-Check:
+## SQLite configuration is not persistent
 
-- GPU is visible under `/sys/class/drm/card*/device`;
-- amdgpu driver exposes `gpu_busy_percent` or equivalent telemetry;
-- hwmon entries expose temperature labels;
-- `STATS_GPU_PCI_SLOT` is set when automatic selection picks the wrong card;
-- `STATS_GPU_TEMP_LABEL_PRIORITY` matches exposed labels.
-
-## GPU chart is too noisy
-
-Use display values for UI and raw values for diagnostics. Verify `STATS_DISPLAY_EMA_ALPHA` and compare raw/display capture outputs.
-
-## Fan percentage is null
-
-Check:
-
-- fan channel is detected;
-- fan mapping exists in SQLite configuration;
-- `rpm_min` and `rpm_max` are valid;
-- the runtime value is inside a plausible range;
-- no legacy import failed silently.
-
-## ESP32 cannot connect to Wi-Fi
-
-Check:
-
-- stored NVS credentials;
-- configuration portal availability on `PulseMon-Setup`;
-- captive portal address `http://192.168.4.1/`;
-- retry limit constants;
-- signal strength and SSID visibility.
+Check the resolved path through `/api/v1/db/data` or logs. Set `STATS_CONFIG_DB_PATH` explicitly for a fixed persistent path. Without it, the backend uses `~/.config/pulsemon/config.db` when writable, otherwise `/tmp/pulsemon/config.db`.
 
 ## ESP32 shows backend offline
 
+The backend endpoint is compiled in `esp/src/pulsemon_api_config.h`. Check:
+
+- `PULSEMON_API_HOST`;
+- `PULSEMON_API_PORT` and `PULSEMON_API_BASE_URL` consistency;
+- LAN routing and firewall;
+- backend port 8000 unless changed at both ends;
+- HTTP timeout.
+
+There is no current portal or NVS setting for the backend address.
+
+## ESP32 Wi-Fi setup
+
 Check:
 
-- backend is reachable from the same LAN;
-- configured host, port and base URL;
-- firewall rules;
-- optional API key header;
-- HTTP timeout;
-- backend route `/api/v1/health`.
+- NVS namespace `pulsemon_wifi`;
+- AP `PulseMon-Setup` when credentials are missing or retries are exhausted;
+- `GET /api/wifi/status`;
+- visible networks through `GET /api/wifi/scan`.
 
-## Weather or news does not appear
+## Weather unavailable
 
 Check:
 
-- Wi-Fi is connected;
-- SNTP time is valid;
-- OpenWeather or GNews key presence flag is true;
-- keys are stored in NVS;
-- quota or authorization errors are not active;
-- weather alert priority is not masking news;
-- news backoff has elapsed;
-- SD card icon files exist if icon display is affected.
+- OpenWeather key and city ID presence;
+- valid language and GMT offset;
+- Wi-Fi and DNS;
+- plain-HTTP reachability to `api.openweathermap.org` in the current implementation;
+- SD-card icon files if only icons are missing.
 
-## Useful diagnostics
+OpenWeather HTTP is a known defect, not the intended final security state.
 
-Backend raw/display GPU comparison:
+## News unavailable
+
+Check:
+
+- valid SNTP time;
+- GNews key presence;
+- HTTPS/DNS access to GNews;
+- refresh interval and backoff;
+- article age and validation rules.
+
+## FAN
+
+FAN is retained but inactive in the firmware. Missing FAN navigation or polling is expected current behavior, not an operational fault.
+
+## Backend diagnostics
 
 ```bash
+cd api
 .venv/bin/python -m app.diagnostics.raw_capture --mode compare --duration-s 60 --sample-hz 10 --ema-alpha 0.25 --output diagnostics/raw_vs_display_gpu_pct.jsonl
 ```
 
-Backend raw multi-metric capture:
-
 ```bash
+cd api
 .venv/bin/python -m app.diagnostics.raw_capture --mode raw --duration-s 60 --sample-hz 10 --output diagnostics/raw_metrics.jsonl
 ```

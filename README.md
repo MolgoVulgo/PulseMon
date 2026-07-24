@@ -1,64 +1,50 @@
 # PulseMon
 
-PulseMon is a local monitoring system for a Linux workstation and an ESP32-S3 display.
+PulseMon is a local monitoring system composed of a Linux backend and an ESP32-S3 display.
 
-It collects Linux metrics on the host, exposes them through a local HTTP API, and displays the current state on a dedicated ESP32-S3 screen built with LVGL. The project is designed for a private LAN, with no cloud dependency and no external broker.
+The Linux host collects system metrics and exposes them through a FastAPI HTTP API. The ESP32-S3 polls that API, keeps the last valid values in a local cache and renders the active screens with LVGL. The target deployment is a personal workstation on a private LAN, without MQTT, a mandatory cloud service or an external broker.
 
-## What the project does
+## Active scope
 
-PulseMon provides:
+The current runtime provides:
 
-- a Python/FastAPI backend for Linux system telemetry;
-- CPU, memory, AMD GPU and fan monitoring;
-- a local HTTP API consumed by the ESP32-S3 firmware;
-- short in-memory history for charts;
-- a local debug/admin web UI exposed by the backend;
-- an ESP32-S3 firmware with Wi-Fi setup, API polling, LVGL rendering, weather display and autonomous news headlines;
-- local configuration storage for backend and firmware settings.
+- CPU usage, temperature and optional power telemetry;
+- memory usage and capacity telemetry;
+- AMD GPU usage, clocks, VRAM, temperature, power and GPU fan telemetry when available;
+- current snapshots and bounded in-memory history;
+- a local backend debug/admin UI under `/ui`;
+- active ESP32-S3 screens for Main, GPU and Weather;
+- autonomous OpenWeather weather data and GNews headlines on the ESP32-S3;
+- local configuration storage in SQLite on the backend and NVS on the ESP32-S3.
 
-## What it is for
+## Retained FAN subsystem
 
-PulseMon is intended to provide a small always-on hardware dashboard for a Linux workstation. It gives immediate visibility on CPU, RAM, GPU, fan and runtime state without opening a desktop dashboard or relying on remote services.
+The backend still contains fan collectors, mapping storage, API endpoints and admin functions. Firmware types, generated UI elements and dormant runtime helpers also remain in the tree.
 
-The ESP32-S3 can also display useful autonomous information when the Linux host is unavailable, such as weather data and news headlines, provided the required API keys are configured on the device.
+This subsystem is no longer an active product feature:
+
+- the FAN screen is not reachable from the active firmware navigation;
+- the firmware poller does not request the fan dashboard;
+- the code is retained for now and must not be treated as an active implementation target unless explicitly reactivated.
 
 ## Repository layout
 
 ```text
 PulseMon/
-├── api/                  # Linux backend entry point and backend-specific files
-├── esp/                  # ESP32-S3 firmware entry point and firmware-specific files
-├── docs/                 # canonical English documentation
-│   └── fr/               # French documentation
-├── README.md             # default English README
-└── README.fr.md          # French README
+├── api/                         # Linux backend
+├── esp/                         # ESP32-S3 firmware
+│   ├── src/ui/                  # EEZ-generated UI compiled by the firmware
+│   └── eez/pulsmon/             # EEZ Studio project and saved application state
+├── docs/                        # canonical English documentation
+│   └── fr/                      # French documentation
+├── make-a.sh                    # creates the intentionally filtered PulseMon.zip snapshot
+├── README.md
+└── README.fr.md
 ```
 
-The canonical documentation is stored in `/docs`. The `api/docs` and `esp/docs` paths are symbolic links to `/docs`.
+`docs/` is the canonical documentation root. In the supplied snapshot, `api/docs` and `esp/docs` contain the relative target `../docs`; they represent the intended link to the canonical documentation.
 
-## Prerequisites
-
-Backend:
-
-- Linux host;
-- Python 3.11 or newer;
-- FastAPI;
-- uvicorn;
-- psutil;
-- Pydantic;
-- pytest and httpx for tests;
-- access to Linux sysfs, hwmon and DRM paths for AMD CPU/GPU telemetry.
-
-Firmware:
-
-- ESP32-S3 board with display;
-- PlatformIO with ESP-IDF support;
-- LVGL;
-- Wi-Fi network access;
-- optional SD card for weather icon assets;
-- optional OpenWeather and GNews API keys for autonomous weather/news features.
-
-## Install the backend
+## Backend setup
 
 ```bash
 cd api
@@ -73,50 +59,69 @@ cd api
 .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-The backend exposes the API under `/api/v1/*` and the local debug/admin UI under `/ui`.
+The API is exposed under `/api/v1/*` and the local UI under `/ui`.
 
-## Build the firmware
+## Backend tests
+
+```bash
+cd api
+.venv/bin/pytest -q
+```
+
+## Firmware build
+
+Main environment:
 
 ```bash
 cd esp
-pio run -e LVGL-320-480
+pio run -e pulsmon-esp32s3-display
 ```
 
-Wi-Fi credentials are not compiled into the firmware. They are stored in NVS through the ESP32-S3 configuration portal.
+Development environment with PulseMon debug flags:
 
-## Configure the project
+```bash
+cd esp
+pio run -e pulsmon-esp32s3-display-dev
+```
 
-Backend configuration is handled through environment variables. The main settings are host, port, sampling cadence, history capacity, optional API key, GPU detection hints, diagnostics and local SQLite configuration storage.
+The default PlatformIO environment is `pulsmon-esp32s3-display`.
 
-ESP32-S3 configuration is handled through NVS and the local configuration portal. It stores Wi-Fi credentials, backend API address, OpenWeather settings, GNews settings and display-related options. API keys must not be printed, logged or returned by configuration endpoints.
+## Current firmware configuration model
 
-Detailed configuration is documented in `/docs/configuration.md`.
+Wi-Fi credentials, OpenWeather settings and GNews settings are stored in NVS through the local configuration portal.
 
-## Contribute
+The backend endpoint is not stored in NVS in the current implementation. It is compiled from `esp/src/pulsemon_api_config.h` through:
 
-Contributions should preserve these rules:
+- `PULSEMON_API_HOST`;
+- `PULSEMON_API_PORT`;
+- `PULSEMON_API_BASE_URL`;
+- `PULSEMON_HTTP_TIMEOUT_MS`;
+- `PULSEMON_DASHBOARD_POLL_MS`.
 
-- keep the backend, API contract, firmware polling and LVGL rendering separated;
-- keep JSON payloads stable and compact;
-- keep unavailable metrics nullable instead of removing fields;
-- do not edit generated ESP32 UI files directly;
-- keep secrets out of logs, URLs, screens and exported configuration;
-- add tests for API contract changes;
-- update `/docs` and `/docs/fr` when behavior changes.
+The firmware does not currently send the optional backend API-key header.
 
-## Detailed documentation
+## Security posture
 
-- `/docs/README.md` — documentation index;
-- `/docs/overview.md` — project overview;
-- `/docs/architecture.md` — backend/firmware architecture;
-- `/docs/api.md` — HTTP API contract;
-- `/docs/backend.md` — Linux backend behavior;
-- `/docs/firmware.md` — ESP32-S3 firmware behavior;
-- `/docs/configuration.md` — backend and device configuration;
-- `/docs/gpu.md` — AMD GPU monitoring;
-- `/docs/fans.md` — fan monitoring and configuration;
-- `/docs/weather-news.md` — weather and autonomous news modules;
-- `/docs/web-configuration.md` — ESP32 configuration portal;
-- `/docs/development.md` — build, tests and contribution workflow;
-- `/docs/troubleshooting.md` — diagnostics and operational notes;
-- `/docs/fr/` — French documentation.
+PulseMon targets a local and personal deployment. Security remains proportionate to that context: secrets must not be logged or returned by configuration endpoints, input must remain validated, and unnecessary LAN exposure should be avoided.
+
+Known defect: the OpenWeather client currently uses plain HTTP. GNews already uses HTTPS and the `X-Api-Key` header.
+
+## Snapshot generation
+
+`make-a.sh` creates the `PulseMon.zip` snapshot used for review and patch work. It deliberately excludes local build trees, virtual environments, caches, `tmp/`, local SDK configuration and other machine-specific content. The archive is therefore a controlled project snapshot, not an exhaustive copy of the working directory.
+
+## Documentation
+
+- `docs/README.md` — documentation index;
+- `docs/overview.md` — current scope and runtime model;
+- `docs/architecture.md` — ownership and data flows;
+- `docs/api.md` — backend HTTP contract;
+- `docs/backend.md` — backend behavior;
+- `docs/firmware.md` — firmware behavior and active screens;
+- `docs/configuration.md` — environment, SQLite and NVS configuration;
+- `docs/fans.md` — retained FAN subsystem status;
+- `docs/weather-news.md` — weather and news implementation;
+- `docs/web-configuration.md` — ESP32 local portal;
+- `docs/development.md` — build, tests and snapshot workflow;
+- `docs/troubleshooting.md` — operational checks;
+- `docs/fr/` — French mirror.

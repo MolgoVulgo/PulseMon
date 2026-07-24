@@ -14,6 +14,20 @@ static lv_timer_t *s_graph_timer;
 static bool s_started;
 static enum ScreensEnum s_active_screen = SCREEN_ID_MAIN;
 
+static lv_obj_t *screen_object_from_id(enum ScreensEnum screen_id)
+{
+    switch (screen_id) {
+    case SCREEN_ID_MAIN:
+        return objects.main;
+    case SCREEN_ID_GPU:
+        return objects.gpu;
+    case SCREEN_ID_METEO:
+        return objects.meteo;
+    default:
+        return NULL;
+    }
+}
+
 static int32_t clamp_start_progress(int32_t pct)
 {
     if (pct < 0) {
@@ -179,6 +193,28 @@ void ui_screen_set_active(enum ScreensEnum screen_id)
         return;
     }
     s_active_screen = screen_id;
+}
+
+void ui_screen_load(enum ScreensEnum screen_id, lv_scr_load_anim_t anim)
+{
+    if (screen_id < _SCREEN_ID_FIRST || screen_id > _SCREEN_ID_LAST) {
+        return;
+    }
+
+    lv_obj_t *target = screen_object_from_id(screen_id);
+    if (target == NULL) {
+        return;
+    }
+
+    if (lv_scr_act() == target) {
+        s_active_screen = screen_id;
+        tick_screen_by_id(screen_id);
+        return;
+    }
+
+    lv_scr_load_anim(target, anim, 220, 0, false);
+    s_active_screen = screen_id;
+    tick_screen_by_id(screen_id);
 }
 
 enum ScreensEnum ui_screen_get_active(void)
