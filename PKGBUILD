@@ -1,6 +1,6 @@
 pkgname=pulsemon-api
 pkgver=0.1.0
-pkgrel=1
+pkgrel=2
 pkgdesc="Local Linux metrics API for PulseMon (FastAPI)"
 arch=("x86_64" "aarch64")
 url="https://github.com/MolgoVulgo/PulseMon"
@@ -43,9 +43,6 @@ package() {
 
   install -dm755 "${pkgdir}/usr/lib/pulsemon-api"
   cp -a "${_project_root}/api/app" "${pkgdir}/usr/lib/pulsemon-api/"
-  install -dm755 "${pkgdir}/usr/share/pulsemon-api"
-  install -Dm644 "${_project_root}/tmp/fan_reference_seed.json" "${pkgdir}/usr/share/pulsemon-api/fan_reference_seed.json"
-
   install -Dm755 "${srcdir}/pulsemon-api.sh" "${pkgdir}/usr/bin/pulsemon-api"
   install -Dm644 "${srcdir}/pulsemon-api.service" "${pkgdir}/usr/lib/systemd/system/pulsemon-api.service"
   install -Dm644 "${srcdir}/pulsemon-api.conf" "${pkgdir}/etc/pulsemon/pulsemon-api.conf"

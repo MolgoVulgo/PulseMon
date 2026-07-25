@@ -2,66 +2,78 @@
 
 ## Backend environment
 
-Variables read by `api/app/config.py`:
+The backend recognizes exactly 20 `STATS_*` variables. `api/app/config.py` parses and validates all of them before stores, samplers or diagnostics are created. The packaged launcher runs the same validation preflight before Uvicorn starts.
 
-| Variable | Default | Purpose |
-|---|---:|---|
-| `STATS_BIND_HOST` | `0.0.0.0` | bind address |
-| `STATS_BIND_PORT` | `8000` | HTTP port |
-| `STATS_SAMPLE_INTERVAL_S` | `0.1` | sensor acquisition interval |
-| `STATS_PUBLISH_INTERVAL_S` | `0.5` | snapshot/history publication interval |
-| `STATS_HISTORY_CAPACITY` | `600` | in-memory history capacity |
-| `STATS_API_KEY` | unset | optional API key for `/api/v1/*` |
-| `STATS_API_KEY_HEADER` | `X-API-Key` | authentication header name |
-| `STATS_LOG_LEVEL` | `INFO` | application log level |
-| `STATS_DIAGNOSTICS` | `0` | diagnostics logging flag |
-| `STATS_DIAG_RAW_CAPTURE` | `0` | raw capture flag |
-| `STATS_DIAG_RAW_HZ` | `8.0` | raw capture frequency |
-| `STATS_DIAG_RAW_DURATION_S` | `60` | raw capture duration |
-| `STATS_DIAG_RAW_LOG_PATH` | `api/diagnostics/raw_metrics.jsonl` | raw capture path |
-| `STATS_DIAG_COMPARE_CAPTURE` | `0` | raw/display comparison flag |
-| `STATS_DIAG_COMPARE_HZ` | `10.0` | comparison frequency |
-| `STATS_DIAG_COMPARE_DURATION_S` | `60` | comparison duration |
-| `STATS_DIAG_COMPARE_LOG_PATH` | `api/diagnostics/raw_vs_display_gpu_pct.jsonl` | comparison path |
-| `STATS_DISPLAY_EMA_ALPHA` | `0.25` | display EMA alpha |
+| Variable | Default | Accepted contract | Purpose |
+|---|---:|---|---|
+| `STATS_BIND_HOST` | `0.0.0.0` | IPv4, IPv6 or valid hostname, no whitespace | bind address |
+| `STATS_BIND_PORT` | `8000` | integer `1..65535` | HTTP port |
+| `STATS_SAMPLE_INTERVAL_S` | `0.1` | finite number `0.01..60.0` | sensor acquisition interval |
+| `STATS_PUBLISH_INTERVAL_S` | `0.5` | finite number `0.01..3600.0` | snapshot/history publication interval |
+| `STATS_HISTORY_CAPACITY` | `600` | integer `1..1000000` | in-memory history capacity |
+| `STATS_API_KEY` | unset | empty disables; otherwise trimmed, control-character-free string | optional API key for `/api/v1/*` |
+| `STATS_API_KEY_HEADER` | `X-API-Key` | valid HTTP token, maximum 128 characters | authentication header name |
+| `STATS_LOG_LEVEL` | `INFO` | `CRITICAL`, `ERROR`, `WARNING`, `INFO` or `DEBUG`; `WARN` and `FATAL` are normalized | application and Uvicorn log level |
+| `STATS_DIAGNOSTICS` | `0` | `1/0`, `true/false`, `yes/no` or `on/off` | diagnostics logging flag |
+| `STATS_DIAG_RAW_CAPTURE` | `0` | strict boolean | raw capture flag |
+| `STATS_DIAG_RAW_HZ` | `8.0` | finite number `0.1..1000.0` | raw capture frequency |
+| `STATS_DIAG_RAW_DURATION_S` | `60` | integer `1..86400` | raw capture duration |
+| `STATS_DIAG_RAW_LOG_PATH` | `api/diagnostics/raw_metrics.jsonl` | non-empty path without control characters | raw capture path |
+| `STATS_DIAG_COMPARE_CAPTURE` | `0` | strict boolean | raw/display comparison flag |
+| `STATS_DIAG_COMPARE_HZ` | `10.0` | finite number `0.1..1000.0` | comparison frequency |
+| `STATS_DIAG_COMPARE_DURATION_S` | `60` | integer `1..86400` | comparison duration |
+| `STATS_DIAG_COMPARE_LOG_PATH` | `api/diagnostics/raw_vs_display_gpu_pct.jsonl` | non-empty path without control characters | comparison path |
+| `STATS_DISPLAY_EMA_ALPHA` | `0.25` | finite number `>0.0` and `<=1.0` | display EMA alpha |
+| `STATS_GPU_PCI_SLOT` | unset | PCI BDF `dddd:bb:ss.f` or `bb:ss.f` | force an AMD PCI slot |
+| `STATS_GPU_TEMP_LABEL_PRIORITY` | `edge,junction,mem,unknown` | 1 to 32 unique comma-separated labels matching `[a-z0-9_-]`; `unknown` is appended when absent | ordered GPU temperature labels |
 
-Variables read directly by collectors or services:
+Invalid configuration raises a `ConfigError` and stops startup with the variable name and expected contract. Values are not echoed, so API keys are not disclosed in error output. Non-finite numeric values such as `nan` and `inf` are rejected.
 
-| Variable | Default/behavior | Purpose |
-|---|---|---|
-| `STATS_GPU_PCI_SLOT` | automatic selection | force an AMD PCI slot |
-| `STATS_GPU_TEMP_LABEL_PRIORITY` | `edge,junction,mem,unknown` | ordered GPU temperature labels |
-| `STATS_CONFIG_DB_PATH` | path resolution below | SQLite database path |
-| `STATS_FANS_MAPPING_FILE` | service fallback chain | legacy fan mapping import path |
-| `STATS_FANS_REFERENCE_SEED_FILE` | repository `tmp/fan_reference_seed.json` unless overridden | retained fan reference catalog path |
+Validate the current environment without starting the service:
 
-## SQLite path
+```bash
+cd api
+python3 -m app.config
+```
 
-Resolution order:
+The GPU collector no longer reads its two variables directly. `load_config()` validates and normalizes them, then `api/app/main.py` applies the resulting GPU selection once during startup.
 
-1. `STATS_CONFIG_DB_PATH`;
-2. `~/.config/pulsemon/config.db` when writable;
-3. `/tmp/pulsemon/config.db`.
-
-The supplied `pulsemon-api.conf` does not currently set `STATS_CONFIG_DB_PATH`; deployments requiring a fixed persistent path must define it explicitly.
+The backend has no persistent configuration database. Relative diagnostic paths are resolved from the process working directory.
 
 ## Firmware backend endpoint
 
-The backend endpoint is compiled in `esp/src/pulsemon_api_config.h`:
+The backend endpoint is split between NVS and compiled fallback values.
+
+NVS runtime settings:
 
 ```text
-PULSEMON_API_HOST
-PULSEMON_API_PORT
-PULSEMON_API_BASE_URL
+namespace: pulsemon_api
+keys: host, port
+```
+
+Accepted host values are IPv4 addresses or DNS/mDNS hostnames using letters, digits, dots and internal hyphens. Schemes, paths, whitespace, underscores and raw IPv6 literals are rejected. The port range is `1..65535`.
+
+Compiled settings in `esp/src/pulsemon_api_config.h`:
+
+```text
+PULSEMON_API_DEFAULT_HOST
+PULSEMON_API_DEFAULT_PORT
 PULSEMON_HTTP_TIMEOUT_MS
 PULSEMON_DASHBOARD_POLL_MS
 ```
 
-The current values include a static LAN address and HTTP port. They are not stored in NVS and are not editable in the local portal.
+The NVS host/port override the compiled defaults. Saving the local portal reloads the active client endpoint without reboot. Clearing PulseMon configuration erases the `pulsemon_api` namespace and restores the compiled fallback. The client caches the active endpoint in RAM and does not read NVS on every poll. Holding the top-left corner of an active screen for five seconds opens a manual setup-AP window for ten minutes. The trigger does not modify NVS or disconnect an existing station connection.
 
-The firmware does not currently send `STATS_API_KEY_HEADER`.
+The firmware does not currently store or send `STATS_API_KEY_HEADER` credentials.
 
 ## Firmware NVS namespaces
+
+Backend endpoint:
+
+```text
+namespace: pulsemon_api
+keys: host, port
+```
 
 Wi-Fi credentials:
 
@@ -92,5 +104,8 @@ Default weather settings are GMT offset `+60 minutes`, language `fr`, no city an
 - With saved credentials, firmware starts in station mode and connects.
 - Without valid credentials, firmware starts AP+station mode and exposes the open `PulseMon-Setup` AP.
 - After repeated station failures, the configuration AP is enabled.
-- After a successful station connection, the AP is disabled.
-- The HTTP configuration server and captive DNS tasks are started during normal firmware startup.
+- A continuous five-second hold in the top-left corner of an active screen also opens the AP for ten minutes.
+- After a successful station connection, the automatic AP is disabled; an active manual window remains open until its timeout.
+- The HTTP configuration server starts only after `WIFI_EVENT_AP_START` and stops after `WIFI_EVENT_AP_STOP`.
+- Captive DNS follows the same AP lifecycle and binds only to `192.168.4.1`, never `INADDR_ANY`.
+- Portal handlers return `503 Service Unavailable` if the AP is no longer active.

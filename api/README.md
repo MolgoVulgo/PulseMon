@@ -8,7 +8,7 @@ Runtime entry point:
 api/app/main.py
 ```
 
-The backend collects Linux telemetry, normalizes values, publishes current snapshots and bounded in-memory histories, serves the HTTP API and local UI, and stores local configuration in SQLite.
+The backend collects CPU, memory and AMD GPU telemetry, normalizes values, publishes current snapshots and bounded in-memory histories, and serves the HTTP API plus a local debug UI. It does not use a persistent database.
 
 ## Setup
 
@@ -23,13 +23,23 @@ python3 -m venv .venv
 .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
+## Configuration validation
+
+All 20 supported `STATS_*` variables are validated before runtime services start. Validate the current environment without starting Uvicorn:
+
+```bash
+.venv/bin/python -m app.config
+```
+
+Invalid values stop startup with the variable name and expected contract. Secret values are not echoed. The packaged launcher performs this preflight automatically.
+
 ## Test
 
 ```bash
 .venv/bin/pytest -q
 ```
 
-## Active monitoring endpoints
+## Active routes
 
 - `GET /api/v1/health`
 - `GET /api/v1/dashboard`
@@ -38,26 +48,11 @@ python3 -m venv .venv
 - `GET /api/v1/gpu/dashboard`
 - `GET /api/v1/gpu/history`
 - `GET /api/v1/gpu/meta`
-- `GET /api/v1/user/config`
-- `PUT /api/v1/user/config`
-- `GET /api/v1/db/data`
 - `GET /ui`
 
-## Retained FAN endpoints
+GPU fan RPM and percentage are GPU telemetry fields exposed by the GPU dashboard. There is no generic FAN mapping API, database API or user-configuration API.
 
-The following routes remain implemented, but FAN is no longer an active firmware feature:
-
-- `GET /api/v1/fans/dashboard`
-- `GET /api/v1/fans/meta`
-- `GET /api/v1/fans/config`
-- `PUT /api/v1/fans/config`
-- `GET /api/v1/fans/reference`
-- `GET /api/v1/db/fans`
-- `POST /api/v1/db/fans`
-- `PUT /api/v1/db/fans/{fan_id}`
-- `POST /api/v1/db/fans/{fan_id}/soft-delete`
-- `POST /api/v1/db/fans/{fan_id}/restore`
-- `DELETE /api/v1/db/fans/{fan_id}`
+If `STATS_API_KEY` is enabled, all `/api/v1/*` routes require the configured header. The current ESP32 firmware and backend UI do not send that header.
 
 ## Documentation
 

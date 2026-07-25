@@ -12,21 +12,34 @@ Check:
 
 Do not enable `STATS_API_KEY` for the standard current ESP/UI flow: those clients do not send the header yet.
 
-## SQLite configuration is not persistent
+## Backend state after restart
 
-Check the resolved path through `/api/v1/db/data` or logs. Set `STATS_CONFIG_DB_PATH` explicitly for a fixed persistent path. Without it, the backend uses `~/.config/pulsemon/config.db` when writable, otherwise `/tmp/pulsemon/config.db`.
+The backend does not use a persistent database. Current snapshots and short histories are rebuilt in memory after restart.
+
+## Backend fails during configuration load
+
+Run the validation preflight with the same environment as the service:
+
+```bash
+cd api
+python3 -m app.config
+```
+
+The error names the invalid variable and its accepted contract. Check `pulsemon-api.conf` and process overrides. Common failures are a port outside `1..65535`, intervals below their minimum, a zero history capacity, a non-finite number, an invalid boolean spelling, an EMA alpha outside `(0, 1]`, an invalid HTTP header token or a malformed PCI BDF.
+
+Configuration values are not echoed in the error message, so API keys are not disclosed.
 
 ## ESP32 shows backend offline
 
-The backend endpoint is compiled in `esp/src/pulsemon_api_config.h`. Check:
+The backend host and port are configured in the local portal and stored in NVS namespace `pulsemon_api`. Check:
 
-- `PULSEMON_API_HOST`;
-- `PULSEMON_API_PORT` and `PULSEMON_API_BASE_URL` consistency;
-- LAN routing and firewall;
-- backend port 8000 unless changed at both ends;
-- HTTP timeout.
+- `GET /api/config` values `backend_host` and `backend_port`;
+- LAN routing, DNS and firewall;
+- the backend bind address and effective port;
+- the compiled fallback values `PULSEMON_API_DEFAULT_HOST` and `PULSEMON_API_DEFAULT_PORT` if the namespace was cleared;
+- `PULSEMON_HTTP_TIMEOUT_MS`.
 
-There is no current portal or NVS setting for the backend address.
+Saving the portal configuration reloads the target immediately. Clearing PulseMon configuration restores the compiled fallback.
 
 ## ESP32 Wi-Fi setup
 
@@ -34,8 +47,12 @@ Check:
 
 - NVS namespace `pulsemon_wifi`;
 - AP `PulseMon-Setup` when credentials are missing or retries are exhausted;
-- `GET /api/wifi/status`;
-- visible networks through `GET /api/wifi/scan`.
+- portal address `http://192.168.4.1/` while connected to that AP;
+- `GET /api/wifi/status` and `GET /api/wifi/scan` only while the setup AP is active.
+
+The portal and captive DNS stop after a successful station connection. They are intentionally unavailable on the normal station LAN address. If the AP is active but DNS redirection fails, open `http://192.168.4.1/` directly.
+
+With valid working credentials, hold the top-left corner of any active screen for five seconds to open `PulseMon-Setup`. The manual window lasts ten minutes and does not disconnect the station link. If the AP does not appear, verify that the hold is continuous and starts inside the top-left 64 × 64 pixel hotspot.
 
 ## Weather unavailable
 
@@ -44,10 +61,10 @@ Check:
 - OpenWeather key and city ID presence;
 - valid language and GMT offset;
 - Wi-Fi and DNS;
-- plain-HTTP reachability to `api.openweathermap.org` in the current implementation;
+- HTTPS/DNS access to `api.openweathermap.org`;
 - SD-card icon files if only icons are missing.
 
-OpenWeather HTTP is a known defect, not the intended final security state.
+OpenWeather TLS validation uses the ESP-IDF certificate bundle; a TLS or certificate error is reported as a failed refresh and the last valid snapshot is retained.
 
 ## News unavailable
 
@@ -59,9 +76,11 @@ Check:
 - refresh interval and backoff;
 - article age and validation rules.
 
-## FAN
+## Legacy generated screen appears in source searches
 
-FAN is retained but inactive in the firmware. Missing FAN navigation or polling is expected current behavior, not an operational fault.
+The generated EEZ output still contains an unreachable legacy FAN screen and compatibility bindings. Active navigation only resolves Main, GPU and Weather. Do not edit generated files or compatibility bindings to remove the screen manually; perform the design change in EEZ Studio and regenerate.
+
+GPU fan telemetry remains available through `/api/v1/gpu/dashboard` when the driver exposes it.
 
 ## Backend diagnostics
 

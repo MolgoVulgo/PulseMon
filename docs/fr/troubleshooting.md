@@ -4,29 +4,42 @@
 
 Vérifier :
 
-- état du processus ou service systemd ;
+- état du processus ou du service systemd ;
 - adresse de bind et port ;
 - route `GET /api/v1/health` ;
-- permissions sur sysfs, hwmon et DRM ;
+- permissions sur les chemins sysfs, hwmon et DRM ;
 - configuration optionnelle `STATS_API_KEY`.
 
-Ne pas activer `STATS_API_KEY` pour le flux ESP/UI courant standard : ces clients n’envoient pas encore le header.
+Ne pas activer `STATS_API_KEY` pour le flux ESP/UI standard courant : ces clients n’envoient pas encore le header.
 
-## Configuration SQLite non persistante
+## État backend après redémarrage
 
-Vérifier le chemin résolu via `/api/v1/db/data` ou les logs. Définir explicitement `STATS_CONFIG_DB_PATH` pour un chemin persistant fixe. Sans cette variable, le backend utilise `~/.config/pulsemon/config.db` si possible, sinon `/tmp/pulsemon/config.db`.
+Le backend n’utilise aucune base persistante. Les snapshots et historiques courts sont reconstruits en mémoire après redémarrage.
 
-## L’ESP32 affiche backend offline
+## Échec backend pendant le chargement de configuration
 
-L’endpoint backend est compilé dans `esp/src/pulsemon_api_config.h`. Vérifier :
+Exécuter le précontrôle avec le même environnement que le service :
 
-- `PULSEMON_API_HOST` ;
-- cohérence de `PULSEMON_API_PORT` et `PULSEMON_API_BASE_URL` ;
-- routage LAN et firewall ;
-- port backend 8000 sauf modification aux deux extrémités ;
-- timeout HTTP.
+```bash
+cd api
+python3 -m app.config
+```
 
-Il n’existe actuellement aucun réglage portail ou NVS pour l’adresse backend.
+L’erreur indique la variable invalide et son contrat accepté. Vérifier `pulsemon-api.conf` et les surcharges du processus. Les échecs courants sont un port hors `1..65535`, un intervalle inférieur à sa borne, une capacité d’historique nulle, un nombre non fini, une écriture booléenne invalide, un alpha EMA hors `(0, 1]`, un token de header HTTP invalide ou un BDF PCI mal formé.
+
+Les valeurs de configuration ne sont pas reprises dans le message d’erreur afin de ne pas exposer une clé API.
+
+## ESP32 affiche backend offline
+
+L’hôte et le port backend sont configurés dans le portail local et stockés dans le namespace NVS `pulsemon_api`. Vérifier :
+
+- les valeurs `backend_host` et `backend_port` de `GET /api/config` ;
+- routage LAN, DNS et pare-feu ;
+- adresse de bind et port effectif du backend ;
+- les fallbacks compilés `PULSEMON_API_DEFAULT_HOST` et `PULSEMON_API_DEFAULT_PORT` si le namespace a été effacé ;
+- `PULSEMON_HTTP_TIMEOUT_MS`.
+
+La sauvegarde du portail recharge immédiatement la cible. L’effacement de la configuration PulseMon restaure le fallback compilé.
 
 ## Configuration Wi-Fi ESP32
 
@@ -34,8 +47,12 @@ Vérifier :
 
 - namespace NVS `pulsemon_wifi` ;
 - AP `PulseMon-Setup` si identifiants absents ou retries épuisés ;
-- `GET /api/wifi/status` ;
-- réseaux visibles via `GET /api/wifi/scan`.
+- adresse du portail `http://192.168.4.1/` pendant la connexion à cet AP ;
+- `GET /api/wifi/status` et `GET /api/wifi/scan` uniquement lorsque l’AP de configuration est actif.
+
+Le portail et le DNS captif s’arrêtent après une connexion station réussie. Ils sont volontairement indisponibles via l’adresse LAN station normale. Si l’AP est actif mais que la redirection DNS échoue, ouvrir directement `http://192.168.4.1/`.
+
+Avec des identifiants valides et fonctionnels, maintenir le coin supérieur gauche de n’importe quel écran actif pendant cinq secondes pour ouvrir `PulseMon-Setup`. La fenêtre manuelle dure dix minutes et ne coupe pas la liaison station. Si l’AP n’apparaît pas, vérifier que l’appui est continu et commence dans le hotspot de 64 × 64 pixels du coin supérieur gauche.
 
 ## Météo indisponible
 
@@ -44,10 +61,10 @@ Vérifier :
 - présence clé OpenWeather et ID ville ;
 - langue et décalage GMT valides ;
 - Wi-Fi et DNS ;
-- accès HTTP clair à `api.openweathermap.org` dans l’implémentation courante ;
+- accès HTTPS/DNS à `api.openweathermap.org` ;
 - fichiers d’icônes SD si seules les icônes manquent.
 
-OpenWeather en HTTP est un défaut connu, pas l’état de sécurité final visé.
+La validation TLS OpenWeather utilise le bundle de certificats ESP-IDF ; une erreur TLS ou certificat provoque un échec de rafraîchissement et le dernier snapshot valide est conservé.
 
 ## Actualités indisponibles
 
@@ -59,9 +76,11 @@ Vérifier :
 - intervalle de rafraîchissement et backoff ;
 - règles d’âge et validation des articles.
 
-## FAN
+## Ancien écran généré visible dans les recherches source
 
-FAN est conservé mais inactif dans le firmware. L’absence de navigation ou polling FAN est le comportement courant attendu, pas une panne opérationnelle.
+La sortie EEZ générée contient encore un ancien écran FAN inaccessible et des bindings de compatibilité. La navigation active ne résout que Main, GPU et Météo. Ne pas modifier les fichiers générés ni les bindings de compatibilité pour retirer manuellement cet écran ; effectuer le changement de design dans EEZ Studio puis régénérer.
+
+La télémétrie du ventilateur GPU reste disponible via `/api/v1/gpu/dashboard` lorsque le pilote l’expose.
 
 ## Diagnostics backend
 

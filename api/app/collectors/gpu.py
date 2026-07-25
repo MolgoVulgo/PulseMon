@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-import os
 from pathlib import Path
 import re
 
@@ -11,6 +10,21 @@ from .metric import MetricReading, failed_reading, ok_reading
 DRM_CLASS_PATH = Path("/sys/class/drm")
 CARD_NAME_RE = re.compile(r"^card[0-9]+$")
 AMD_VENDOR_ID = "0x1002"
+DEFAULT_GPU_TEMP_LABEL_PRIORITY: tuple[str, ...] = ("edge", "junction", "mem", "unknown")
+_FORCED_GPU_PCI_SLOT: str | None = None
+_GPU_TEMP_LABEL_PRIORITY: tuple[str, ...] = DEFAULT_GPU_TEMP_LABEL_PRIORITY
+
+
+def configure_gpu_selection(
+    *,
+    pci_slot: str | None,
+    temp_label_priority: tuple[str, ...],
+) -> None:
+    """Apply the already validated GPU selection configuration."""
+
+    global _FORCED_GPU_PCI_SLOT, _GPU_TEMP_LABEL_PRIORITY
+    _FORCED_GPU_PCI_SLOT = pci_slot
+    _GPU_TEMP_LABEL_PRIORITY = tuple(temp_label_priority)
 
 
 @dataclass(frozen=True)
@@ -275,7 +289,7 @@ def _select_amd_gpu_mapping() -> GpuMapping | None:
     if not mappings:
         return None
 
-    forced_slot = os.getenv("STATS_GPU_PCI_SLOT")
+    forced_slot = _FORCED_GPU_PCI_SLOT
     if forced_slot:
         for mapping in mappings:
             if mapping.pci_slot == forced_slot:
@@ -402,8 +416,4 @@ def _choose_preferred_temp_candidate(candidates: list[dict[str, object]]) -> dic
 
 
 def _gpu_temp_label_priority() -> list[str]:
-    raw = os.getenv("STATS_GPU_TEMP_LABEL_PRIORITY", "edge,junction,mem,unknown")
-    labels = [part.strip().lower() for part in raw.split(",") if part.strip()]
-    if "unknown" not in labels:
-        labels.append("unknown")
-    return labels
+    return list(_GPU_TEMP_LABEL_PRIORITY)

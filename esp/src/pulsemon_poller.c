@@ -11,6 +11,7 @@
 #include "esp_bsp.h"
 #include "pulsemon_api_client.h"
 #include "pulsemon_api_config.h"
+#include "pulsemon_api_settings.h"
 #include "ui_screen.h"
 #include "vars.h"
 
@@ -201,7 +202,13 @@ static void poller_task(void *arg)
     (void)arg;
     uint32_t tick_seq = 0;
 
-    ESP_LOGI(TAG, "poller start target=%s:%d", PULSEMON_API_HOST, PULSEMON_API_PORT);
+    esp_err_t endpoint_err = pulsemon_api_client_reload_endpoint();
+    if (endpoint_err != ESP_OK && endpoint_err != ESP_ERR_INVALID_SIZE) {
+        ESP_LOGW(TAG, "backend endpoint load failed: %s", esp_err_to_name(endpoint_err));
+    }
+    pulsemon_api_settings_t endpoint;
+    pulsemon_api_client_get_endpoint(&endpoint);
+    ESP_LOGI(TAG, "poller start target=%s:%u", endpoint.host, (unsigned)endpoint.port);
 
     while (1) {
 #if PULSEMON_LATENCY_DEBUG

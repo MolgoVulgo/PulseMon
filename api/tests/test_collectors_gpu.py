@@ -59,17 +59,19 @@ def test_gpu_temp_priority_can_be_overridden(tmp_path: Path) -> None:
     _write(drm / "card0" / "device" / "hwmon" / "hwmon2" / "temp2_input", "88000\n")
 
     original_drm = gpu_mod.DRM_CLASS_PATH
-    original_env = gpu_mod.os.getenv("STATS_GPU_TEMP_LABEL_PRIORITY")
     gpu_mod.DRM_CLASS_PATH = drm
-    gpu_mod.os.environ["STATS_GPU_TEMP_LABEL_PRIORITY"] = "junction,edge"
+    gpu_mod.configure_gpu_selection(
+        pci_slot=None,
+        temp_label_priority=("junction", "edge", "unknown"),
+    )
     try:
         assert gpu_mod.read_gpu_temp_c() == 88.0
     finally:
         gpu_mod.DRM_CLASS_PATH = original_drm
-        if original_env is None:
-            gpu_mod.os.environ.pop("STATS_GPU_TEMP_LABEL_PRIORITY", None)
-        else:
-            gpu_mod.os.environ["STATS_GPU_TEMP_LABEL_PRIORITY"] = original_env
+        gpu_mod.configure_gpu_selection(
+            pci_slot=None,
+            temp_label_priority=gpu_mod.DEFAULT_GPU_TEMP_LABEL_PRIORITY,
+        )
 
 
 def test_gpu_power_reads_power1_average_uw(tmp_path: Path) -> None:
@@ -112,3 +114,28 @@ def test_gpu_collectors_return_none_when_no_amd_card(tmp_path: Path) -> None:
         assert gpu_mod.probe_gpu_device_path() is None
     finally:
         gpu_mod.DRM_CLASS_PATH = original
+
+
+def test_gpu_pci_slot_can_be_forced_after_config_validation(tmp_path: Path) -> None:
+    drm = tmp_path / "drm"
+    _write(drm / "card0" / "device" / "vendor", "0x1002\n")
+    _write(drm / "card0" / "device" / "uevent", "PCI_SLOT_NAME=0000:01:00.0\n")
+    _write(drm / "card0" / "device" / "gpu_busy_percent", "7\n")
+    _write(drm / "card1" / "device" / "vendor", "0x1002\n")
+    _write(drm / "card1" / "device" / "uevent", "PCI_SLOT_NAME=0000:02:00.0\n")
+    _write(drm / "card1" / "device" / "gpu_busy_percent", "9\n")
+
+    original_drm = gpu_mod.DRM_CLASS_PATH
+    gpu_mod.DRM_CLASS_PATH = drm
+    gpu_mod.configure_gpu_selection(
+        pci_slot="0000:02:00.0",
+        temp_label_priority=gpu_mod.DEFAULT_GPU_TEMP_LABEL_PRIORITY,
+    )
+    try:
+        assert gpu_mod.read_gpu_percent() == 9.0
+    finally:
+        gpu_mod.DRM_CLASS_PATH = original_drm
+        gpu_mod.configure_gpu_selection(
+            pci_slot=None,
+            temp_label_priority=gpu_mod.DEFAULT_GPU_TEMP_LABEL_PRIORITY,
+        )

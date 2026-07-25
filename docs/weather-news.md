@@ -13,19 +13,19 @@ Stored in NVS namespace `pulsemon_cfg`:
 
 Supported weather languages are `fr`, `en`, `de`, `es` and `it`. The default GMT offset is `+60 minutes`; the default language is `fr`.
 
-## Current OpenWeather transport
+## OpenWeather transport
 
-The current firmware builds these URLs:
+The firmware uses these HTTPS endpoints:
 
 ```text
-http://api.openweathermap.org/data/2.5/weather
-http://api.openweathermap.org/data/3.0/onecall
-http://api.openweathermap.org/data/2.5/forecast
+https://api.openweathermap.org/data/2.5/weather
+https://api.openweathermap.org/data/3.0/onecall
+https://api.openweathermap.org/data/2.5/forecast
 ```
 
-The API key is placed in the `appid` query parameter. This is a known defect because the requests use plain HTTP. It remains documented as current behavior until the client is migrated to HTTPS with certificate validation.
+The API key is placed in the `appid` query parameter required by OpenWeather. TLS certificates are validated through the ESP-IDF certificate bundle. The firmware does not log the request URL or the key.
 
-Weather refresh is scheduled every 30 minutes. The service keeps the last valid weather snapshot when a refresh fails.
+Weather refresh is scheduled every 30 minutes. The service keeps the last valid weather snapshot when a request, TLS validation or parsing step fails.
 
 ## Weather icons
 
@@ -44,6 +44,8 @@ Authentication:
 ```text
 X-Api-Key: <key stored in NVS>
 ```
+
+TLS certificates are validated through the ESP-IDF certificate bundle.
 
 Default settings:
 

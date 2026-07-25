@@ -10,8 +10,6 @@ static lv_obj_t *screen_from_id(enum ScreensEnum target)
             return objects.main;
         case SCREEN_ID_GPU:
             return objects.gpu;
-        case SCREEN_ID_FAN:
-            return NULL;
         case SCREEN_ID_METEO:
             return objects.meteo;
         default:

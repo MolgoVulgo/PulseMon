@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Stats Linux API - Monitor</title>
+    <title>PulseMon - Monitor</title>
     <style>
       :root {
         --bg: #0f1115;
@@ -12,55 +12,23 @@
         --text: #d8deea;
         --muted: #90a0bc;
         --ok: #2ec27e;
-        --warn: #e5a50a;
         --bad: #e01b24;
         --cpu: #62a0ea;
         --gpu: #f66151;
         --temp: #ffb84d;
       }
-
-      * {
-        box-sizing: border-box;
-      }
-
+      * { box-sizing: border-box; }
       body {
         margin: 0;
         font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
         background: radial-gradient(circle at top, #1c2130 0%, var(--bg) 45%);
         color: var(--text);
       }
-
-      .wrap {
-        max-width: 1080px;
-        margin: 0 auto;
-        padding: 20px;
-      }
-
-      .top {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        gap: 12px;
-        margin-bottom: 14px;
-      }
-
-      h1 {
-        margin: 0;
-        font-size: 20px;
-        font-weight: 600;
-      }
-
-      .meta {
-        color: var(--muted);
-        font-size: 13px;
-      }
-
-      .tabs {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 12px;
-      }
-
+      .wrap { max-width: 1080px; margin: 0 auto; padding: 20px; }
+      .top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+      h1 { margin: 0; font-size: 20px; font-weight: 600; }
+      .meta, .status { color: var(--muted); font-size: 13px; }
+      .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
       .tab-btn {
         border: 1px solid var(--line);
         background: #111826;
@@ -69,96 +37,20 @@
         padding: 6px 12px;
         cursor: pointer;
       }
-
-      .tab-btn.active {
-        border-color: #4b86d8;
-        color: #b9d5ff;
-      }
-
-      pre {
-        margin: 8px 0 0;
-        padding: 10px;
-        border: 1px solid #2f3b52;
-        border-radius: 8px;
-        background: #101622;
-        color: #cdd9ef;
-        font-size: 12px;
-        overflow: auto;
-        max-height: 280px;
-      }
-
-      .tab {
-        display: none;
-      }
-
-      .tab.active {
-        display: block;
-      }
-
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(220px, 1fr));
-        gap: 12px;
-      }
-
+      .tab-btn.active { border-color: #4b86d8; color: #b9d5ff; }
+      .tab { display: none; }
+      .tab.active { display: block; }
+      .grid { display: grid; grid-template-columns: repeat(3, minmax(220px, 1fr)); gap: 12px; }
+      .charts { margin-top: 12px; display: grid; grid-template-columns: repeat(2, minmax(280px, 1fr)); gap: 12px; }
       .panel {
         background: color-mix(in oklab, var(--panel) 92%, black);
         border: 1px solid var(--line);
         border-radius: 12px;
         padding: 14px;
       }
-
-      .label {
-        color: var(--muted);
-        font-size: 12px;
-      }
-
-      .value {
-        font-size: 26px;
-        font-weight: 700;
-        margin-top: 4px;
-      }
-
-      .row {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 8px;
-        font-size: 13px;
-      }
-
-      .chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        border: 1px solid #2f3b52;
-        border-radius: 999px;
-        padding: 2px 8px;
-        font-size: 11px;
-        color: var(--muted);
-        background: #111826;
-      }
-
-      .input {
-        width: 100%;
-        background: #101622;
-        color: #cdd9ef;
-        border: 1px solid #2f3b52;
-        border-radius: 8px;
-        padding: 7px 9px;
-      }
-
-      .btn-danger {
-        border-color: #69353a;
-        color: #ffb3bb;
-      }
-
-      .charts {
-        margin-top: 12px;
-        display: grid;
-        grid-template-columns: repeat(2, minmax(280px, 1fr));
-        gap: 12px;
-      }
-
+      .label { color: var(--muted); font-size: 12px; }
+      .value { font-size: 26px; font-weight: 700; margin-top: 4px; }
+      .row { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; }
       canvas {
         width: 100%;
         height: 160px;
@@ -167,47 +59,12 @@
         background: #0f131d;
         border: 1px solid #232a38;
       }
-
-      .status {
-        margin-top: 12px;
-        font-size: 13px;
-        color: var(--muted);
-      }
-
-      .legend {
-        margin-top: 8px;
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-        color: var(--muted);
-        font-size: 12px;
-      }
-
-      .dot {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        margin-right: 6px;
-      }
-
-      .ok {
-        background: var(--ok);
-      }
-
-      .warn {
-        background: var(--warn);
-      }
-
-      .bad {
-        background: var(--bad);
-      }
-
+      .legend { margin-top: 8px; display: flex; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: 12px; }
+      .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+      .status { margin-top: 12px; }
       @media (max-width: 860px) {
-        .grid,
-        .charts {
-          grid-template-columns: 1fr;
-        }
+        .grid, .charts { grid-template-columns: 1fr; }
+        .top { align-items: flex-start; flex-direction: column; }
       }
     </style>
   </head>
@@ -221,51 +78,47 @@
       <div class="tabs">
         <button class="tab-btn active" id="tab-btn-main" type="button">General</button>
         <button class="tab-btn" id="tab-btn-gpu" type="button">GPU AMD</button>
-        <button class="tab-btn" id="tab-btn-fans" type="button">Fans</button>
-        <button class="tab-btn" id="tab-btn-db" type="button">DB</button>
       </div>
 
       <section class="tab active" id="tab-main">
-      <div class="grid">
-        <div class="panel">
-          <div class="label">CPU usage</div>
-          <div class="value" id="cpu-pct">-</div>
-          <div class="row"><span>Temp</span><span id="cpu-temp">-</span></div>
-                            </div>
-
-        <div class="panel">
-          <div class="label">Memory</div>
-          <div class="value" id="mem-pct">-</div>
-          <div class="row"><span>Used</span><span id="mem-used">-</span></div>
-          <div class="row"><span>Total</span><span id="mem-total">-</span></div>
-        </div>
-
-        <div class="panel">
-          <div class="label">GPU usage</div>
-          <div class="value" id="gpu-pct">-</div>
-          <div class="row"><span>Temp</span><span id="gpu-temp">-</span></div>
-          <div class="row"><span>Power</span><span id="gpu-power">-</span></div>
-        </div>
-      </div>
-
-      <div class="charts">
-        <div class="panel">
-          <div class="label">History CPU/GPU %</div>
-          <canvas id="usage-chart" width="500" height="160"></canvas>
-          <div class="legend">
-            <span><span class="dot ok" style="background: var(--cpu)"></span>CPU %</span>
-            <span><span class="dot ok" style="background: var(--gpu)"></span>GPU %</span>
+        <div class="grid">
+          <div class="panel">
+            <div class="label">CPU usage</div>
+            <div class="value" id="cpu-pct">-</div>
+            <div class="row"><span>Temp</span><span id="cpu-temp">-</span></div>
+          </div>
+          <div class="panel">
+            <div class="label">Memory</div>
+            <div class="value" id="mem-pct">-</div>
+            <div class="row"><span>Used</span><span id="mem-used">-</span></div>
+            <div class="row"><span>Total</span><span id="mem-total">-</span></div>
+          </div>
+          <div class="panel">
+            <div class="label">GPU usage</div>
+            <div class="value" id="gpu-pct">-</div>
+            <div class="row"><span>Temp</span><span id="gpu-temp">-</span></div>
+            <div class="row"><span>Power</span><span id="gpu-power">-</span></div>
           </div>
         </div>
-        <div class="panel">
-          <div class="label">History CPU/GPU temperature</div>
-          <canvas id="temp-chart" width="500" height="160"></canvas>
-          <div class="legend">
-            <span><span class="dot ok" style="background: var(--temp)"></span>CPU °C</span>
-            <span><span class="dot ok" style="background: #f66151"></span>GPU °C</span>
+
+        <div class="charts">
+          <div class="panel">
+            <div class="label">History CPU/GPU %</div>
+            <canvas id="usage-chart" width="500" height="160"></canvas>
+            <div class="legend">
+              <span><span class="dot" style="background: var(--cpu)"></span>CPU %</span>
+              <span><span class="dot" style="background: var(--gpu)"></span>GPU %</span>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="label">History CPU/GPU temperature</div>
+            <canvas id="temp-chart" width="500" height="160"></canvas>
+            <div class="legend">
+              <span><span class="dot" style="background: var(--temp)"></span>CPU °C</span>
+              <span><span class="dot" style="background: var(--gpu)"></span>GPU °C</span>
+            </div>
           </div>
         </div>
-      </div>
       </section>
 
       <section class="tab" id="tab-gpu">
@@ -283,80 +136,11 @@
             <div class="row"><span>Total</span><span id="gpu2-vram-total">-</span></div>
           </div>
           <div class="panel">
-            <div class="label">Thermals & Fan</div>
+            <div class="label">Thermals & GPU fan</div>
             <div class="value" id="gpu2-temp">-</div>
             <div class="row"><span>Power</span><span id="gpu2-power">-</span></div>
-            <div class="row"><span>Fan</span><span id="gpu2-fan">-</span></div>
+            <div class="row"><span>GPU fan</span><span id="gpu2-fan">-</span></div>
           </div>
-        </div>
-      </section>
-
-      <section class="tab" id="tab-fans">
-        <div class="panel" style="margin-bottom: 12px">
-          <div class="label">Fans mode</div>
-          <div class="tabs" style="margin-top: 8px; margin-bottom: 0">
-            <button class="tab-btn active" id="fans-mode-dashboard" type="button">Display</button>
-            <button class="tab-btn" id="fans-mode-meta" type="button">Diagnostic</button>
-            <button class="tab-btn" id="fans-mode-config" type="button">Config</button>
-          </div>
-        </div>
-
-        <div class="panel" style="margin-bottom: 12px">
-          <div class="label">Fans dashboard (active only)</div>
-          <div id="fans-dashboard-list" class="meta" style="margin-top: 8px">-</div>
-        </div>
-
-        <div class="panel" id="fans-meta-panel" style="display: none">
-          <div class="label">Fans technical channels</div>
-          <div id="fans-meta-list" class="meta" style="margin-top: 8px">-</div>
-        </div>
-
-        <div class="panel" id="fans-config-panel" style="display: none">
-          <div class="label">Fans configuration</div>
-          <div id="fans-config-path" class="meta" style="margin-top: 6px">mapping: -</div>
-          <div id="fans-config-bootstrap" class="meta" style="margin-top: 6px"></div>
-          <div id="fans-config-list" class="meta" style="margin-top: 10px">-</div>
-          <div style="margin-top: 12px">
-            <button class="tab-btn" id="fans-config-save" type="button">Save config</button>
-          </div>
-        </div>
-      </section>
-
-      <section class="tab" id="tab-db">
-        <div class="panel" style="margin-bottom: 12px">
-          <div class="label">SQLite source</div>
-          <div id="db-path" class="meta" style="margin-top: 8px">-</div>
-        </div>
-        <div class="panel" style="margin-bottom: 12px">
-          <div class="label">Gestion fan_mappings (CRUD)</div>
-          <div class="meta" style="margin-top: 6px">Ajouter, modifier, suppression soft (masque) et hard (definitive).</div>
-          <div style="margin-top: 10px; display:flex; gap:8px; flex-wrap:wrap">
-            <button class="tab-btn" id="db-fan-add" type="button">Ajouter ventilateur</button>
-            <button class="tab-btn" id="db-fan-refresh" type="button">Rafraichir</button>
-          </div>
-          <div id="db-fan-manager-list" class="meta" style="margin-top: 10px">-</div>
-        </div>
-        <div class="panel" style="margin-bottom: 12px">
-          <div class="label">fan_mappings</div>
-          <div id="db-fans-count" class="meta" style="margin-top: 6px">count: 0</div>
-          <pre id="db-fans-json">[]</pre>
-        </div>
-        <div class="panel">
-          <div class="label">user_settings</div>
-          <div id="db-settings-count" class="meta" style="margin-top: 6px">keys: 0</div>
-          <pre id="db-settings-json">{}</pre>
-        </div>
-        <div class="panel" style="margin-top: 12px">
-          <div class="label">Reference catalog (brand / series / model)</div>
-          <input
-            id="db-reference-filter"
-            type="text"
-            placeholder="Filter brand / series / model..."
-            class="input"
-            style="margin-top:8px;max-width:420px"
-          />
-          <div id="db-reference-count" class="meta" style="margin-top: 6px">items: 0</div>
-          <div id="db-reference-list" class="meta" style="margin-top: 8px">-</div>
         </div>
       </section>
 
@@ -369,7 +153,6 @@
       const HISTORY_STEP_S = 1;
       const HISTORY_MODE = "display";
       const HISTORY_RESYNC_MS = 30000;
-      const HISTORY_DEBUG = false;
       const DASHBOARD_POLL_MS = 1000;
       const HISTORY_POLL_MS = 1000;
 
@@ -383,17 +166,6 @@
         gpuPct: document.getElementById("gpu-pct"),
         gpuTemp: document.getElementById("gpu-temp"),
         gpuPower: document.getElementById("gpu-power"),
-        status: document.getElementById("status-line"),
-        usageChart: document.getElementById("usage-chart"),
-        tempChart: document.getElementById("temp-chart"),
-        tabBtnMain: document.getElementById("tab-btn-main"),
-        tabBtnGpu: document.getElementById("tab-btn-gpu"),
-        tabBtnFans: document.getElementById("tab-btn-fans"),
-        tabBtnDb: document.getElementById("tab-btn-db"),
-        tabMain: document.getElementById("tab-main"),
-        tabGpu: document.getElementById("tab-gpu"),
-        tabFans: document.getElementById("tab-fans"),
-        tabDb: document.getElementById("tab-db"),
         gpu2Pct: document.getElementById("gpu2-pct"),
         gpu2Core: document.getElementById("gpu2-core"),
         gpu2MemClock: document.getElementById("gpu2-memclock"),
@@ -403,354 +175,53 @@
         gpu2Temp: document.getElementById("gpu2-temp"),
         gpu2Power: document.getElementById("gpu2-power"),
         gpu2Fan: document.getElementById("gpu2-fan"),
-        fansModeDashboard: document.getElementById("fans-mode-dashboard"),
-        fansModeMeta: document.getElementById("fans-mode-meta"),
-        fansModeConfig: document.getElementById("fans-mode-config"),
-        fansDashboardList: document.getElementById("fans-dashboard-list"),
-        fansMetaPanel: document.getElementById("fans-meta-panel"),
-        fansMetaList: document.getElementById("fans-meta-list"),
-        fansConfigPanel: document.getElementById("fans-config-panel"),
-        fansConfigPath: document.getElementById("fans-config-path"),
-        fansConfigBootstrap: document.getElementById("fans-config-bootstrap"),
-        fansConfigList: document.getElementById("fans-config-list"),
-        fansConfigSave: document.getElementById("fans-config-save"),
-        dbPath: document.getElementById("db-path"),
-        dbFanAdd: document.getElementById("db-fan-add"),
-        dbFanRefresh: document.getElementById("db-fan-refresh"),
-        dbFanManagerList: document.getElementById("db-fan-manager-list"),
-        dbFansCount: document.getElementById("db-fans-count"),
-        dbFansJson: document.getElementById("db-fans-json"),
-        dbSettingsCount: document.getElementById("db-settings-count"),
-        dbSettingsJson: document.getElementById("db-settings-json"),
-        dbReferenceFilter: document.getElementById("db-reference-filter"),
-        dbReferenceCount: document.getElementById("db-reference-count"),
-        dbReferenceList: document.getElementById("db-reference-list"),
+        usageChart: document.getElementById("usage-chart"),
+        tempChart: document.getElementById("temp-chart"),
+        status: document.getElementById("status-line"),
+        tabBtnMain: document.getElementById("tab-btn-main"),
+        tabBtnGpu: document.getElementById("tab-btn-gpu"),
+        tabMain: document.getElementById("tab-main"),
+        tabGpu: document.getElementById("tab-gpu"),
       };
 
-      let lastDashboardTs = null;
-      let lastHistoryTs = null;
-      let gpuDashboardInFlight = false;
-      let fansInFlight = false;
-      let dashboardInFlight = false;
-      let historyInFlight = false;
-      let dbInFlight = false;
-      let fansMode = "dashboard";
-      let fansConfigBootstrapped = false;
-      let fansConfigLoaded = false;
-      let allowedFanRoles = ["unknown"];
-      let fanReferenceItems = [];
-      const fanReferenceMap = new Map();
-      let lastFansDashboardSignature = "";
-      let lastFansMetaSignature = "";
-      let lastFansConfigSignature = "";
-      let lastDbSignature = "";
-      let lastDbReferenceSignature = "";
-      let dbReferenceItems = [];
-      let dbFanItems = [];
-      let lastDbFansManagerSignature = "";
       const historyState = {
         ts_ms: [],
-        series: {
-          cpu_pct: [],
-          cpu_temp_c: [],
-          gpu_pct: [],
-          gpu_temp_c: [],
-        },
+        cpu_pct: [],
+        cpu_temp_c: [],
+        gpu_pct: [],
+        gpu_temp_c: [],
         lastResyncAtMs: 0,
       };
 
-      function fmtPct(v) {
-        return v === null || v === undefined ? "null" : `${v.toFixed(1)}%`;
-      }
+      let dashboardInFlight = false;
+      let gpuDashboardInFlight = false;
+      let historyInFlight = false;
+      let lastDashboardTs = null;
+      let lastHistoryTs = null;
 
-      function fmtC(v) {
-        return v === null || v === undefined ? "null" : `${v.toFixed(1)} °C`;
-      }
-
-      function fmtW(v) {
-        return v === null || v === undefined ? "null" : `${v.toFixed(1)} W`;
-      }
-
-      function fmtBytes(b) {
-        if (b === null || b === undefined) return "null";
-        const gb = b / (1024 ** 3);
-        return `${gb.toFixed(1)} GiB`;
-      }
-
-      function fmtMHz(v) {
-        if (v === null || v === undefined) return "null";
-        return v >= 1000 ? `${(v / 1000).toFixed(2)} GHz` : `${v.toFixed(0)} MHz`;
-      }
-
-      function fmtRPM(v) {
-        return v === null || v === undefined ? "null" : `${v.toFixed(0)} RPM`;
-      }
-
-      function setTab(tab) {
-        const isMain = tab === "main";
-        const isGpu = tab === "gpu";
-        const isFans = tab === "fans";
-        const isDb = tab === "db";
-        el.tabMain.classList.toggle("active", isMain);
-        el.tabGpu.classList.toggle("active", isGpu);
-        el.tabFans.classList.toggle("active", isFans);
-        el.tabDb.classList.toggle("active", isDb);
-        el.tabBtnMain.classList.toggle("active", isMain);
-        el.tabBtnGpu.classList.toggle("active", isGpu);
-        el.tabBtnFans.classList.toggle("active", isFans);
-        el.tabBtnDb.classList.toggle("active", isDb);
-        if (isDb) {
-          void tickDb();
+      function metricDisplay(metric, suffix = "") {
+        if (!metric || metric.valid !== true || metric.value_display === null || metric.value_display === undefined) {
+          return "-";
         }
+        return `${metric.value_display}${suffix}`;
       }
 
-      function setFansMode(mode) {
-        const previousMode = fansMode;
-        fansMode = mode === "meta" || mode === "config" ? mode : "dashboard";
-        const metaMode = fansMode === "meta";
-        const configMode = fansMode === "config";
-        el.fansModeDashboard.classList.toggle("active", !metaMode && !configMode);
-        el.fansModeMeta.classList.toggle("active", metaMode);
-        el.fansModeConfig.classList.toggle("active", configMode);
-        el.fansMetaPanel.style.display = metaMode ? "block" : "none";
-        el.fansConfigPanel.style.display = configMode ? "block" : "none";
-        if (configMode && previousMode !== "config") {
-          void loadFansConfigOnDemand();
+      function bytesDisplay(metric) {
+        if (!metric || metric.valid !== true || metric.value_display === null || metric.value_display === undefined) {
+          return "-";
         }
+        const value = Number(metric.value_display);
+        if (!Number.isFinite(value)) return "-";
+        const gib = value / (1024 ** 3);
+        return `${gib.toFixed(2)} GiB`;
       }
 
-      async function loadFansConfigOnDemand(force = false) {
-        if (fansMode !== "config") return;
-        if (!force && fansConfigLoaded) return;
-        await fetchFansConfig();
-        fansConfigLoaded = true;
-      }
-
-      function roleSelectHtml(currentRole, idx) {
-        const options = allowedFanRoles.map((role) => {
-          const selected = role === currentRole ? "selected" : "";
-          return `<option value="${escapeHtml(role)}" ${selected}>${escapeHtml(role)}</option>`;
-        });
-        return `<select data-field="role" data-index="${idx}">${options.join("")}</select>`;
-      }
-
-      function referenceSelectHtml(currentReferenceId, idx) {
-        const opts = ["<option value=\"\">(none)</option>"];
-        for (const item of fanReferenceItems) {
-          const selected = item.id === currentReferenceId ? "selected" : "";
-          const label = `${item.brand} / ${item.series} / ${item.model}`;
-          opts.push(`<option value="${escapeHtml(item.id)}" ${selected}>${escapeHtml(label)}</option>`);
-        }
-        return `<select data-field="reference_id" data-index="${idx}">${opts.join("")}</select>`;
-      }
-
-      function fanConfigRowHtml(mapping, idx) {
-        const checked = mapping.enabled ? "checked" : "";
-        const role = String(mapping.role || "unknown");
-        const refId = String(mapping.reference_id || "");
-        const rpmMin = mapping.rpm_min ?? "";
-        const rpmMax = mapping.rpm_max ?? "";
-        return `<div class="row" style="display:grid;grid-template-columns:44px 1fr 120px 70px 1fr 1fr 90px 90px;gap:8px;align-items:center;">
-          <input data-field="enabled" data-index="${idx}" type="checkbox" ${checked} />
-          <input data-field="label" data-index="${idx}" type="text" value="${escapeHtml(mapping.label || "")}" />
-          ${roleSelectHtml(role, idx)}
-          <input data-field="order" data-index="${idx}" type="number" value="${Number(mapping.order || 100)}" />
-          ${referenceSelectHtml(refId, idx)}
-          <span class="meta">${escapeHtml((mapping.match?.hwmon_name || "?") + ":" + (mapping.match?.channel || "?") + " / " + (mapping.match?.group || "?"))}</span>
-          <input data-field="rpm_min" data-index="${idx}" type="number" value="${rpmMin}" />
-          <input data-field="rpm_max" data-index="${idx}" type="number" value="${rpmMax}" />
-          <input data-field="match-hwmon" data-index="${idx}" type="hidden" value="${escapeHtml(mapping.match?.hwmon_name || "")}" />
-          <input data-field="match-channel" data-index="${idx}" type="hidden" value="${escapeHtml(mapping.match?.channel || "")}" />
-          <input data-field="match-group" data-index="${idx}" type="hidden" value="${escapeHtml(mapping.match?.group || "")}" />
-        </div>`;
-      }
-
-      function readFansConfigFormRows() {
-        const rows = [];
-        const labels = el.fansConfigList.querySelectorAll("input[data-field='label']");
-        for (const labelInput of labels) {
-          const idx = Number(labelInput.dataset.index || "-1");
-          if (idx < 0) continue;
-          const roleInput = el.fansConfigList.querySelector(`select[data-field='role'][data-index='${idx}']`);
-          const orderInput = el.fansConfigList.querySelector(`input[data-field='order'][data-index='${idx}']`);
-          const refInput = el.fansConfigList.querySelector(`select[data-field='reference_id'][data-index='${idx}']`);
-          const rpmMinInput = el.fansConfigList.querySelector(`input[data-field='rpm_min'][data-index='${idx}']`);
-          const rpmMaxInput = el.fansConfigList.querySelector(`input[data-field='rpm_max'][data-index='${idx}']`);
-          const enabledInput = el.fansConfigList.querySelector(`input[data-field='enabled'][data-index='${idx}']`);
-          const hwmonInput = el.fansConfigList.querySelector(`input[data-field='match-hwmon'][data-index='${idx}']`);
-          const channelInput = el.fansConfigList.querySelector(`input[data-field='match-channel'][data-index='${idx}']`);
-          const groupInput = el.fansConfigList.querySelector(`input[data-field='match-group'][data-index='${idx}']`);
-          const referenceId = String(refInput?.value || "").trim();
-          const reference = referenceId ? fanReferenceMap.get(referenceId) : null;
-          rows.push({
-            label: String(labelInput.value || "").trim(),
-            role: String(roleInput?.value || "unknown").trim() || "unknown",
-            order: Number(orderInput?.value || "100"),
-            enabled: Boolean(enabledInput?.checked),
-            reference_id: referenceId || null,
-            rpm_min: rpmMinInput?.value ? Number(rpmMinInput.value) : (reference?.rpm_min ?? null),
-            rpm_max: rpmMaxInput?.value ? Number(rpmMaxInput.value) : (reference?.rpm_max ?? null),
-            match: {
-              hwmon_name: String(hwmonInput?.value || "").trim() || null,
-              channel: String(channelInput?.value || "").trim() || null,
-              group: String(groupInput?.value || "").trim() || null,
-            },
-          });
-        }
-        return rows;
-      }
-
-      function bindReferenceAutoFill() {
-        const selects = el.fansConfigList.querySelectorAll("select[data-field='reference_id']");
-        for (const select of selects) {
-          select.addEventListener("change", () => {
-            const idx = select.dataset.index;
-            if (!idx) return;
-            const refId = String(select.value || "").trim();
-            const ref = refId ? fanReferenceMap.get(refId) : null;
-            const rpmMinInput = el.fansConfigList.querySelector(`input[data-field='rpm_min'][data-index='${idx}']`);
-            const rpmMaxInput = el.fansConfigList.querySelector(`input[data-field='rpm_max'][data-index='${idx}']`);
-            if (rpmMinInput) rpmMinInput.value = ref && ref.rpm_min !== null && ref.rpm_min !== undefined ? String(ref.rpm_min) : "";
-            if (rpmMaxInput) rpmMaxInput.value = ref && ref.rpm_max !== null && ref.rpm_max !== undefined ? String(ref.rpm_max) : "";
-          });
-        }
-      }
-
-      function escapeHtml(value) {
-        return String(value)
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll("\"", "&quot;");
-      }
-
-      function statusDot(level) {
-        return `<span class="dot ${level}"></span>`;
-      }
-
-      function metricDisplay(metric) {
-        if (metric && typeof metric === "object" && "value_display" in metric) {
-          return metric.value_display;
-        }
-        return metric;
-      }
-
-      function metricValid(metric) {
-        if (metric && typeof metric === "object" && "valid" in metric) {
-          return Boolean(metric.valid);
-        }
-        return metric !== null && metric !== undefined;
-      }
-
-      function historyDebug(message, extra = {}) {
-        if (!HISTORY_DEBUG) return;
-        console.debug(`[history] ${message}`, extra);
-      }
-
-      function maxHistoryPoints() {
-        return Math.max(1, Math.floor(HISTORY_WINDOW_S / HISTORY_STEP_S) + 1);
-      }
-
-      function normalizeHistoryPayload(historyPayload) {
-        const tsMs = Array.isArray(historyPayload?.ts_ms) ? historyPayload.ts_ms : [];
-        const cpuPct = Array.isArray(historyPayload?.series?.cpu_pct) ? historyPayload.series.cpu_pct : [];
-        const cpuTemp = Array.isArray(historyPayload?.series?.cpu_temp_c) ? historyPayload.series.cpu_temp_c : [];
-        const gpuPct = Array.isArray(historyPayload?.series?.gpu_pct) ? historyPayload.series.gpu_pct : [];
-        const gpuTemp = Array.isArray(historyPayload?.series?.gpu_temp_c) ? historyPayload.series.gpu_temp_c : [];
-
-        const n = Math.min(tsMs.length, cpuPct.length, cpuTemp.length, gpuPct.length, gpuTemp.length);
-        return {
-          ts_ms: tsMs.slice(0, n),
-          series: {
-            cpu_pct: cpuPct.slice(0, n),
-            cpu_temp_c: cpuTemp.slice(0, n),
-            gpu_pct: gpuPct.slice(0, n),
-            gpu_temp_c: gpuTemp.slice(0, n),
-          },
-        };
-      }
-
-      function replaceHistoryState(historyPayload, reason) {
-        const normalized = normalizeHistoryPayload(historyPayload);
-        historyState.ts_ms = normalized.ts_ms;
-        historyState.series.cpu_pct = normalized.series.cpu_pct;
-        historyState.series.cpu_temp_c = normalized.series.cpu_temp_c;
-        historyState.series.gpu_pct = normalized.series.gpu_pct;
-        historyState.series.gpu_temp_c = normalized.series.gpu_temp_c;
-        historyState.lastResyncAtMs = Date.now();
-        trimHistoryState();
-        historyDebug("state replaced", { reason, points: historyState.ts_ms.length });
-      }
-
-      function trimHistoryState() {
-        const keep = maxHistoryPoints();
-        if (historyState.ts_ms.length <= keep) return;
-        const start = historyState.ts_ms.length - keep;
-        historyState.ts_ms = historyState.ts_ms.slice(start);
-        historyState.series.cpu_pct = historyState.series.cpu_pct.slice(start);
-        historyState.series.cpu_temp_c = historyState.series.cpu_temp_c.slice(start);
-        historyState.series.gpu_pct = historyState.series.gpu_pct.slice(start);
-        historyState.series.gpu_temp_c = historyState.series.gpu_temp_c.slice(start);
-      }
-
-      function appendHistoryDelta(historyPayload) {
-        const normalized = normalizeHistoryPayload(historyPayload);
-        if (normalized.ts_ms.length === 0) {
-          return 0;
-        }
-
-        const lastTs = historyState.ts_ms.length > 0 ? historyState.ts_ms[historyState.ts_ms.length - 1] : null;
-        if (lastTs !== null && normalized.ts_ms[0] <= lastTs) {
-          replaceHistoryState(historyPayload, "server_full_fallback");
-          return historyState.ts_ms.length;
-        }
-
-        let appended = 0;
-        for (let i = 0; i < normalized.ts_ms.length; i++) {
-          const ts = normalized.ts_ms[i];
-          const currentLastTs = historyState.ts_ms.length > 0 ? historyState.ts_ms[historyState.ts_ms.length - 1] : null;
-          if (currentLastTs !== null && ts <= currentLastTs) {
-            continue;
-          }
-          historyState.ts_ms.push(ts);
-          historyState.series.cpu_pct.push(normalized.series.cpu_pct[i]);
-          historyState.series.cpu_temp_c.push(normalized.series.cpu_temp_c[i]);
-          historyState.series.gpu_pct.push(normalized.series.gpu_pct[i]);
-          historyState.series.gpu_temp_c.push(normalized.series.gpu_temp_c[i]);
-          appended++;
-        }
-        trimHistoryState();
-        historyDebug("delta appended", { appended, total: historyState.ts_ms.length });
-        return appended;
-      }
-
-      function drawHistoryCharts() {
-        drawSeries(
-          el.usageChart,
-          historyState.ts_ms,
-          [
-            { values: historyState.series.cpu_pct, color: getComputedStyle(document.documentElement).getPropertyValue("--cpu") },
-            { values: historyState.series.gpu_pct, color: getComputedStyle(document.documentElement).getPropertyValue("--gpu") },
-          ],
-          0,
-          100,
-          "%",
-        );
-
-        const allTemps = [...historyState.series.cpu_temp_c, ...historyState.series.gpu_temp_c].filter(v => v !== null);
-        const minT = allTemps.length ? Math.min(...allTemps) - 2 : 20;
-        const maxT = allTemps.length ? Math.max(...allTemps) + 2 : 90;
-        drawSeries(
-          el.tempChart,
-          historyState.ts_ms,
-          [
-            { values: historyState.series.cpu_temp_c, color: getComputedStyle(document.documentElement).getPropertyValue("--temp") },
-            { values: historyState.series.gpu_temp_c, color: "#f66151" },
-          ],
-          minT,
-          maxT,
-          "°",
-        );
+      function setTab(name) {
+        const main = name === "main";
+        el.tabMain.classList.toggle("active", main);
+        el.tabGpu.classList.toggle("active", !main);
+        el.tabBtnMain.classList.toggle("active", main);
+        el.tabBtnGpu.classList.toggle("active", !main);
       }
 
       function buildHistoryUrl(forceFull) {
@@ -759,551 +230,151 @@
           step: String(HISTORY_STEP_S),
           mode: HISTORY_MODE,
         });
-        if (!forceFull) {
-          const lastTs = historyState.ts_ms.length > 0 ? historyState.ts_ms[historyState.ts_ms.length - 1] : null;
-          if (lastTs !== null) {
-            params.set("since_ts_ms", String(lastTs));
-          }
+        const lastTs = historyState.ts_ms.at(-1);
+        if (!forceFull && Number.isFinite(lastTs)) {
+          params.set("since_ts_ms", String(lastTs));
         }
         return `${API}/history?${params.toString()}`;
       }
 
-      function drawSeries(canvas, tsMs, seriesList, minY, maxY, unitLabel) {
+      function normalizeHistory(historyPayload) {
+        const ts = Array.isArray(historyPayload?.ts_ms) ? historyPayload.ts_ms : [];
+        const series = historyPayload?.series || {};
+        const fields = ["cpu_pct", "cpu_temp_c", "gpu_pct", "gpu_temp_c"];
+        const out = { ts_ms: ts };
+        for (const field of fields) {
+          const values = Array.isArray(series[field]) ? series[field] : [];
+          out[field] = ts.map((_, index) => values[index] ?? null);
+        }
+        return out;
+      }
+
+      function replaceHistoryState(payload) {
+        const normalized = normalizeHistory(payload);
+        Object.assign(historyState, normalized);
+        historyState.lastResyncAtMs = Date.now();
+      }
+
+      function appendHistoryDelta(payload) {
+        const normalized = normalizeHistory(payload);
+        let appended = 0;
+        const currentLast = historyState.ts_ms.at(-1) ?? -1;
+        for (let i = 0; i < normalized.ts_ms.length; i += 1) {
+          const ts = normalized.ts_ms[i];
+          if (!Number.isFinite(ts) || ts <= currentLast) continue;
+          historyState.ts_ms.push(ts);
+          historyState.cpu_pct.push(normalized.cpu_pct[i]);
+          historyState.cpu_temp_c.push(normalized.cpu_temp_c[i]);
+          historyState.gpu_pct.push(normalized.gpu_pct[i]);
+          historyState.gpu_temp_c.push(normalized.gpu_temp_c[i]);
+          appended += 1;
+        }
+        const maxPoints = Math.max(2, Math.ceil(HISTORY_WINDOW_S / HISTORY_STEP_S) + 2);
+        for (const field of ["ts_ms", "cpu_pct", "cpu_temp_c", "gpu_pct", "gpu_temp_c"]) {
+          if (historyState[field].length > maxPoints) {
+            historyState[field].splice(0, historyState[field].length - maxPoints);
+          }
+        }
+        return appended;
+      }
+
+      function drawChart(canvas, series, minValue, maxValue) {
         const ctx = canvas.getContext("2d");
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        const padLeft = 44;
-        const padRight = 12;
-        const padTop = 12;
-        const padBottom = 24;
-        const w = canvas.width - padLeft - padRight;
-        const h = canvas.height - padTop - padBottom;
-
-        ctx.strokeStyle = "#2a3140";
+        const width = canvas.width;
+        const height = canvas.height;
+        ctx.clearRect(0, 0, width, height);
+        ctx.strokeStyle = "#253047";
         ctx.lineWidth = 1;
-        for (let i = 0; i <= 5; i++) {
-          const y = padTop + (h * i) / 5;
+        for (let i = 1; i < 4; i += 1) {
+          const y = (height * i) / 4;
           ctx.beginPath();
-          ctx.moveTo(padLeft, y);
-          ctx.lineTo(padLeft + w, y);
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
           ctx.stroke();
         }
-        for (let i = 0; i <= 5; i++) {
-          const x = padLeft + (w * i) / 5;
-          ctx.beginPath();
-          ctx.moveTo(x, padTop);
-          ctx.lineTo(x, padTop + h);
-          ctx.stroke();
-        }
-
-        ctx.fillStyle = "#8ea0bd";
-        ctx.font = "11px IBM Plex Sans, Segoe UI, sans-serif";
-        ctx.textAlign = "right";
-        ctx.textBaseline = "middle";
-        for (let i = 0; i <= 5; i++) {
-          const y = padTop + (h * i) / 5;
-          const v = maxY - ((maxY - minY) * i) / 5;
-          ctx.fillText(`${v.toFixed(0)}${unitLabel}`, padLeft - 6, y);
-        }
-
-        const safeTs = Array.isArray(tsMs) ? tsMs : [];
-        const pointsCount = safeTs.length;
-        const firstTs = pointsCount > 0 ? safeTs[0] : Date.now();
-        const lastTs = pointsCount > 0 ? safeTs[pointsCount - 1] : firstTs;
-        const rangeTs = Math.max(1, lastTs - firstTs);
-
-        ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-        for (let i = 0; i <= 5; i++) {
-          const x = padLeft + (w * i) / 5;
-          const targetTs = firstTs + (rangeTs * i) / 5;
-          const secAgo = Math.max(0, Math.round((lastTs - targetTs) / 1000));
-          ctx.fillText(secAgo === 0 ? "now" : `-${secAgo}s`, x, padTop + h + 4);
-        }
-
-        for (const s of seriesList) {
-          const values = s.values || [];
-          const n = Math.min(values.length, safeTs.length);
-          if (n < 2) continue;
-
-          ctx.strokeStyle = s.color;
+        const count = Math.max(2, ...series.map((item) => item.values.length));
+        for (const item of series) {
+          ctx.strokeStyle = item.color;
           ctx.lineWidth = 2;
           ctx.beginPath();
-
           let started = false;
-          for (let i = 0; i < n; i++) {
-            const v = values[i];
-            const ts = safeTs[i];
-            if (v === null || Number.isNaN(v)) {
+          item.values.forEach((value, index) => {
+            if (value === null || value === undefined || !Number.isFinite(Number(value))) {
               started = false;
-              continue;
+              return;
             }
-            const x = padLeft + ((ts - firstTs) / rangeTs) * w;
-            const y = padTop + (1 - (v - minY) / (maxY - minY || 1)) * h;
+            const ratio = Math.max(0, Math.min(1, (Number(value) - minValue) / (maxValue - minValue)));
+            const x = (index / (count - 1)) * width;
+            const y = height - ratio * height;
             if (!started) {
               ctx.moveTo(x, y);
               started = true;
             } else {
               ctx.lineTo(x, y);
             }
-          }
+          });
           ctx.stroke();
         }
+      }
+
+      function drawHistoryCharts() {
+        drawChart(el.usageChart, [
+          { values: historyState.cpu_pct, color: "#62a0ea" },
+          { values: historyState.gpu_pct, color: "#f66151" },
+        ], 0, 100);
+        drawChart(el.tempChart, [
+          { values: historyState.cpu_temp_c, color: "#ffb84d" },
+          { values: historyState.gpu_temp_c, color: "#f66151" },
+        ], 0, 110);
       }
 
       async function fetchDashboard() {
         const r = await fetch(`${API}/dashboard`, { cache: "no-store" });
         if (!r.ok) throw new Error(`dashboard ${r.status}`);
         const d = await r.json();
-
         lastDashboardTs = d.ts;
-        el.hostMeta.textContent = `host: ${d.host} | v=${d.v} | ts=${d.ts}`;
-
-        el.cpuPct.textContent = fmtPct(metricDisplay(d.cpu.pct));
-        el.cpuTemp.textContent = fmtC(metricDisplay(d.cpu.temp_c));
-
-        el.memPct.textContent = fmtPct(metricDisplay(d.mem.pct));
-        el.memUsed.textContent = fmtBytes(metricDisplay(d.mem.used_b));
-        el.memTotal.textContent = fmtBytes(metricDisplay(d.mem.total_b));
-
-        el.gpuPct.textContent = fmtPct(metricDisplay(d.gpu.pct));
-        el.gpuTemp.textContent = fmtC(metricDisplay(d.gpu.temp_c));
-        el.gpuPower.textContent = fmtW(metricDisplay(d.gpu.power_w));
-
-        const stale = d.state.stale_ms;
-        const level = stale < 2000 ? "ok" : stale < 7000 ? "warn" : "bad";
-        const validMetrics = [
-          d.cpu.pct,
-          d.cpu.temp_c,
-          d.cpu.power_w,
-          d.gpu.pct,
-          d.gpu.temp_c,
-          d.gpu.power_w,
-        ].filter(metricValid).length;
-        el.status.innerHTML = `${statusDot(level)}dashboard ts=${d.ts} | stale=${stale} ms | valid=${validMetrics}/6`;
+        el.hostMeta.textContent = `host: ${d.host || "-"}`;
+        el.cpuPct.textContent = metricDisplay(d.cpu?.pct, "%");
+        el.cpuTemp.textContent = metricDisplay(d.cpu?.temp_c, " °C");
+        el.memPct.textContent = metricDisplay(d.mem?.pct, "%");
+        el.memUsed.textContent = bytesDisplay(d.mem?.used_b);
+        el.memTotal.textContent = bytesDisplay(d.mem?.total_b);
+        el.gpuPct.textContent = metricDisplay(d.gpu?.pct, "%");
+        el.gpuTemp.textContent = metricDisplay(d.gpu?.temp_c, " °C");
+        el.gpuPower.textContent = metricDisplay(d.gpu?.power_w, " W");
       }
 
       async function fetchGpuDashboard() {
         const r = await fetch(`${API}/gpu/dashboard`, { cache: "no-store" });
         if (!r.ok) throw new Error(`gpu_dashboard ${r.status}`);
         const d = await r.json();
-        const g = d.gpu;
-
-        const fanDisplay = metricValid(g.fan_rpm) ? fmtRPM(metricDisplay(g.fan_rpm)) : "N/A";
-
-        el.gpu2Pct.textContent = metricValid(g.pct) ? fmtPct(metricDisplay(g.pct)) : "N/A";
-        el.gpu2Core.textContent = metricValid(g.core_clock_mhz) ? fmtMHz(metricDisplay(g.core_clock_mhz)) : "N/A";
-        el.gpu2MemClock.textContent = metricValid(g.mem_clock_mhz) ? fmtMHz(metricDisplay(g.mem_clock_mhz)) : "N/A";
-        el.gpu2VramPct.textContent = metricValid(g.vram_pct) ? fmtPct(metricDisplay(g.vram_pct)) : "N/A";
-        el.gpu2VramUsed.textContent = metricValid(g.vram_used_b) ? fmtBytes(metricDisplay(g.vram_used_b)) : "N/A";
-        el.gpu2VramTotal.textContent = metricValid(g.vram_total_b) ? fmtBytes(metricDisplay(g.vram_total_b)) : "N/A";
-        el.gpu2Temp.textContent = metricValid(g.temp_c) ? fmtC(metricDisplay(g.temp_c)) : "N/A";
-        el.gpu2Power.textContent = metricValid(g.power_w) ? fmtW(metricDisplay(g.power_w)) : "N/A";
-        el.gpu2Fan.textContent = fanDisplay;
-      }
-
-      async function fetchFansDashboard() {
-        const r = await fetch(`${API}/fans/dashboard`, { cache: "no-store" });
-        if (!r.ok) throw new Error(`fans_dashboard ${r.status}`);
-        const d = await r.json();
-        const signature = JSON.stringify(Array.isArray(d.fans) ? d.fans : []);
-        if (signature === lastFansDashboardSignature) {
-          return;
-        }
-        lastFansDashboardSignature = signature;
-        if (!Array.isArray(d.fans) || d.fans.length === 0) {
-          el.fansDashboardList.innerHTML = `<div>no active fans</div>`;
-          return;
-        }
-
-        const grouped = new Map();
-        for (const fan of d.fans) {
-          const role = fan.role || "unknown";
-          if (!grouped.has(role)) grouped.set(role, []);
-          grouped.get(role).push(fan);
-        }
-
-        const sections = [];
-        for (const [role, fans] of grouped.entries()) {
-          const rows = fans.map((fan) => {
-            const pwm = fan.pwm_pct === null || fan.pwm_pct === undefined ? "N/A" : `${fan.pwm_pct}%`;
-            const rpm = fan.rpm === null || fan.rpm === undefined ? "N/A" : `${fan.rpm} RPM`;
-            const pctFans = fan.pct_fans === null || fan.pct_fans === undefined ? "N/A" : `${fan.pct_fans}%`;
-            return `<div class="row"><span>${escapeHtml(fan.label)}</span><span>${rpm} | PWM ${pwm} | Speed ${pctFans}</span></div>`;
-          });
-          sections.push(`<div class="label" style="margin-top: 8px">${escapeHtml(role)}</div>`);
-          sections.push(rows.join(""));
-        }
-
-        el.fansDashboardList.innerHTML = sections.join("");
-      }
-
-      async function fetchFansMeta() {
-        const r = await fetch(`${API}/fans/meta`, { cache: "no-store" });
-        if (!r.ok) throw new Error(`fans_meta ${r.status}`);
-        const d = await r.json();
-        const signature = JSON.stringify(Array.isArray(d.channels) ? d.channels : []);
-        if (signature === lastFansMetaSignature) {
-          return;
-        }
-        lastFansMetaSignature = signature;
-        if (!Array.isArray(d.channels) || d.channels.length === 0) {
-          el.fansMetaList.innerHTML = `<div class="chip">no channels detected</div>`;
-          return;
-        }
-
-        const rows = d.channels.map((ch) => {
-          const state = ch.valid ? "valid" : "invalid";
-          const mapping = ch.mapping && ch.mapping.configured ? `${ch.mapping.label}/${ch.mapping.role}` : "unmapped";
-          const rpm = ch.rpm === null || ch.rpm === undefined ? "N/A" : `${ch.rpm} RPM`;
-          const pwm = ch.pwm_pct === null || ch.pwm_pct === undefined ? "N/A" : `${ch.pwm_pct}%`;
-          return `<div class="row"><span>${escapeHtml(ch.hwmon_name)}:${escapeHtml(ch.channel)} (${mapping})</span><span>${rpm} | PWM ${pwm} | ${state}</span></div>`;
-        });
-        el.fansMetaList.innerHTML = rows.join("");
-      }
-
-      async function fetchFansConfig() {
-        if (fanReferenceItems.length === 0) {
-          await fetchFansReference();
-        }
-        const r = await fetch(`${API}/fans/config`, { cache: "no-store" });
-        if (!r.ok) throw new Error(`fans_config ${r.status}`);
-        const d = await r.json();
-        const signature = JSON.stringify({
-          mapping_path: d.mapping_path || "",
-          allowed_roles: Array.isArray(d.allowed_roles) ? d.allowed_roles : [],
-          mappings: Array.isArray(d.mappings) ? d.mappings : [],
-        });
-        if (signature === lastFansConfigSignature) {
-          return;
-        }
-        lastFansConfigSignature = signature;
-        allowedFanRoles = Array.isArray(d.allowed_roles) && d.allowed_roles.length > 0 ? d.allowed_roles : ["unknown"];
-        const mappings = Array.isArray(d.mappings) ? d.mappings : [];
-        el.fansConfigPath.textContent = `mapping: ${d.mapping_path || "-"}`;
-        if (!fansConfigBootstrapped) {
-          fansConfigBootstrapped = true;
-          el.fansConfigBootstrap.textContent = "first run: mapping generated if missing";
-        }
-        if (mappings.length === 0) {
-          el.fansConfigList.innerHTML = `<div class="chip">no mapping entries</div>`;
-          return;
-        }
-        const header = `<div class="row" style="display:grid;grid-template-columns:44px 1fr 120px 70px 1fr 1fr 90px 90px;gap:8px;align-items:center;">
-          <span class="meta">on</span>
-          <span class="meta">label</span>
-          <span class="meta">role</span>
-          <span class="meta">order</span>
-          <span class="meta">reference</span>
-          <span class="meta">match</span>
-          <span class="meta">rpm min</span>
-          <span class="meta">rpm max</span>
-        </div>`;
-        const rows = mappings.map((mapping, idx) => fanConfigRowHtml(mapping, idx));
-        el.fansConfigList.innerHTML = `${header}${rows.join("")}`;
-        bindReferenceAutoFill();
-      }
-
-      async function saveFansConfig() {
-        const mappings = readFansConfigFormRows();
-        const r = await fetch(`${API}/fans/config`, {
-          method: "PUT",
-          cache: "no-store",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mappings }),
-        });
-        if (!r.ok) throw new Error(`fans_config_put ${r.status}`);
-        fansConfigLoaded = false;
-        await fetchFansConfig();
-        fansConfigLoaded = true;
-      }
-
-      async function fetchFansReference() {
-        const r = await fetch(`${API}/fans/reference`, { cache: "no-store" });
-        if (!r.ok) throw new Error(`fans_reference ${r.status}`);
-        const d = await r.json();
-        fanReferenceItems = Array.isArray(d.items) ? d.items : [];
-        fanReferenceMap.clear();
-        for (const item of fanReferenceItems) {
-          if (item && typeof item.id === "string") {
-            fanReferenceMap.set(item.id, item);
-          }
-        }
-      }
-
-      async function fetchDbData() {
-        const r = await fetch(`${API}/db/data`, { cache: "no-store" });
-        if (!r.ok) throw new Error(`db_data ${r.status}`);
-        const d = await r.json();
-        const fanMappings = Array.isArray(d.fan_mappings) ? d.fan_mappings : [];
-        const userSettings = d.user_settings && typeof d.user_settings === "object" ? d.user_settings : {};
-        const signature = JSON.stringify({ db_path: d.db_path || "", fan_mappings: fanMappings, user_settings: userSettings });
-        if (signature === lastDbSignature) {
-          return;
-        }
-        lastDbSignature = signature;
-        el.dbPath.textContent = `db: ${d.db_path || "-"}`;
-        el.dbFansCount.textContent = `count: ${fanMappings.length}`;
-        el.dbSettingsCount.textContent = `keys: ${Object.keys(userSettings).length}`;
-        el.dbFansJson.textContent = JSON.stringify(fanMappings, null, 2);
-        el.dbSettingsJson.textContent = JSON.stringify(userSettings, null, 2);
-      }
-
-      function dbFanManagerRowHtml(item) {
-        const mapping = item?.mapping || {};
-        const match = mapping.match || {};
-        const deleted = Boolean(item?.deleted);
-        const status = deleted ? "deleted" : (mapping.enabled ? "active" : "disabled");
-        const deletedClass = deleted ? "chip" : "meta";
-        return `<div class="row" style="display:grid;grid-template-columns:56px 1fr 120px 76px 1fr 92px 92px 220px;gap:8px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid #2a3140;">
-          <span class="${deletedClass}">${status}</span>
-          <input class="input" data-db-fan-field="label" data-db-fan-id="${item.id}" type="text" value="${escapeHtml(mapping.label || "")}" />
-          <select class="input" data-db-fan-field="role" data-db-fan-id="${item.id}">
-            ${allowedFanRoles.map((role) => `<option value="${escapeHtml(role)}" ${role === mapping.role ? "selected" : ""}>${escapeHtml(role)}</option>`).join("")}
-          </select>
-          <input class="input" data-db-fan-field="order" data-db-fan-id="${item.id}" type="number" value="${Number(mapping.order || 100)}" />
-          <input class="input" data-db-fan-field="reference_id" data-db-fan-id="${item.id}" type="text" value="${escapeHtml(mapping.reference_id || "")}" placeholder="brand|series|model" />
-          <input class="input" data-db-fan-field="rpm_min" data-db-fan-id="${item.id}" type="number" value="${mapping.rpm_min ?? ""}" />
-          <input class="input" data-db-fan-field="rpm_max" data-db-fan-id="${item.id}" type="number" value="${mapping.rpm_max ?? ""}" />
-          <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
-            <button class="tab-btn" data-db-fan-action="save" data-db-fan-id="${item.id}" type="button">Sauver</button>
-            <button class="tab-btn" data-db-fan-action="${deleted ? "restore" : "soft-delete"}" data-db-fan-id="${item.id}" type="button">${deleted ? "Restore" : "Soft del"}</button>
-            <button class="tab-btn btn-danger" data-db-fan-action="hard-delete" data-db-fan-id="${item.id}" type="button">Hard del</button>
-          </div>
-          <input data-db-fan-field="enabled" data-db-fan-id="${item.id}" type="hidden" value="${mapping.enabled ? "1" : "0"}" />
-          <input data-db-fan-field="match-hwmon" data-db-fan-id="${item.id}" type="hidden" value="${escapeHtml(match.hwmon_name || "")}" />
-          <input data-db-fan-field="match-channel" data-db-fan-id="${item.id}" type="hidden" value="${escapeHtml(match.channel || "")}" />
-          <input data-db-fan-field="match-group" data-db-fan-id="${item.id}" type="hidden" value="${escapeHtml(match.group || "")}" />
-          <input data-db-fan-field="match-path" data-db-fan-id="${item.id}" type="hidden" value="${escapeHtml(match.hwmon_path_contains || "")}" />
-        </div>`;
-      }
-
-      function renderDbFansManager(items) {
-        if (!Array.isArray(items) || items.length === 0) {
-          el.dbFanManagerList.innerHTML = "<div class=\"chip\">aucune entree ventilateur</div>";
-          return;
-        }
-        const header = `<div class="row" style="display:grid;grid-template-columns:56px 1fr 120px 76px 1fr 92px 92px 220px;gap:8px;align-items:center;">
-          <span class="meta">state</span>
-          <span class="meta">label</span>
-          <span class="meta">role</span>
-          <span class="meta">order</span>
-          <span class="meta">reference</span>
-          <span class="meta">rpm min</span>
-          <span class="meta">rpm max</span>
-          <span class="meta">actions</span>
-        </div>`;
-        const rows = items.map((item) => dbFanManagerRowHtml(item));
-        el.dbFanManagerList.innerHTML = `${header}${rows.join("")}`;
-        bindDbFansManagerActions();
-      }
-
-      function readDbFanRow(fanId) {
-        const field = (name) => el.dbFanManagerList.querySelector(`[data-db-fan-field='${name}'][data-db-fan-id='${fanId}']`);
-        const toNumberOrNull = (value) => {
-          if (value === null || value === undefined) return null;
-          const trimmed = String(value).trim();
-          if (trimmed === "") return null;
-          const num = Number(trimmed);
-          return Number.isFinite(num) ? num : null;
-        };
-        const role = String(field("role")?.value || "unknown").trim() || "unknown";
-        return {
-          label: String(field("label")?.value || "").trim(),
-          role: allowedFanRoles.includes(role) ? role : "unknown",
-          order: Number(field("order")?.value || "100"),
-          enabled: String(field("enabled")?.value || "1") === "1",
-          reference_id: String(field("reference_id")?.value || "").trim() || null,
-          rpm_min: toNumberOrNull(field("rpm_min")?.value),
-          rpm_max: toNumberOrNull(field("rpm_max")?.value),
-          match: {
-            hwmon_name: String(field("match-hwmon")?.value || "").trim() || null,
-            channel: String(field("match-channel")?.value || "").trim() || null,
-            group: String(field("match-group")?.value || "").trim() || null,
-            hwmon_path_contains: String(field("match-path")?.value || "").trim() || null,
-          },
-        };
-      }
-
-      function bindDbFansManagerActions() {
-        const buttons = el.dbFanManagerList.querySelectorAll("button[data-db-fan-action]");
-        for (const button of buttons) {
-          button.addEventListener("click", async () => {
-            const fanId = Number(button.dataset.dbFanId || "-1");
-            const action = String(button.dataset.dbFanAction || "");
-            if (!Number.isInteger(fanId) || fanId <= 0 || !action) return;
-            try {
-              if (action === "save") {
-                const mapping = readDbFanRow(fanId);
-                await updateDbFan(fanId, mapping);
-                el.status.innerHTML += ` | db fan #${fanId} saved`;
-              } else if (action === "soft-delete") {
-                await softDeleteDbFan(fanId);
-                el.status.innerHTML += ` | db fan #${fanId} soft deleted`;
-              } else if (action === "restore") {
-                await restoreDbFan(fanId);
-                el.status.innerHTML += ` | db fan #${fanId} restored`;
-              } else if (action === "hard-delete") {
-                await hardDeleteDbFan(fanId);
-                el.status.innerHTML += ` | db fan #${fanId} hard deleted`;
-              }
-              await fetchDbFansManager(true);
-              await fetchDbData();
-            } catch (e) {
-              el.status.innerHTML += ` | db fan action error: ${e.message}`;
-            }
-          });
-        }
-      }
-
-      async function fetchDbFansManager(force = false) {
-        const r = await fetch(`${API}/db/fans?include_deleted=1`, { cache: "no-store" });
-        if (!r.ok) throw new Error(`db_fans ${r.status}`);
-        const d = await r.json();
-        const items = Array.isArray(d.items) ? d.items : [];
-        const signature = JSON.stringify(items);
-        if (!force && signature === lastDbFansManagerSignature) {
-          return;
-        }
-        lastDbFansManagerSignature = signature;
-        dbFanItems = items;
-        renderDbFansManager(items);
-      }
-
-      async function createDbFan(mapping) {
-        const r = await fetch(`${API}/db/fans`, {
-          method: "POST",
-          cache: "no-store",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mapping }),
-        });
-        if (!r.ok) throw new Error(`db_fan_post ${r.status}`);
-      }
-
-      async function updateDbFan(fanId, mapping) {
-        const r = await fetch(`${API}/db/fans/${fanId}`, {
-          method: "PUT",
-          cache: "no-store",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mapping }),
-        });
-        if (!r.ok) throw new Error(`db_fan_put ${r.status}`);
-      }
-
-      async function softDeleteDbFan(fanId) {
-        const r = await fetch(`${API}/db/fans/${fanId}/soft-delete`, {
-          method: "POST",
-          cache: "no-store",
-        });
-        if (!r.ok) throw new Error(`db_fan_soft_delete ${r.status}`);
-      }
-
-      async function restoreDbFan(fanId) {
-        const r = await fetch(`${API}/db/fans/${fanId}/restore`, {
-          method: "POST",
-          cache: "no-store",
-        });
-        if (!r.ok) throw new Error(`db_fan_restore ${r.status}`);
-      }
-
-      async function hardDeleteDbFan(fanId) {
-        const r = await fetch(`${API}/db/fans/${fanId}`, {
-          method: "DELETE",
-          cache: "no-store",
-        });
-        if (!r.ok) throw new Error(`db_fan_delete ${r.status}`);
-      }
-
-      function renderReferenceCatalog(items) {
-        if (!Array.isArray(items) || items.length === 0) {
-          el.dbReferenceCount.textContent = "items: 0";
-          el.dbReferenceList.innerHTML = "<div class=\"chip\">no reference items</div>";
-          return;
-        }
-        const needle = String(el.dbReferenceFilter?.value || "").trim().toLowerCase();
-        const filtered = needle
-          ? items.filter((item) => {
-              const fullText = [
-                item.id,
-                item.brand,
-                item.series,
-                item.model,
-              ]
-                .map((v) => String(v || ""))
-                .join(" ")
-                .toLowerCase();
-              return fullText.includes(needle);
-            })
-          : items;
-        el.dbReferenceCount.textContent = `items: ${filtered.length} / ${items.length}`;
-        if (filtered.length === 0) {
-          el.dbReferenceList.innerHTML = "<div class=\"chip\">no match</div>";
-          return;
-        }
-        const groups = new Map();
-        for (const item of filtered) {
-          const brand = String(item.brand || "unknown");
-          if (!groups.has(brand)) groups.set(brand, []);
-          groups.get(brand).push(item);
-        }
-        const brands = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
-        const parts = [];
-        for (const brand of brands) {
-          const rows = groups.get(brand) || [];
-          rows.sort((a, b) => {
-            const as = `${String(a.series || "")}|${String(a.model || "")}`;
-            const bs = `${String(b.series || "")}|${String(b.model || "")}`;
-            return as.localeCompare(bs);
-          });
-          parts.push(`<div class="label" style="margin-top: 10px">${escapeHtml(brand)} (${rows.length})</div>`);
-          for (const row of rows) {
-            const rpmMin = row.rpm_min === null || row.rpm_min === undefined ? "?" : String(row.rpm_min);
-            const rpmMax = row.rpm_max === null || row.rpm_max === undefined ? "?" : String(row.rpm_max);
-            parts.push(
-              `<div class="row"><span>${escapeHtml(String(row.series || "-"))} / ${escapeHtml(String(row.model || "-"))}</span><span>${rpmMin}-${rpmMax} RPM</span></div>`
-            );
-          }
-        }
-        el.dbReferenceList.innerHTML = parts.join("");
-      }
-
-      async function fetchDbReferenceCatalog() {
-        const r = await fetch(`${API}/fans/reference`, { cache: "no-store" });
-        if (!r.ok) throw new Error(`fans_reference ${r.status}`);
-        const d = await r.json();
-        const items = Array.isArray(d.items) ? d.items : [];
-        const signature = JSON.stringify(items);
-        if (signature === lastDbReferenceSignature) {
-          renderReferenceCatalog(dbReferenceItems);
-          return;
-        }
-        lastDbReferenceSignature = signature;
-        dbReferenceItems = items;
-        renderReferenceCatalog(dbReferenceItems);
+        const gpu = d.gpu || {};
+        el.gpu2Pct.textContent = metricDisplay(gpu.pct, "%");
+        el.gpu2Core.textContent = metricDisplay(gpu.core_clock_mhz, " MHz");
+        el.gpu2MemClock.textContent = metricDisplay(gpu.mem_clock_mhz, " MHz");
+        el.gpu2VramPct.textContent = metricDisplay(gpu.vram_pct, "%");
+        el.gpu2VramUsed.textContent = bytesDisplay(gpu.vram_used_b);
+        el.gpu2VramTotal.textContent = bytesDisplay(gpu.vram_total_b);
+        el.gpu2Temp.textContent = metricDisplay(gpu.temp_c, " °C");
+        el.gpu2Power.textContent = metricDisplay(gpu.power_w, " W");
+        const rpm = metricDisplay(gpu.fan_rpm, " RPM");
+        const pct = metricDisplay(gpu.fan_pct, "%");
+        el.gpu2Fan.textContent = rpm === "-" && pct === "-" ? "-" : `${rpm} / ${pct}`;
       }
 
       async function fetchHistory() {
-        const needPeriodicResync =
-          historyState.lastResyncAtMs === 0 || (Date.now() - historyState.lastResyncAtMs) >= HISTORY_RESYNC_MS;
-        const forceFull = historyState.ts_ms.length === 0 || needPeriodicResync;
-        const historyUrl = buildHistoryUrl(forceFull);
-        historyDebug("fetch", { forceFull, historyUrl });
-
-        const r = await fetch(historyUrl, { cache: "no-store" });
+        const periodicResync = historyState.lastResyncAtMs === 0 || Date.now() - historyState.lastResyncAtMs >= HISTORY_RESYNC_MS;
+        const forceFull = historyState.ts_ms.length === 0 || periodicResync;
+        const r = await fetch(buildHistoryUrl(forceFull), { cache: "no-store" });
         if (!r.ok) throw new Error(`history ${r.status}`);
-        const h = await r.json();
-        lastHistoryTs = h.ts;
-
+        const payload = await r.json();
+        lastHistoryTs = payload.ts;
         if (forceFull) {
-          replaceHistoryState(h, "periodic_or_initial");
+          replaceHistoryState(payload);
           drawHistoryCharts();
           return;
         }
-
-        const appended = appendHistoryDelta(h);
-        if (appended > 0) {
-          drawHistoryCharts();
-        }
+        if (appendHistoryDelta(payload) > 0) drawHistoryCharts();
       }
 
       async function tickDashboard() {
@@ -1311,25 +382,11 @@
         dashboardInFlight = true;
         try {
           await fetchDashboard();
-        } catch (e) {
-          el.status.innerHTML = `${statusDot("bad")}dashboard error: ${e.message}`;
+          el.status.textContent = `dashboard ts=${lastDashboardTs ?? "-"}`;
+        } catch (error) {
+          el.status.textContent = `dashboard error: ${error.message}`;
         } finally {
           dashboardInFlight = false;
-        }
-      }
-
-      async function tickHistory() {
-        if (historyInFlight) return;
-        historyInFlight = true;
-        try {
-          await fetchHistory();
-          if (lastHistoryTs !== null) {
-            el.status.innerHTML += ` | history ts=${lastHistoryTs} (window=${HISTORY_WINDOW_S}, step=${HISTORY_STEP_S}, mode=${HISTORY_MODE})`;
-          }
-        } catch (e) {
-          el.status.innerHTML += ` | history error: ${e.message}`;
-        } finally {
-          historyInFlight = false;
         }
       }
 
@@ -1338,106 +395,35 @@
         gpuDashboardInFlight = true;
         try {
           await fetchGpuDashboard();
-        } catch (e) {
-          el.status.innerHTML += ` | gpu error: ${e.message}`;
+        } catch (error) {
+          el.status.textContent += ` | gpu error: ${error.message}`;
         } finally {
           gpuDashboardInFlight = false;
         }
       }
 
-      async function tickFans() {
-        if (fansInFlight) return;
-        fansInFlight = true;
+      async function tickHistory() {
+        if (historyInFlight) return;
+        historyInFlight = true;
         try {
-          await fetchFansDashboard();
-          if (fansMode === "meta") {
-            await fetchFansMeta();
-          }
-        } catch (e) {
-          el.status.innerHTML += ` | fans error: ${e.message}`;
+          await fetchHistory();
+          el.status.textContent += ` | history ts=${lastHistoryTs ?? "-"}`;
+        } catch (error) {
+          el.status.textContent += ` | history error: ${error.message}`;
         } finally {
-          fansInFlight = false;
+          historyInFlight = false;
         }
       }
 
-      async function tickDb() {
-        if (dbInFlight) return;
-        if (!el.tabDb.classList.contains("active")) return;
-        dbInFlight = true;
-        try {
-          await fetchDbData();
-          await fetchDbFansManager();
-          await fetchDbReferenceCatalog();
-        } catch (e) {
-          el.status.innerHTML += ` | db error: ${e.message}`;
-        } finally {
-          dbInFlight = false;
-        }
-      }
-
-      setTab("main");
-      setFansMode("dashboard");
       el.tabBtnMain.addEventListener("click", () => setTab("main"));
       el.tabBtnGpu.addEventListener("click", () => setTab("gpu"));
-      el.tabBtnFans.addEventListener("click", () => setTab("fans"));
-      el.tabBtnDb.addEventListener("click", () => setTab("db"));
-      el.dbFanAdd.addEventListener("click", async () => {
-        try {
-          const nextOrder = dbFanItems.length > 0
-            ? Math.max(...dbFanItems.map((item) => Number(item?.mapping?.order || 100))) + 1
-            : 100;
-          await createDbFan({
-            label: `Fan ${dbFanItems.length + 1}`,
-            role: "unknown",
-            order: nextOrder,
-            enabled: true,
-            reference_id: null,
-            rpm_min: null,
-            rpm_max: null,
-            match: {
-              hwmon_name: null,
-              channel: null,
-              group: null,
-              hwmon_path_contains: null,
-            },
-          });
-          await fetchDbFansManager(true);
-          await fetchDbData();
-          el.status.innerHTML += " | db fan added";
-        } catch (e) {
-          el.status.innerHTML += ` | db fan add error: ${e.message}`;
-        }
-      });
-      el.dbFanRefresh.addEventListener("click", async () => {
-        try {
-          await fetchDbFansManager(true);
-          await fetchDbData();
-          el.status.innerHTML += " | db fan manager refreshed";
-        } catch (e) {
-          el.status.innerHTML += ` | db fan refresh error: ${e.message}`;
-        }
-      });
-      el.dbReferenceFilter.addEventListener("input", () => renderReferenceCatalog(dbReferenceItems));
-      el.fansModeDashboard.addEventListener("click", () => setFansMode("dashboard"));
-      el.fansModeMeta.addEventListener("click", () => setFansMode("meta"));
-      el.fansModeConfig.addEventListener("click", () => setFansMode("config"));
-      el.fansConfigSave.addEventListener("click", async () => {
-        try {
-          await saveFansConfig();
-          el.status.innerHTML += " | fans config saved";
-        } catch (e) {
-          el.status.innerHTML += ` | fans config save error: ${e.message}`;
-        }
-      });
+      setTab("main");
       tickDashboard();
-      tickHistory();
       tickGpuDashboard();
-      tickFans();
+      tickHistory();
       setInterval(tickDashboard, DASHBOARD_POLL_MS);
-      setInterval(tickHistory, HISTORY_POLL_MS);
       setInterval(tickGpuDashboard, DASHBOARD_POLL_MS);
-      setInterval(tickFans, DASHBOARD_POLL_MS);
-      setInterval(tickDb, DASHBOARD_POLL_MS);
+      setInterval(tickHistory, HISTORY_POLL_MS);
     </script>
   </body>
 </html>

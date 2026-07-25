@@ -9,9 +9,10 @@ The backend exposes versioned JSON routes under `/api/v1` and a local HTML UI un
 - unavailable telemetry remains present with `valid: false`, `null` values or `null` history points;
 - metric envelopes contain `value_raw`, `value_display`, `source`, `unit`, `sampled_at`, `estimated` and `valid`;
 - history arrays remain aligned with `ts_ms`;
+- invalid query parameters produce an explicit API error;
 - authentication, when enabled, uses `STATS_API_KEY_HEADER`, default `X-API-Key`.
 
-## Active monitoring routes
+## Active routes
 
 - `GET /api/v1/health`
 - `GET /api/v1/dashboard`
@@ -21,7 +22,9 @@ The backend exposes versioned JSON routes under `/api/v1` and a local HTML UI un
 - `GET /api/v1/gpu/history`
 - `GET /api/v1/gpu/meta`
 
-Main dashboard metrics:
+The local HTML UI is exposed through `GET /ui` and is not part of the versioned JSON contract.
+
+## Main dashboard
 
 ```text
 cpu.pct, cpu.temp_c, cpu.power_w
@@ -36,7 +39,7 @@ Main history series:
 cpu_pct, cpu_temp_c, gpu_pct, gpu_temp_c
 ```
 
-GPU dashboard metrics:
+## GPU dashboard
 
 ```text
 gpu.pct, gpu.core_clock_mhz, gpu.mem_clock_mhz
@@ -51,30 +54,23 @@ gpu_pct, gpu_core_clock_mhz, gpu_vram_used_b, gpu_temp_c,
 gpu_power_w, gpu_mem_clock_mhz, gpu_fan_rpm
 ```
 
-## User and database routes
+GPU fan fields are GPU telemetry. They do not imply a generic FAN mapping or management API.
 
-- `GET /api/v1/user/config`
-- `PUT /api/v1/user/config`
-- `GET /api/v1/db/data`
+## Query parameters
 
-`user/config` stores a free-form JSON object in SQLite.
+`/api/v1/history`:
 
-## Retained FAN routes
+- `window`: 1 to 600 seconds, default 300;
+- `step`: 1 to 10 seconds, default 1;
+- `mode`: `display` or `raw`;
+- `since_ts_ms`: optional non-negative timestamp.
 
-These routes remain implemented but are not consumed by the active firmware flow:
+`/api/v1/gpu/history` accepts `window`, `step` and `mode` with the same bounds.
 
-- `GET /api/v1/fans/dashboard`
-- `GET /api/v1/fans/meta`
-- `GET /api/v1/fans/config`
-- `PUT /api/v1/fans/config`
-- `GET /api/v1/fans/reference`
-- `GET /api/v1/db/fans`
-- `POST /api/v1/db/fans`
-- `PUT /api/v1/db/fans/{fan_id}`
-- `POST /api/v1/db/fans/{fan_id}/soft-delete`
-- `POST /api/v1/db/fans/{fan_id}/restore`
-- `DELETE /api/v1/db/fans/{fan_id}`
+## State and persistence
+
+No user-configuration or database routes are exposed. Backend state is limited to current snapshots and bounded histories in memory.
 
 ## Client authentication limitation
 
-If `STATS_API_KEY` is enabled, all `/api/v1/*` requests require the configured header. The current firmware and backend UI do not send it; enabling the key therefore requires client changes.
+If `STATS_API_KEY` is enabled, all `/api/v1/*` requests require the configured header. The current firmware and backend UI do not send it; enabling the key requires matching client changes.

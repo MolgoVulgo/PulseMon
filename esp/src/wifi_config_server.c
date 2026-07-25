@@ -13,6 +13,8 @@
 
 #include "news_service.h"
 #include "news_settings.h"
+#include "pulsemon_api_client.h"
+#include "pulsemon_api_settings.h"
 #include "pulsemon_meteo_service.h"
 #include "pulsemon_settings.h"
 #include "wifi_config.h"
@@ -42,6 +44,8 @@ static const char CONFIG_HTML[] =
     "button,input,select{width:100%;box-sizing:border-box;padding:12px;margin:8px 0;border-radius:6px;border:1px solid #555;background:#222;color:#eee}"
     "button{background:#0b6bcb;border:0;font-weight:700}.row{margin:14px 0}.msg{min-height:24px;color:#9ad}.hint{color:#999;font-size:14px}"
     "</style></head><body><nav><a href=\"/\">Config</a><a href=\"/wifi\">WiFi</a></nav><h1>PulseMon</h1><div class=\"msg\" id=\"msg\">Loading...</div>"
+    "<label>Backend host</label><input id=\"backend_host\" maxlength=\"95\" placeholder=\"Example: 192.168.0.10 or pulsemon.local\">"
+    "<label>Backend port</label><input id=\"backend_port\" min=\"1\" max=\"65535\" type=\"number\">"
     "<label>OpenWeather key</label><input id=\"openweather_key\" maxlength=\"96\" type=\"password\" placeholder=\"Leave empty to keep saved key\">"
     "<label><input id=\"clear_openweather_key\" type=\"checkbox\" style=\"width:auto\"> Clear saved OpenWeather key</label>"
     "<label>GNews key</label><input id=\"gnews_key\" maxlength=\"128\" type=\"password\" placeholder=\"Leave empty to keep saved key\">"
@@ -63,10 +67,10 @@ static const char CONFIG_HTML[] =
     "<label>Language</label><select id=\"language\"><option value=\"fr\">fr</option><option value=\"en\">en</option><option value=\"de\">de</option><option value=\"es\">es</option><option value=\"it\">it</option></select>"
     "<button onclick=\"saveConfig()\">Save configuration</button><button onclick=\"clearConfig()\">Reset PulseMon config</button><p class=\"hint\" id=\"keyState\"></p>"
     "<script>"
-    "const msg=document.getElementById('msg'),key=document.getElementById('openweather_key'),clearKey=document.getElementById('clear_openweather_key'),newsKey=document.getElementById('gnews_key'),clearNewsKey=document.getElementById('clear_gnews_key'),newsMax=document.getElementById('news_max_items'),newsSpeed=document.getElementById('news_slide_speed'),gmt=document.getElementById('gmt_offset_min'),city=document.getElementById('openweather_city_id'),lang=document.getElementById('language'),keyState=document.getElementById('keyState');"
+    "const msg=document.getElementById('msg'),backendHost=document.getElementById('backend_host'),backendPort=document.getElementById('backend_port'),key=document.getElementById('openweather_key'),clearKey=document.getElementById('clear_openweather_key'),newsKey=document.getElementById('gnews_key'),clearNewsKey=document.getElementById('clear_gnews_key'),newsMax=document.getElementById('news_max_items'),newsSpeed=document.getElementById('news_slide_speed'),gmt=document.getElementById('gmt_offset_min'),city=document.getElementById('openweather_city_id'),lang=document.getElementById('language'),keyState=document.getElementById('keyState');"
     "function setMsg(t){msg.textContent=t}"
-    "async function loadConfig(){try{let r=await fetch('/api/config');let j=await r.json();gmt.value=String(j.gmt_offset_min);city.value=j.openweather_city_id?String(j.openweather_city_id):'';lang.value=j.language||'fr';newsMax.value=String(j.news_max_items||5);newsSpeed.value=String(j.news_slide_speed||35);keyState.textContent=(j.openweather_key_set?'OpenWeather key saved':'No OpenWeather key saved')+' | '+(j.gnews_key_set?'GNews key saved':'No GNews key saved');setMsg('Ready')}catch(e){setMsg('Config unavailable')}}"
-    "async function saveConfig(){setMsg('Saving...');let body=new URLSearchParams({gmt_offset_min:gmt.value,openweather_city_id:city.value,language:lang.value,news_max_items:newsMax.value,news_slide_speed:newsSpeed.value});if(key.value)body.set('openweather_key',key.value);if(clearKey.checked)body.set('clear_openweather_key','1');if(newsKey.value)body.set('gnews_key',newsKey.value);if(clearNewsKey.checked)body.set('clear_gnews_key','1');let r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});setMsg(r.ok?'Saved':await r.text());key.value='';newsKey.value='';clearKey.checked=false;clearNewsKey.checked=false;loadConfig()}"
+    "async function loadConfig(){try{let r=await fetch('/api/config');let j=await r.json();backendHost.value=j.backend_host||'';backendPort.value=String(j.backend_port||8000);gmt.value=String(j.gmt_offset_min);city.value=j.openweather_city_id?String(j.openweather_city_id):'';lang.value=j.language||'fr';newsMax.value=String(j.news_max_items||5);newsSpeed.value=String(j.news_slide_speed||35);keyState.textContent=(j.openweather_key_set?'OpenWeather key saved':'No OpenWeather key saved')+' | '+(j.gnews_key_set?'GNews key saved':'No GNews key saved');setMsg('Ready')}catch(e){setMsg('Config unavailable')}}"
+    "async function saveConfig(){setMsg('Saving...');let body=new URLSearchParams({backend_host:backendHost.value,backend_port:backendPort.value,gmt_offset_min:gmt.value,openweather_city_id:city.value,language:lang.value,news_max_items:newsMax.value,news_slide_speed:newsSpeed.value});if(key.value)body.set('openweather_key',key.value);if(clearKey.checked)body.set('clear_openweather_key','1');if(newsKey.value)body.set('gnews_key',newsKey.value);if(clearNewsKey.checked)body.set('clear_gnews_key','1');let r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});setMsg(r.ok?'Saved':await r.text());key.value='';newsKey.value='';clearKey.checked=false;clearNewsKey.checked=false;loadConfig()}"
     "async function clearConfig(){let r=await fetch('/api/config/clear',{method:'POST'});setMsg(r.ok?'PulseMon config reset':'Reset failed');loadConfig()}"
     "loadConfig();"
     "</script></body></html>";
@@ -104,6 +108,20 @@ static void send_text(httpd_req_t *req, int status, const char *text)
     httpd_resp_set_status(req, status_text);
     httpd_resp_set_type(req, "text/plain");
     httpd_resp_sendstr(req, text);
+}
+
+static bool portal_mode_required(httpd_req_t *req)
+{
+    pulsemon_wifi_status_t status;
+    pulsemon_wifi_manager_get_status(&status);
+    if (status.ap_active) {
+        return true;
+    }
+
+    httpd_resp_set_status(req, "503 Service Unavailable");
+    httpd_resp_set_type(req, "text/plain");
+    httpd_resp_sendstr(req, "configuration portal inactive");
+    return false;
 }
 
 static void json_escape(char *dst, size_t dst_len, const char *src)
@@ -194,20 +212,40 @@ static bool form_get_i32(const char *body, const char *key, int32_t *out)
 
 static esp_err_t index_handler(httpd_req_t *req)
 {
+    if (!portal_mode_required(req)) {
+        return ESP_OK;
+    }
+
     httpd_resp_set_type(req, "text/html");
     return httpd_resp_send(req, CONFIG_HTML, HTTPD_RESP_USE_STRLEN);
 }
 
 static esp_err_t wifi_page_handler(httpd_req_t *req)
 {
+    if (!portal_mode_required(req)) {
+        return ESP_OK;
+    }
+
     httpd_resp_set_type(req, "text/html");
     return httpd_resp_send(req, WIFI_HTML, HTTPD_RESP_USE_STRLEN);
 }
 
 static esp_err_t config_get_handler(httpd_req_t *req)
 {
+    if (!portal_mode_required(req)) {
+        return ESP_OK;
+    }
+
+    pulsemon_api_settings_t api_settings;
+    esp_err_t err = pulsemon_api_settings_load(&api_settings);
+    if (err != ESP_OK && err != ESP_ERR_INVALID_SIZE) {
+        ESP_LOGW(TAG, "backend settings load failed: %s", esp_err_to_name(err));
+        send_text(req, 500, "backend settings load failed");
+        return ESP_OK;
+    }
+
     pulsemon_settings_t settings;
-    esp_err_t err = pulsemon_settings_load(&settings);
+    err = pulsemon_settings_load(&settings);
     if (err != ESP_OK && err != ESP_ERR_INVALID_SIZE) {
         ESP_LOGW(TAG, "settings load failed: %s", esp_err_to_name(err));
         send_text(req, 500, "settings load failed");
@@ -223,13 +261,17 @@ static esp_err_t config_get_handler(httpd_req_t *req)
     }
     NEWS_WEB_LOGI("config get key_set=%d", news_settings.gnews_key[0] != '\0');
 
+    char backend_host[(PULSEMON_API_HOST_MAX_LEN * 2) + 1];
     char language[16];
+    json_escape(backend_host, sizeof(backend_host), api_settings.host);
     json_escape(language, sizeof(language), settings.language);
 
-    char body[288];
+    char body[512];
     snprintf(body,
              sizeof(body),
-             "{\"openweather_key_set\":%s,\"gnews_key_set\":%s,\"gmt_offset_min\":%d,\"openweather_city_id\":%lu,\"language\":\"%s\",\"news_max_items\":%u,\"news_slide_speed\":%u}",
+             "{\"backend_host\":\"%s\",\"backend_port\":%u,\"openweather_key_set\":%s,\"gnews_key_set\":%s,\"gmt_offset_min\":%d,\"openweather_city_id\":%lu,\"language\":\"%s\",\"news_max_items\":%u,\"news_slide_speed\":%u}",
+             backend_host,
+             (unsigned)api_settings.port,
              settings.openweather_key[0] != '\0' ? "true" : "false",
              news_settings.gnews_key[0] != '\0' ? "true" : "false",
              (int)settings.gmt_offset_min,
@@ -243,12 +285,16 @@ static esp_err_t config_get_handler(httpd_req_t *req)
 
 static esp_err_t config_save_handler(httpd_req_t *req)
 {
-    if (req->content_len <= 0 || req->content_len > 896) {
+    if (!portal_mode_required(req)) {
+        return ESP_OK;
+    }
+
+    if (req->content_len <= 0 || req->content_len > 1152) {
         send_text(req, 400, "invalid form size");
         return ESP_OK;
     }
 
-    char body[897];
+    char body[1153];
     int total = 0;
     while (total < req->content_len) {
         int received = httpd_req_recv(req, body + total, req->content_len - total);
@@ -260,8 +306,16 @@ static esp_err_t config_save_handler(httpd_req_t *req)
     }
     body[total] = '\0';
 
+    pulsemon_api_settings_t api_settings;
+    esp_err_t err = pulsemon_api_settings_load(&api_settings);
+    if (err != ESP_OK && err != ESP_ERR_INVALID_SIZE) {
+        ESP_LOGW(TAG, "backend settings load before save failed: %s", esp_err_to_name(err));
+        send_text(req, 500, "backend settings load failed");
+        return ESP_OK;
+    }
+
     pulsemon_settings_t settings;
-    esp_err_t err = pulsemon_settings_load(&settings);
+    err = pulsemon_settings_load(&settings);
     if (err != ESP_OK && err != ESP_ERR_INVALID_SIZE) {
         ESP_LOGW(TAG, "settings load before save failed: %s", esp_err_to_name(err));
         send_text(req, 500, "settings load failed");
@@ -273,6 +327,26 @@ static esp_err_t config_save_handler(httpd_req_t *req)
     if (err != ESP_OK && err != ESP_ERR_INVALID_SIZE) {
         NEWS_WEB_LOGW("settings load before save failed: %s", esp_err_to_name(err));
         send_text(req, 500, "news settings load failed");
+        return ESP_OK;
+    }
+
+    if (!form_get(body, "backend_host", api_settings.host, sizeof(api_settings.host))) {
+        send_text(req, 400, "backend_host required");
+        return ESP_OK;
+    }
+
+    int32_t backend_port = 0;
+    if (!form_get_i32(body, "backend_port", &backend_port)) {
+        send_text(req, 400, "backend_port required");
+        return ESP_OK;
+    }
+    if (backend_port < 1 || backend_port > UINT16_MAX) {
+        send_text(req, 400, "invalid backend_port");
+        return ESP_OK;
+    }
+    api_settings.port = (uint16_t)backend_port;
+    if (!pulsemon_api_settings_validate(&api_settings)) {
+        send_text(req, 400, "invalid backend endpoint");
         return ESP_OK;
     }
 
@@ -355,6 +429,13 @@ static esp_err_t config_save_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
+    err = pulsemon_api_settings_save(&api_settings);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "backend settings save failed: %s", esp_err_to_name(err));
+        send_text(req, 500, "backend settings save failed");
+        return ESP_OK;
+    }
+
     err = pulsemon_settings_save(&settings);
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "settings save failed: %s", esp_err_to_name(err));
@@ -367,6 +448,13 @@ static esp_err_t config_save_handler(httpd_req_t *req)
         send_text(req, 500, "news settings save failed");
         return ESP_OK;
     }
+    esp_err_t reload_err = pulsemon_api_client_reload_endpoint();
+    if (reload_err != ESP_OK && reload_err != ESP_ERR_INVALID_SIZE) {
+        ESP_LOGW(TAG, "backend endpoint reload failed: %s", esp_err_to_name(reload_err));
+        send_text(req, 500, "backend endpoint reload failed");
+        return ESP_OK;
+    }
+    ESP_LOGI(TAG, "backend endpoint updated target=%s:%u", api_settings.host, (unsigned)api_settings.port);
     NEWS_WEB_LOGI("settings saved key_set=%d", news_settings.gnews_key[0] != '\0');
 
     send_text(req, 200, "saved");
@@ -377,7 +465,18 @@ static esp_err_t config_save_handler(httpd_req_t *req)
 
 static esp_err_t config_clear_handler(httpd_req_t *req)
 {
-    esp_err_t err = pulsemon_settings_clear();
+    if (!portal_mode_required(req)) {
+        return ESP_OK;
+    }
+
+    esp_err_t err = pulsemon_api_settings_clear();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "backend settings clear failed: %s", esp_err_to_name(err));
+        send_text(req, 500, "backend settings clear failed");
+        return ESP_OK;
+    }
+
+    err = pulsemon_settings_clear();
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "settings clear failed: %s", esp_err_to_name(err));
         send_text(req, 500, "settings clear failed");
@@ -389,6 +488,12 @@ static esp_err_t config_clear_handler(httpd_req_t *req)
         send_text(req, 500, "news settings clear failed");
         return ESP_OK;
     }
+    esp_err_t reload_err = pulsemon_api_client_reload_endpoint();
+    if (reload_err != ESP_OK && reload_err != ESP_ERR_INVALID_SIZE) {
+        ESP_LOGW(TAG, "backend endpoint reload after clear failed: %s", esp_err_to_name(reload_err));
+        send_text(req, 500, "backend endpoint reload failed");
+        return ESP_OK;
+    }
     NEWS_WEB_LOGI("settings cleared");
     send_text(req, 200, "cleared");
     pulsemon_meteo_service_request_update();
@@ -397,6 +502,10 @@ static esp_err_t config_clear_handler(httpd_req_t *req)
 
 static esp_err_t status_handler(httpd_req_t *req)
 {
+    if (!portal_mode_required(req)) {
+        return ESP_OK;
+    }
+
     pulsemon_wifi_status_t status;
     pulsemon_wifi_manager_get_status(&status);
 
@@ -418,6 +527,10 @@ static esp_err_t status_handler(httpd_req_t *req)
 
 static esp_err_t scan_handler(httpd_req_t *req)
 {
+    if (!portal_mode_required(req)) {
+        return ESP_OK;
+    }
+
     pulsemon_wifi_scan_result_t results[PULSEMON_WIFI_SCAN_MAX_RESULTS];
     uint16_t count = 0;
     esp_err_t err = pulsemon_wifi_manager_scan(results, PULSEMON_WIFI_SCAN_MAX_RESULTS, &count);
@@ -448,6 +561,10 @@ static esp_err_t scan_handler(httpd_req_t *req)
 
 static esp_err_t save_handler(httpd_req_t *req)
 {
+    if (!portal_mode_required(req)) {
+        return ESP_OK;
+    }
+
     if (req->content_len <= 0 || req->content_len > 384) {
         send_text(req, 400, "invalid form size");
         return ESP_OK;
@@ -491,6 +608,10 @@ static esp_err_t save_handler(httpd_req_t *req)
 
 static esp_err_t clear_handler(httpd_req_t *req)
 {
+    if (!portal_mode_required(req)) {
+        return ESP_OK;
+    }
+
     esp_err_t err = pulsemon_wifi_manager_clear_credentials();
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "wifi credential clear failed: %s", esp_err_to_name(err));
@@ -541,5 +662,24 @@ esp_err_t pulsemon_wifi_config_server_start(void)
     httpd_register_uri_handler(s_server, &portal_uri);
 
     ESP_LOGI(TAG, "wifi config server started");
+    return ESP_OK;
+}
+
+
+esp_err_t pulsemon_wifi_config_server_stop(void)
+{
+    if (s_server == NULL) {
+        return ESP_OK;
+    }
+
+    httpd_handle_t server = s_server;
+    esp_err_t err = httpd_stop(server);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "http server stop failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    s_server = NULL;
+    ESP_LOGI(TAG, "wifi config server stopped");
     return ESP_OK;
 }

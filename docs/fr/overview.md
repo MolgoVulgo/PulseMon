@@ -4,38 +4,40 @@ PulseMon est une pile de supervision locale pour une station Linux et un affiche
 
 ## Périmètre actif
 
-Le backend Linux fournit actuellement :
+Le backend Linux fournit :
 
 - utilisation, température et puissance CPU optionnelle ;
 - mémoire utilisée, totale et pourcentage ;
-- utilisation GPU AMD, fréquences, VRAM, températures, puissance et ventilateur GPU lorsque le pilote les expose ;
-- snapshots dashboard courants ;
+- utilisation GPU AMD, fréquences, VRAM, température, puissance et ventilateur GPU lorsque le pilote les expose ;
+- snapshots courants des dashboards principal et GPU ;
 - historiques principal et GPU bornés en mémoire ;
-- UI locale de debug/admin ;
-- configuration utilisateur stockée en SQLite.
+- UI locale de debug sous `/ui`.
 
-L’ESP32-S3 fournit actuellement :
+L’ESP32-S3 fournit :
 
-- configuration Wi-Fi station avec point d’accès de secours ;
-- polling des dashboards principal et GPU ;
+- configuration Wi-Fi station avec AP de secours ;
+- polling des dashboards backend principal et GPU ;
 - cache local des dernières valeurs valides ;
 - écrans actifs Main, GPU et Météo ;
-- récupération autonome météo et brèves GNews ;
-- configuration web locale du Wi-Fi, de la météo et des actualités.
-
-## Code FAN conservé
-
-La collecte ventilateurs, les mappings, routes API et données d’administration restent implémentés côté backend. Le client firmware et des éléments UI associés restent également présents, mais FAN n’est pas actif dans la navigation courante et n’est pas interrogé par le firmware.
+- récupération autonome de la météo et des brèves GNews ;
+- configuration web locale de l’endpoint backend et des réglages Wi-Fi, météo et actualités lorsque l’AP de configuration est actif, avec un déclencheur tactile local de cinq secondes pour une fenêtre manuelle bornée.
 
 ## Modèle runtime
 
 ```text
-capteurs Linux -> collecteurs -> services -> stores mémoire -> JSON FastAPI
+Capteurs Linux -> collecteurs -> services -> stores mémoire -> JSON FastAPI
 JSON FastAPI -> client HTTP ESP -> parsing/cache -> variables runtime -> écrans LVGL
 ```
 
-La météo et les actualités sont récupérées directement par l’ESP32-S3 et ne transitent pas par le backend Linux.
+Météo et actualités sont récupérées directement par l’ESP32-S3 et ne transitent pas par le backend Linux.
 
-## Hors périmètre
+## Modèle de persistance
 
-Le projet courant n’est pas un service cloud, une plateforme multi-hôtes, un système de pilotage distant, une base de métriques long terme ni une API publique Internet. MQTT, broker externe et sécurité multi-utilisateur forte ne font pas partie de l’architecture active.
+- snapshots et historiques backend : mémoire volatile uniquement ;
+- endpoint backend, réglages Wi-Fi, météo et actualités ESP32 : NVS ;
+- fallback endpoint, timeout HTTP et intervalle de polling : configuration compilée dans le firmware ;
+- stockage long terme des métriques : non implémenté.
+
+## Non-objectifs
+
+Le projet courant n’est pas un service cloud, une plateforme multi-hôtes, un système de contrôle distant, une base de métriques long terme ni une API Internet publique. MQTT, broker externe, sous-système générique de gestion FAN et sécurité multi-utilisateur forte sont hors du design actif.

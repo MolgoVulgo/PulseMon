@@ -47,6 +47,16 @@ docs/
 docs/fr/
 ```
 
+Contrat backend actif :
+
+```text
+- CPU, mémoire et GPU AMD ;
+- snapshots et historiques bornés en mémoire ;
+- 7 routes JSON sous /api/v1 ;
+- UI locale de debug sous /ui ;
+- aucune base persistante, aucune API générique FAN, DB ou user config.
+```
+
 Source UI EEZ :
 
 ```text
@@ -184,7 +194,6 @@ Arrête-toi avant toute modification si :
 - le manifeste et le contenu réel se contredisent ;
 - le ZIP contient PulseMon.zip, .git, .venv, node_modules, .pio, build ou un cache ;
 - le ZIP contient un fichier .env, une clé, un mot de passe ou un secret ;
-- le ZIP contient config.db-wal, config.db-shm ou un autre journal SQLite ;
 - le ZIP contient un sdkconfig local non explicitement ciblé ;
 - le ZIP contient des diagnostics JSONL, captures ou binaires générés non justifiés ;
 - une modification UI générée n'est pas cohérente avec la source EEZ ou la justification du manifeste ;
@@ -211,21 +220,18 @@ build/**
 api/.pytest_cache/**
 **/__pycache__/**
 api/test-results/**
-api/playwright-report/**
 sdkconfig
 sdkconfig.*
 .env
 .env.*
 *.pyc
 *.log
-*.db-wal
-*.db-shm
 api/diagnostics/*.jsonl
 diagnostics/*.jsonl
 esp/image/**
 ```
 
-Les bases SQLite runtime locales, notamment `~/.config/pulsemon/config.db` ou `/tmp/pulsemon/config.db`, ne doivent pas être copiées dans le dépôt ou le patch sauf instruction explicite.
+Le backend courant ne possède aucune base runtime persistante. Un fichier de base de données ajouté par un patch doit être explicitement annoncé et justifié par un changement de contrat.
 
 ---
 
@@ -326,11 +332,11 @@ Exemples de correspondance :
 ```text
 collectors/cpu.py -> tests/test_collectors_cpu.py
 collectors/gpu.py -> tests/test_collectors_gpu.py
-collectors/fans.py -> tests/test_collectors_fans.py
 store/history_store.py -> tests/test_store_history.py
-store/config_db.py -> tests SQLite, fans et user config concernés
+store/snapshot_store.py -> tests/test_store_snapshot.py
 models/api.py -> tests de contrat et fixtures de régression
 main.py -> tests endpoints et logique principale
+ui.py ou ui/index.html -> tests/test_ui_page.py
 services/* -> tests du service correspondant
 ```
 
@@ -338,24 +344,18 @@ services/* -> tests du service correspondant
 
 ## 14. Validation UI backend
 
-Si le patch touche `api/app/ui/index.html`, les endpoints utilisés par cette UI ou `api/tests/e2e/`, et si `node_modules` ainsi que Chromium Playwright sont déjà disponibles :
+L’UI backend courante est une page HTML/JavaScript locale de debug sans chaîne Node ni Playwright active.
 
-```bash
-cd api
-npm run test:e2e
+Si le patch touche `api/app/ui.py`, `api/app/ui/index.html` ou les endpoints consommés par cette UI :
+
+```text
+- exécuter api/tests/test_ui_page.py ;
+- exécuter les tests endpoints correspondants ;
+- vérifier statiquement les URLs /api/v1 utilisées par fetch() ;
+- vérifier que l’UI reste compatible avec l’authentification réellement prise en charge.
 ```
 
-Ne lance pas automatiquement :
-
-```bash
-npm install
-npm ci
-npx playwright install chromium
-```
-
-sauf instruction explicite du manifeste ou de l'utilisateur.
-
-Un échec de dépendance ou de navigateur est un blocage d'environnement, pas une autorisation de modifier le code.
+Ne crée pas de chaîne npm/Playwright et n’installe pas Node pour valider l’UI, sauf si un futur patch introduit explicitement ce contrat.
 
 ---
 
@@ -385,6 +385,35 @@ pio run -e pulsmon-esp32s3-display-dev
 
 Ne lance jamais `pio run -t upload`, `pio device monitor`, `idf.py flash` ou `idf.py monitor` sans instruction explicite distincte et matériel disponible.
 
+Pour `patch_0006-1.zip`, l’instruction utilisateur et le manifeste constituent l’autorisation explicite de réaliser P8 entièrement. Après application du patch, Codex **DOIT exécuter** depuis la racine :
+
+```bash
+python3 tools/p8_validate.py --codex-full
+```
+
+Le profil impose :
+
+```text
+- précontrôle backend et suite pytest complète ;
+- builds pulsmon-esp32s3-display et pulsmon-esp32s3-display-dev ;
+- détection du port série, avec demande du port uniquement si plusieurs périphériques sont ambigus ;
+- flash de l’environnement release ;
+- monitor série borné à 180 secondes ;
+- contrôles API sur http://192.168.0.10:8000 ;
+- conservation de report.json, report.md et hardware-checklist.json.
+```
+
+Le premier rapport est `partial` tant que les observations physiques ne sont pas renseignées. Codex doit alors guider l’utilisateur pour réaliser les dix contrôles matériels, compléter la checklist générée, puis finaliser **le même rapport** :
+
+```bash
+python3 tools/p8_validate.py \
+  --resume-report .pulsemon-results/p8/<execution>/report.json \
+  --checklist-file .pulsemon-results/p8/<execution>/hardware-checklist.json \
+  --require-hardware
+```
+
+Dans ce contexte P8 uniquement, Codex peut demander le port série s’il est ambigu et les observations physiques que lui seul ne peut pas voir. Il ne doit pas proposer de contourner, ignorer ou marquer automatiquement un contrôle. P8 n’est validée que si le rapport final vaut `pass`.
+
 Sans build autorisé, limiter la validation à :
 
 ```text
@@ -393,6 +422,8 @@ Sans build autorisé, limiter la validation à :
 - séparation réseau/cache/UI ;
 - cohérence des types get_var_* ;
 - absence de modification directe des sorties générées ;
+- maintien de la navigation active Main/GPU/Météo ;
+- absence de réintroduction implicite d’une API FAN ou d’une base backend ;
 - absence de secrets ;
 - tests backend d'intégration firmware présents dans api/tests si concernés.
 ```
@@ -480,7 +511,6 @@ Exemples :
 ```text
 api/diagnostics/*.jsonl
 esp/image/*
-config.db runtime
 fichiers de sortie PlatformIO
 fichiers UI générés
 ```

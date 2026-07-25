@@ -13,11 +13,11 @@ Le firmware utilise PlatformIO, ESP-IDF et LVGL 8.4 avec la définition de carte
 
 1. écran et UI générée ;
 2. support des icônes météo ;
-3. gestionnaire Wi-Fi et NVS ;
-4. services météo et news ;
-5. serveur HTTP local de configuration ;
-6. DNS captif ;
-7. connexion Wi-Fi et poller backend après connexion station.
+3. gestionnaire Wi-Fi, NVS et callbacks de cycle AP ;
+4. services météo et actualités ;
+5. connexion Wi-Fi ;
+6. serveur HTTP de configuration et DNS captif uniquement lorsque l’AP de configuration démarre réellement ;
+7. poller backend après connexion station.
 
 ## Écrans actifs et navigation
 
@@ -26,7 +26,7 @@ Main --gauche--> GPU --gauche--> Météo
 Main <--droite-- GPU <--droite-- Météo
 ```
 
-L’écran FAN existe dans les sources générées mais n’est pas une cible de navigation valide.
+Seuls Main, GPU et Météo sont des cibles de navigation valides.
 
 ## Polling backend
 
@@ -37,11 +37,11 @@ L’écran FAN existe dans les sources générées mais n’est pas une cible de
 - En cas d’échec backend : conserver les dernières valeurs, marquer le backend offline et basculer automatiquement vers Météo.
 - Au retour du backend après bascule offline automatique : revenir sur Main.
 
-L’URL backend est compilée dans `pulsemon_api_config.h`. Le firmware n’utilise ni découverte backend, ni configuration backend en NVS, ni header de clé API.
+L’hôte et le port backend sont chargés depuis le namespace NVS `pulsemon_api`. `pulsemon_api_config.h` fournit l’hôte/port de fallback compilés et les valeurs fixes de timeout/polling. Les changements du portail sont rechargés immédiatement. Le firmware n’utilise ni découverte backend ni header de clé API. Le portail n’est pas un service LAN permanent : HTTP et DNS captif démarrent avec l’AP de configuration et s’arrêtent avec lui. Un appui maintenu cinq secondes dans le coin supérieur gauche de Main, GPU ou Météo ouvre une fenêtre manuelle de dix minutes en conservant la connexion station. Le déclencheur est implémenté dans le runtime non généré et ne modifie aucune sortie EEZ.
 
 ## Météo et actualités
 
-Météo et GNews fonctionnent indépendamment du backend dès que le Wi-Fi et les clés nécessaires sont disponibles. Les services conservent leur état local selon leur implémentation.
+Météo et GNews fonctionnent indépendamment du backend dès que le Wi-Fi et les clés nécessaires sont disponibles. Les deux utilisent HTTPS avec validation des certificats via le bundle ESP-IDF et conservent leur état local selon leur implémentation.
 
 ## Fichiers EEZ
 
@@ -49,6 +49,4 @@ Météo et GNews fonctionnent indépendamment du backend dès que le Wi-Fi et le
 - `esp/eez/pulsmon/` est le projet EEZ Studio et l’état sauvegardé de l’application. Modifier uniquement via EEZ Studio.
 - L’intégration runtime non générée reste hors de ces fichiers générés.
 
-## Code FAN conservé
-
-Les structures et helpers FAN restent présents, mais le poller firmware ne récupère pas les données FAN et la navigation active ne peut pas charger l’écran FAN.
+La sortie générée conserve un ancien écran FAN inaccessible et les bindings de compatibilité requis. Il n’est pas chargé par la navigation active et n’est adossé à aucune API FAN générique. Le retirer uniquement via EEZ Studio puis régénération.

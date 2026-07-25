@@ -5,14 +5,83 @@
 #include <string.h>
 
 #include "cJSON.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/portmacro.h"
 #include "esp_timer.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
 
 #include "pulsemon_api_config.h"
+#include "pulsemon_api_settings.h"
 
 static const char *TAG = "pulsemon_api";
 static const size_t DASHBOARD_BODY_CAP = 8192;
+
+static portMUX_TYPE s_endpoint_lock = portMUX_INITIALIZER_UNLOCKED;
+static pulsemon_api_settings_t s_endpoint;
+static bool s_endpoint_ready;
+
+static void endpoint_store(const pulsemon_api_settings_t *settings)
+{
+    portENTER_CRITICAL(&s_endpoint_lock);
+    s_endpoint = *settings;
+    s_endpoint_ready = true;
+    portEXIT_CRITICAL(&s_endpoint_lock);
+}
+
+esp_err_t pulsemon_api_client_reload_endpoint(void)
+{
+    pulsemon_api_settings_t settings;
+    esp_err_t err = pulsemon_api_settings_load(&settings);
+    if (err != ESP_OK && err != ESP_ERR_INVALID_SIZE) {
+        return err;
+    }
+
+    endpoint_store(&settings);
+    if (err == ESP_ERR_INVALID_SIZE) {
+        ESP_LOGW(TAG, "invalid backend endpoint in NVS, using compiled fallback");
+    }
+    return err;
+}
+
+void pulsemon_api_client_get_endpoint(pulsemon_api_settings_t *out)
+{
+    if (out == NULL) {
+        return;
+    }
+
+    bool ready;
+    portENTER_CRITICAL(&s_endpoint_lock);
+    ready = s_endpoint_ready;
+    portEXIT_CRITICAL(&s_endpoint_lock);
+
+    if (!ready) {
+        esp_err_t err = pulsemon_api_client_reload_endpoint();
+        if (err != ESP_OK && err != ESP_ERR_INVALID_SIZE) {
+            pulsemon_api_settings_t fallback;
+            pulsemon_api_settings_defaults(&fallback);
+            endpoint_store(&fallback);
+            ESP_LOGW(TAG, "backend endpoint load failed: %s; using compiled fallback", esp_err_to_name(err));
+        }
+    }
+
+    portENTER_CRITICAL(&s_endpoint_lock);
+    *out = s_endpoint;
+    portEXIT_CRITICAL(&s_endpoint_lock);
+}
+
+static bool build_endpoint_url(const char *path, char *out, size_t out_len)
+{
+    pulsemon_api_settings_t settings;
+    char base_url[128];
+    pulsemon_api_client_get_endpoint(&settings);
+    if (!pulsemon_api_settings_build_base_url(&settings, base_url, sizeof(base_url))) {
+        return false;
+    }
+
+    int written = snprintf(out, out_len, "%s%s", base_url, path);
+    return written > 0 && (size_t)written < out_len;
+}
 
 #ifndef PULSEMON_LATENCY_DEBUG
 #define PULSEMON_LATENCY_DEBUG 0
@@ -135,15 +204,6 @@ static void parse_metric_u64(cJSON *metric, unsigned long long *value, bool *val
     }
 }
 
-static int parse_int_value(cJSON *value, bool *valid)
-{
-    *valid = false;
-    if (cJSON_IsNumber(value)) {
-        *valid = true;
-        return value->valueint;
-    }
-    return 0;
-}
 
 bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_len)
 {
@@ -169,7 +229,11 @@ bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_l
     };
 
     char url[160];
-    snprintf(url, sizeof(url), "%s/dashboard", PULSEMON_API_BASE_URL);
+    if (!build_endpoint_url("/dashboard", url, sizeof(url))) {
+        set_err(err, err_len, "endpoint_url_invalid");
+        free(body);
+        return false;
+    }
 
     esp_http_client_config_t cfg = {
         .url = url,
@@ -305,7 +369,11 @@ bool pulsemon_fetch_gpu_dashboard(pulsemon_gpu_dashboard_t *out, char *err, size
     };
 
     char url[192];
-    snprintf(url, sizeof(url), "%s/gpu/dashboard", PULSEMON_API_BASE_URL);
+    if (!build_endpoint_url("/gpu/dashboard", url, sizeof(url))) {
+        set_err(err, err_len, "endpoint_url_invalid");
+        free(body);
+        return false;
+    }
 
     esp_http_client_config_t cfg = {
         .url = url,
@@ -362,117 +430,6 @@ bool pulsemon_fetch_gpu_dashboard(pulsemon_gpu_dashboard_t *out, char *err, size
         parse_metric(obj_get(gpu, "power_w"), &out->power_w, &out->power_w_valid);
         parse_metric(obj_get(gpu, "fan_rpm"), &out->fan_rpm, &out->fan_rpm_valid);
         parse_metric(obj_get(gpu, "fan_pct"), &out->fan_pct, &out->fan_pct_valid);
-    }
-
-    cJSON_Delete(root);
-    free(body);
-    return true;
-}
-
-bool pulsemon_fetch_fans_dashboard(pulsemon_fans_dashboard_t *out, char *err, size_t err_len)
-{
-    if (out == NULL) {
-        set_err(err, err_len, "out=null");
-        return false;
-    }
-    memset(out, 0, sizeof(*out));
-
-    char *body = (char *)calloc(1, DASHBOARD_BODY_CAP);
-    if (body == NULL) {
-        set_err(err, err_len, "oom_body");
-        return false;
-    }
-
-    http_acc_t acc = {
-        .buf = body,
-        .cap = DASHBOARD_BODY_CAP,
-        .len = 0,
-    };
-
-    char url[192];
-    snprintf(url, sizeof(url), "%s/fans/dashboard", PULSEMON_API_BASE_URL);
-
-    esp_http_client_config_t cfg = {
-        .url = url,
-        .method = HTTP_METHOD_GET,
-        .timeout_ms = PULSEMON_HTTP_TIMEOUT_MS,
-        .event_handler = http_event_handler,
-        .user_data = &acc,
-        .buffer_size = 2048,
-        .buffer_size_tx = 1024,
-    };
-
-    esp_http_client_handle_t client = esp_http_client_init(&cfg);
-    if (client == NULL) {
-        set_err(err, err_len, "http_init_failed");
-        free(body);
-        return false;
-    }
-
-    esp_err_t rc = esp_http_client_perform(client);
-    if (rc != ESP_OK) {
-        set_err(err, err_len, "http_perform_failed");
-        esp_http_client_cleanup(client);
-        free(body);
-        return false;
-    }
-
-    int status = esp_http_client_get_status_code(client);
-    esp_http_client_cleanup(client);
-    if (status != 200) {
-        set_err(err, err_len, "http_status_not_200");
-        free(body);
-        return false;
-    }
-
-    cJSON *root = cJSON_Parse(body);
-    if (!cJSON_IsObject(root)) {
-        set_err(err, err_len, "json_parse_failed");
-        if (root) {
-            cJSON_Delete(root);
-        }
-        free(body);
-        return false;
-    }
-
-    cJSON *host = obj_get(root, "host");
-    if (cJSON_IsString(host) && host->valuestring != NULL) {
-        snprintf(out->host, sizeof(out->host), "%s", host->valuestring);
-        out->host[sizeof(out->host) - 1] = '\0';
-        out->host_valid = true;
-    }
-
-    cJSON *fans = obj_get(root, "fans");
-    if (cJSON_IsArray(fans)) {
-        int n = cJSON_GetArraySize(fans);
-        if (n > PULSEMON_FAN_SLOT_COUNT) {
-            n = PULSEMON_FAN_SLOT_COUNT;
-        }
-        for (int i = 0; i < n; ++i) {
-            cJSON *item = cJSON_GetArrayItem(fans, i);
-            if (!cJSON_IsObject(item)) {
-                continue;
-            }
-            pulsemon_fan_slot_t *slot = &out->slots[i];
-
-            cJSON *label = obj_get(item, "label");
-            if (cJSON_IsString(label) && label->valuestring != NULL) {
-                snprintf(slot->label, sizeof(slot->label), "%s", label->valuestring);
-                slot->label[sizeof(slot->label) - 1] = '\0';
-                slot->label_valid = true;
-            }
-
-            slot->rpm = parse_int_value(obj_get(item, "rpm"), &slot->rpm_valid);
-            slot->pct = parse_int_value(obj_get(item, "pct_fans"), &slot->pct_valid);
-            if (slot->pct_valid) {
-                if (slot->pct < 0) {
-                    slot->pct = 0;
-                } else if (slot->pct > 100) {
-                    slot->pct = 100;
-                }
-            }
-            slot->has_data = slot->label_valid || slot->rpm_valid || slot->pct_valid;
-        }
     }
 
     cJSON_Delete(root);

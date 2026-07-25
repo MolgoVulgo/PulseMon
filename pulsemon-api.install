@@ -1,20 +1,18 @@
-_ensure_fans_env_config() {
+_remove_obsolete_fan_env_config() {
   local conf="/etc/pulsemon/pulsemon-api.conf"
   if [[ ! -f "${conf}" ]]; then
     return 0
   fi
 
-  if ! grep -q '^STATS_FANS_MAPPING_FILE=' "${conf}"; then
-    printf '\n# Fans configuration and reference catalog\nSTATS_FANS_MAPPING_FILE=/var/lib/pulsemon-api/fans_mapping.json\n' >> "${conf}"
-  fi
-  if ! grep -q '^STATS_FANS_REFERENCE_SEED_FILE=' "${conf}"; then
-    printf 'STATS_FANS_REFERENCE_SEED_FILE=/usr/share/pulsemon-api/fan_reference_seed.json\n' >> "${conf}"
-  fi
+  sed -i \
+    -e '/^# Fans configuration and reference catalog$/d' \
+    -e '/^STATS_FANS_MAPPING_FILE=/d' \
+    -e '/^STATS_FANS_REFERENCE_SEED_FILE=/d' \
+    "${conf}"
 }
 
 post_install() {
-  _ensure_fans_env_config
-  cat <<'EOF'
+  cat <<'EOF_MSG'
 PulseMon API installed.
 
 Service management:
@@ -23,23 +21,23 @@ Service management:
 
 Configuration file:
   /etc/pulsemon/pulsemon-api.conf
-
-Fans files:
-  /var/lib/pulsemon-api/fans_mapping.json (auto-created at first fans endpoint call)
-  /usr/share/pulsemon-api/fan_reference_seed.json
-EOF
+EOF_MSG
 }
 
 post_upgrade() {
-  _ensure_fans_env_config
+  _remove_obsolete_fan_env_config
   post_install
+  cat <<'EOF_MSG'
+
+Legacy FAN mapping and SQLite files are no longer used and were not deleted automatically.
+EOF_MSG
 }
 
 post_remove() {
-  cat <<'EOF'
+  cat <<'EOF_MSG'
 PulseMon API removed.
 
 If still enabled:
   sudo systemctl disable --now pulsemon-api.service
-EOF
+EOF_MSG
 }

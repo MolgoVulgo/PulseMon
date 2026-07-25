@@ -9,9 +9,10 @@ Le backend expose des routes JSON versionnées sous `/api/v1` et une UI HTML loc
 - la télémétrie indisponible reste présente avec `valid: false`, des valeurs `null` ou des points d’historique `null` ;
 - les enveloppes métriques contiennent `value_raw`, `value_display`, `source`, `unit`, `sampled_at`, `estimated` et `valid` ;
 - les tableaux d’historique restent alignés avec `ts_ms` ;
+- les paramètres de requête invalides produisent une erreur API explicite ;
 - l’authentification, si activée, utilise `STATS_API_KEY_HEADER`, par défaut `X-API-Key`.
 
-## Routes de supervision actives
+## Routes actives
 
 - `GET /api/v1/health`
 - `GET /api/v1/dashboard`
@@ -21,7 +22,9 @@ Le backend expose des routes JSON versionnées sous `/api/v1` et une UI HTML loc
 - `GET /api/v1/gpu/history`
 - `GET /api/v1/gpu/meta`
 
-Métriques dashboard principal :
+L’UI HTML locale est exposée via `GET /ui` et ne fait pas partie du contrat JSON versionné.
+
+## Dashboard principal
 
 ```text
 cpu.pct, cpu.temp_c, cpu.power_w
@@ -36,7 +39,7 @@ Séries historiques principales :
 cpu_pct, cpu_temp_c, gpu_pct, gpu_temp_c
 ```
 
-Métriques dashboard GPU :
+## Dashboard GPU
 
 ```text
 gpu.pct, gpu.core_clock_mhz, gpu.mem_clock_mhz
@@ -51,30 +54,23 @@ gpu_pct, gpu_core_clock_mhz, gpu_vram_used_b, gpu_temp_c,
 gpu_power_w, gpu_mem_clock_mhz, gpu_fan_rpm
 ```
 
-## Routes utilisateur et base
+Les champs de ventilateur GPU sont de la télémétrie GPU. Ils n’impliquent aucune API générique de mapping ou de gestion FAN.
 
-- `GET /api/v1/user/config`
-- `PUT /api/v1/user/config`
-- `GET /api/v1/db/data`
+## Paramètres de requête
 
-`user/config` stocke un objet JSON libre en SQLite.
+`/api/v1/history` :
 
-## Routes FAN conservées
+- `window` : 1 à 600 secondes, défaut 300 ;
+- `step` : 1 à 10 secondes, défaut 1 ;
+- `mode` : `display` ou `raw` ;
+- `since_ts_ms` : timestamp non négatif optionnel.
 
-Ces routes restent implémentées mais ne sont pas consommées par le flux firmware actif :
+`/api/v1/gpu/history` accepte `window`, `step` et `mode` avec les mêmes bornes.
 
-- `GET /api/v1/fans/dashboard`
-- `GET /api/v1/fans/meta`
-- `GET /api/v1/fans/config`
-- `PUT /api/v1/fans/config`
-- `GET /api/v1/fans/reference`
-- `GET /api/v1/db/fans`
-- `POST /api/v1/db/fans`
-- `PUT /api/v1/db/fans/{fan_id}`
-- `POST /api/v1/db/fans/{fan_id}/soft-delete`
-- `POST /api/v1/db/fans/{fan_id}/restore`
-- `DELETE /api/v1/db/fans/{fan_id}`
+## État et persistance
+
+Aucune route de configuration utilisateur ou de base de données n’est exposée. L’état backend se limite aux snapshots courants et historiques bornés en mémoire.
 
 ## Limite d’authentification client
 
-Si `STATS_API_KEY` est activée, toutes les requêtes `/api/v1/*` exigent le header configuré. Le firmware et l’UI backend courants ne l’envoient pas ; l’activation de la clé nécessite donc une modification des clients.
+Si `STATS_API_KEY` est activée, toutes les requêtes `/api/v1/*` exigent le header configuré. Le firmware et l’UI backend courants ne l’envoient pas ; l’activation de la clé exige une adaptation correspondante des clients.

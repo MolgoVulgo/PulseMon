@@ -12,20 +12,13 @@ Le runtime courant fournit :
 - utilisation et capacité mémoire ;
 - utilisation GPU AMD, fréquences, VRAM, température, puissance et ventilateur GPU lorsque disponibles ;
 - snapshots courants et historiques mémoire bornés ;
-- UI locale backend de debug/admin sous `/ui` ;
+- UI locale backend de debug sous `/ui` ;
 - écrans ESP32-S3 actifs Main, GPU et Météo ;
 - météo OpenWeather et brèves GNews autonomes côté ESP32-S3 ;
-- stockage de configuration local en SQLite côté backend et en NVS côté ESP32-S3.
+- persistance NVS de l’endpoint backend, du Wi-Fi, de la météo et des actualités côté ESP32-S3 ;
+- portail de configuration et DNS captif exposés uniquement lorsque l’AP de configuration est actif, avec un appui tactile explicite de cinq secondes pour ouvrir une fenêtre manuelle bornée.
 
-## Sous-système FAN conservé
-
-Le backend contient encore les collecteurs ventilateurs, le stockage des mappings, les endpoints API et les fonctions d’administration. Des types firmware, éléments UI générés et helpers runtime dormants restent également présents.
-
-Ce sous-système n’est plus une fonctionnalité produit active :
-
-- l’écran FAN n’est pas accessible depuis la navigation firmware active ;
-- le poller firmware n’interroge pas le dashboard ventilateurs ;
-- le code est conservé pour l’instant et ne doit pas être traité comme une cible active sans réactivation explicite.
+Le backend n’utilise aucune base persistante. Les snapshots et historiques sont reconstruits après redémarrage.
 
 ## Structure du dépôt
 
@@ -36,7 +29,8 @@ PulseMon/
 │   ├── src/ui/                  # UI générée par EEZ et compilée par le firmware
 │   └── eez/pulsmon/             # projet EEZ Studio et état sauvegardé de l’application
 ├── docs/                        # documentation canonique anglaise
-│   └── fr/                      # documentation française
+│   └── fr/                      # miroir français
+├── tools/                       # runner reproductible de validation P8
 ├── make-a.sh                    # génère le snapshot PulseMon.zip volontairement filtré
 ├── README.md
 └── README.fr.md
@@ -44,24 +38,25 @@ PulseMon/
 
 `docs/` est la racine documentaire canonique. Dans le snapshot fourni, `api/docs` et `esp/docs` contiennent la cible relative `../docs` ; ils représentent l’intention de liaison vers la documentation canonique.
 
-## Installation backend
+## Installation et lancement backend
 
 ```bash
 cd api
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-```
-
-## Lancement backend
-
-```bash
-cd api
 .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 L’API est exposée sous `/api/v1/*` et l’UI locale sous `/ui`.
 
-## Tests backend
+Valider l’environnement backend avant démarrage :
+
+```bash
+cd api
+python3 -m app.config
+```
+
+Tests backend :
 
 ```bash
 cd api
@@ -86,41 +81,57 @@ pio run -e pulsmon-esp32s3-display-dev
 
 L’environnement PlatformIO par défaut est `pulsmon-esp32s3-display`.
 
-## Modèle courant de configuration firmware
+## Runner de validation P8
 
-Les identifiants Wi-Fi, paramètres OpenWeather et paramètres GNews sont stockés en NVS via le portail local.
+Pour que Codex exécute la validation P8 complète — tests backend, builds release/debug, flash release, monitor série et contrôles API sur `192.168.0.10:8000` :
 
-L’adresse backend n’est pas stockée en NVS dans l’implémentation actuelle. Elle est compilée depuis `esp/src/pulsemon_api_config.h` via :
+```bash
+python3 tools/p8_validate.py --codex-full
+```
 
-- `PULSEMON_API_HOST` ;
-- `PULSEMON_API_PORT` ;
-- `PULSEMON_API_BASE_URL` ;
-- `PULSEMON_HTTP_TIMEOUT_MS` ;
-- `PULSEMON_DASHBOARD_POLL_MS`.
+Le premier rapport génère une checklist matérielle. Codex doit ensuite finaliser le même rapport avec `--resume-report`, `--checklist-file` et `--require-hardware`. Voir `docs/fr/p8-validation.md`.
 
-Le firmware n’envoie actuellement pas le header optionnel de clé API backend.
+## Modèle de configuration firmware
+
+L’hôte et le port backend, les identifiants Wi-Fi, les paramètres OpenWeather et les paramètres GNews sont stockés en NVS via le portail local.
+
+L’endpoint backend utilise :
+
+- le namespace NVS `pulsemon_api`, clés `host` et `port` ;
+- les fallbacks compilés `PULSEMON_API_DEFAULT_HOST` et `PULSEMON_API_DEFAULT_PORT` de `esp/src/pulsemon_api_config.h` ;
+- les valeurs compilées `PULSEMON_HTTP_TIMEOUT_MS` et `PULSEMON_DASHBOARD_POLL_MS`.
+
+Une sauvegarde via le portail recharge immédiatement l’endpoint. L’effacement de la configuration PulseMon supprime l’endpoint NVS et restaure le fallback compilé. La clé API backend optionnelle n’est ni stockée ni envoyée par le firmware courant.
 
 ## Positionnement sécurité
 
-PulseMon cible un usage local et personnel. La sécurité reste proportionnée à ce contexte : les secrets ne doivent pas être logués ni retournés par les endpoints de configuration, les entrées restent validées et les expositions LAN inutiles doivent être évitées.
+PulseMon cible un usage local et personnel. La sécurité reste proportionnée à ce contexte : les secrets ne doivent pas être logués ni retournés par les endpoints de configuration, les entrées restent validées et les expositions LAN inutiles doivent être évitées. Le serveur HTTP de configuration démarre uniquement avec l’AP de configuration et s’arrête avec lui ; le DNS captif est lié exclusivement à `192.168.4.1`. Un appui maintenu cinq secondes dans le coin supérieur gauche de n’importe quel écran actif ouvre `PulseMon-Setup` pendant une fenêtre manuelle de dix minutes, sans effacer les identifiants ni couper une liaison station fonctionnelle.
 
-Défaut connu : le client OpenWeather utilise actuellement HTTP en clair. GNews utilise déjà HTTPS et le header `X-Api-Key`.
+OpenWeather et GNews utilisent HTTPS avec validation des certificats via le bundle ESP-IDF. GNews utilise en complément le header `X-Api-Key`.
+
+## Propriété EEZ et artefact généré conservé
+
+- `esp/src/ui/` est une sortie générée compilée par le firmware et ne doit jamais être modifiée directement.
+- `esp/eez/pulsmon/` appartient au workflow EEZ Studio et ne doit pas être modifié hors EEZ Studio.
+- L’intégration runtime appartient aux modules non générés sous `esp/src/`.
+
+L’UI générée contient encore un ancien écran FAN inaccessible et les bindings de compatibilité nécessaires à la compilation de cette sortie. Cet écran ne fait pas partie de la navigation active ni du contrat backend. Son retrait physique exige une modification dans EEZ Studio puis une régénération.
 
 ## Génération du snapshot
 
-`make-a.sh` crée le snapshot `PulseMon.zip` utilisé pour les analyses et correctifs. Il exclut volontairement les builds locaux, environnements virtuels, caches, `tmp/`, configurations SDK locales et autres contenus propres à la machine. L’archive est donc un snapshot contrôlé du projet, pas une copie exhaustive du répertoire de travail.
+`make-a.sh` crée le snapshot `PulseMon.zip` utilisé pour les analyses et correctifs. Il exclut volontairement les builds locaux, environnements virtuels, caches, `tmp/`, configurations SDK locales et autres contenus propres à la machine. L’archive est un snapshot contrôlé du projet, pas une copie exhaustive du répertoire de travail.
 
 ## Documentation
 
 - `docs/fr/README.md` — index documentaire ;
-- `docs/fr/overview.md` — périmètre courant et modèle runtime ;
+- `docs/fr/overview.md` — périmètre actif et non-objectifs ;
 - `docs/fr/architecture.md` — responsabilités et flux ;
 - `docs/fr/api.md` — contrat HTTP backend ;
-- `docs/fr/backend.md` — comportement backend ;
-- `docs/fr/firmware.md` — comportement firmware et écrans actifs ;
-- `docs/fr/configuration.md` — environnement, SQLite et NVS ;
-- `docs/fr/fans.md` — statut du sous-système FAN conservé ;
+- `docs/fr/backend.md` — runtime backend ;
+- `docs/fr/firmware.md` — runtime firmware et écrans actifs ;
+- `docs/fr/configuration.md` — environnement backend et configuration firmware ;
 - `docs/fr/weather-news.md` — implémentation météo et actualités ;
 - `docs/fr/web-configuration.md` — portail local ESP32 ;
 - `docs/fr/development.md` — build, tests et génération du snapshot ;
+- `docs/fr/p8-validation.md` — protocole P8 de build et validation matérielle ;
 - `docs/fr/troubleshooting.md` — vérifications opérationnelles.
