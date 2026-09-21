@@ -36,7 +36,7 @@ PulseMon/
 └── README.fr.md
 ```
 
-`docs/` is the canonical documentation root. In the supplied snapshot, `api/docs` and `esp/docs` contain the relative target `../docs`; they represent the intended link to the canonical documentation.
+`docs/` is the canonical documentation root. In the published source, `api/docs` and `esp/docs` contain the relative target `../docs`; they represent the intended link to the canonical documentation. Google Drive does not prove the original filesystem object type, so that type must be checked in the application worktree before changing either path.
 
 ## Backend setup and execution
 
@@ -117,9 +117,13 @@ OpenWeather and GNews use HTTPS with certificate validation through the ESP-IDF 
 
 The generated UI still contains an unreachable legacy FAN screen and the compatibility bindings required to compile that generated output. It is not part of active navigation or the backend contract. Physical removal requires an EEZ Studio change followed by regeneration.
 
-## Snapshot generation
+## Project publication and patch delivery
 
-`make-a.sh` creates the `PulseMon.zip` snapshot used for review and patch work. It deliberately excludes local build trees, virtual environments, caches, `tmp/`, local SDK configuration and other machine-specific content. The archive is a controlled project snapshot, not an exhaustive copy of the working directory.
+The connected Google Drive `pulsemon/` publication is the default context source for review and patch work. `REPO_INDEX.json` maps the current published source set; targeted files must be both declared in that index and actually readable from Drive. A newer published index replaces the previous context baseline.
+
+Patch archives are delivered separately under `pulsemon/patch/`. That folder is not project source, is excluded from `REPO_INDEX.json` and must not be interpreted as an implicitly applied patch chain.
+
+`make-a.sh` still creates the filtered local export `PulseMon.zip` for workflows that explicitly require a ZIP. It is not the default context source when the Drive publication is available unless the user explicitly designates a specific ZIP as the working base.
 
 ## Documentation
 
@@ -132,7 +136,7 @@ The generated UI still contains an unreachable legacy FAN screen and the compati
 - `docs/configuration.md` — backend environment and firmware configuration;
 - `docs/weather-news.md` — weather and news implementation;
 - `docs/web-configuration.md` — ESP32 local portal;
-- `docs/development.md` — build, tests and snapshot workflow;
+- `docs/development.md` — build, tests, Drive publication and patch workflow;
 - `docs/p8-validation.md` — P8 build and hardware-validation protocol;
 - `docs/troubleshooting.md` — operational checks;
 - `docs/fr/` — French mirror.

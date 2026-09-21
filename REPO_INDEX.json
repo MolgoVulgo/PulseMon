@@ -1,0 +1,831 @@
+{
+  "project": "PulseMon",
+  "generated_at": "2026-09-21T10:09:02.333243+00:00",
+  "file_count": 206,
+  "files": [
+    {
+      "path": ".gitignore",
+      "size": 129
+    },
+    {
+      "path": "CMakeLists.txt",
+      "size": 107
+    },
+    {
+      "path": "PKGBUILD",
+      "size": 1422
+    },
+    {
+      "path": "README.fr.md",
+      "size": 6872
+    },
+    {
+      "path": "README.md",
+      "size": 6331
+    },
+    {
+      "path": "agent.md",
+      "size": 4371
+    },
+    {
+      "path": "api/.gitignore",
+      "size": 88
+    },
+    {
+      "path": "api/README.md",
+      "size": 1601
+    },
+    {
+      "path": "api/app/__init__.py",
+      "size": 0
+    },
+    {
+      "path": "api/app/collectors/__init__.py",
+      "size": 1517
+    },
+    {
+      "path": "api/app/collectors/cpu.py",
+      "size": 4579
+    },
+    {
+      "path": "api/app/collectors/gpu.py",
+      "size": 15586
+    },
+    {
+      "path": "api/app/collectors/memory.py",
+      "size": 152
+    },
+    {
+      "path": "api/app/collectors/metric.py",
+      "size": 1174
+    },
+    {
+      "path": "api/app/config.py",
+      "size": 10212
+    },
+    {
+      "path": "api/app/diagnostics/logging.py",
+      "size": 211
+    },
+    {
+      "path": "api/app/diagnostics/probe.py",
+      "size": 7696
+    },
+    {
+      "path": "api/app/diagnostics/raw_capture.py",
+      "size": 1430
+    },
+    {
+      "path": "api/app/main.py",
+      "size": 9502
+    },
+    {
+      "path": "api/app/models/__init__.py",
+      "size": 934
+    },
+    {
+      "path": "api/app/models/api.py",
+      "size": 3972
+    },
+    {
+      "path": "api/app/services/__init__.py",
+      "size": 863
+    },
+    {
+      "path": "api/app/services/dashboard_service.py",
+      "size": 4708
+    },
+    {
+      "path": "api/app/services/filters.py",
+      "size": 1076
+    },
+    {
+      "path": "api/app/services/gpu_dashboard_service.py",
+      "size": 3349
+    },
+    {
+      "path": "api/app/services/gpu_history_service.py",
+      "size": 1247
+    },
+    {
+      "path": "api/app/services/gpu_meta_service.py",
+      "size": 589
+    },
+    {
+      "path": "api/app/services/gpu_sampler.py",
+      "size": 3366
+    },
+    {
+      "path": "api/app/services/history_service.py",
+      "size": 1529
+    },
+    {
+      "path": "api/app/services/meta_service.py",
+      "size": 267
+    },
+    {
+      "path": "api/app/services/sampler.py",
+      "size": 3553
+    },
+    {
+      "path": "api/app/store/__init__.py",
+      "size": 355
+    },
+    {
+      "path": "api/app/store/gpu_history_store.py",
+      "size": 4916
+    },
+    {
+      "path": "api/app/store/gpu_snapshot_store.py",
+      "size": 1206
+    },
+    {
+      "path": "api/app/store/history_store.py",
+      "size": 7448
+    },
+    {
+      "path": "api/app/store/snapshot_store.py",
+      "size": 1191
+    },
+    {
+      "path": "api/app/ui.py",
+      "size": 159
+    },
+    {
+      "path": "api/app/ui/index.html",
+      "size": 17099
+    },
+    {
+      "path": "api/docs",
+      "size": 7
+    },
+    {
+      "path": "api/pytest.ini",
+      "size": 64
+    },
+    {
+      "path": "api/requirements.txt",
+      "size": 92
+    },
+    {
+      "path": "api/tests/_helpers.py",
+      "size": 722
+    },
+    {
+      "path": "api/tests/fixtures/dashboard_v1.json",
+      "size": 2089
+    },
+    {
+      "path": "api/tests/fixtures/error_invalid_window_v1.json",
+      "size": 66
+    },
+    {
+      "path": "api/tests/fixtures/health_v1.json",
+      "size": 79
+    },
+    {
+      "path": "api/tests/fixtures/history_v1.json",
+      "size": 322
+    },
+    {
+      "path": "api/tests/fixtures/meta_v1.json",
+      "size": 304
+    },
+    {
+      "path": "api/tests/test_collectors_cpu.py",
+      "size": 1503
+    },
+    {
+      "path": "api/tests/test_collectors_gpu.py",
+      "size": 5054
+    },
+    {
+      "path": "api/tests/test_config.py",
+      "size": 6694
+    },
+    {
+      "path": "api/tests/test_contract_models.py",
+      "size": 3577
+    },
+    {
+      "path": "api/tests/test_contract_regression_fixtures.py",
+      "size": 4177
+    },
+    {
+      "path": "api/tests/test_dashboard_service.py",
+      "size": 5599
+    },
+    {
+      "path": "api/tests/test_esp_backend_endpoint_config.py",
+      "size": 3446
+    },
+    {
+      "path": "api/tests/test_esp_config_portal_lifecycle.py",
+      "size": 2408
+    },
+    {
+      "path": "api/tests/test_esp_local_config_trigger.py",
+      "size": 2681
+    },
+    {
+      "path": "api/tests/test_gpu_endpoints.py",
+      "size": 2898
+    },
+    {
+      "path": "api/tests/test_history_service.py",
+      "size": 5919
+    },
+    {
+      "path": "api/tests/test_main_endpoints_logic.py",
+      "size": 3835
+    },
+    {
+      "path": "api/tests/test_meta_service.py",
+      "size": 778
+    },
+    {
+      "path": "api/tests/test_sampler_service.py",
+      "size": 2884
+    },
+    {
+      "path": "api/tests/test_smoke_health.py",
+      "size": 252
+    },
+    {
+      "path": "api/tests/test_store_history.py",
+      "size": 3411
+    },
+    {
+      "path": "api/tests/test_store_snapshot.py",
+      "size": 1390
+    },
+    {
+      "path": "api/tests/test_ui_page.py",
+      "size": 1432
+    },
+    {
+      "path": "codex-patch-mode.md",
+      "size": 16831
+    },
+    {
+      "path": "diagnostics/.gitkeep",
+      "size": 0
+    },
+    {
+      "path": "docs/README.md",
+      "size": 2088
+    },
+    {
+      "path": "docs/api.md",
+      "size": 2205
+    },
+    {
+      "path": "docs/architecture.md",
+      "size": 2548
+    },
+    {
+      "path": "docs/backend.md",
+      "size": 2147
+    },
+    {
+      "path": "docs/configuration.md",
+      "size": 5805
+    },
+    {
+      "path": "docs/development.md",
+      "size": 3956
+    },
+    {
+      "path": "docs/firmware.md",
+      "size": 2561
+    },
+    {
+      "path": "docs/fr/README.md",
+      "size": 2334
+    },
+    {
+      "path": "docs/fr/api.md",
+      "size": 2498
+    },
+    {
+      "path": "docs/fr/architecture.md",
+      "size": 2903
+    },
+    {
+      "path": "docs/fr/backend.md",
+      "size": 2499
+    },
+    {
+      "path": "docs/fr/configuration.md",
+      "size": 6299
+    },
+    {
+      "path": "docs/fr/development.md",
+      "size": 4369
+    },
+    {
+      "path": "docs/fr/firmware.md",
+      "size": 2860
+    },
+    {
+      "path": "docs/fr/gpu.md",
+      "size": 2479
+    },
+    {
+      "path": "docs/fr/overview.md",
+      "size": 2016
+    },
+    {
+      "path": "docs/fr/p8-validation.md",
+      "size": 4208
+    },
+    {
+      "path": "docs/fr/troubleshooting.md",
+      "size": 4324
+    },
+    {
+      "path": "docs/fr/weather-news.md",
+      "size": 1933
+    },
+    {
+      "path": "docs/fr/web-configuration.md",
+      "size": 3484
+    },
+    {
+      "path": "docs/gpu.md",
+      "size": 2230
+    },
+    {
+      "path": "docs/overview.md",
+      "size": 1800
+    },
+    {
+      "path": "docs/p8-validation.md",
+      "size": 3733
+    },
+    {
+      "path": "docs/troubleshooting.md",
+      "size": 3852
+    },
+    {
+      "path": "docs/weather-news.md",
+      "size": 1774
+    },
+    {
+      "path": "docs/web-configuration.md",
+      "size": 3121
+    },
+    {
+      "path": "esp/.gitignore",
+      "size": 67
+    },
+    {
+      "path": "esp/CMakeLists.txt",
+      "size": 111
+    },
+    {
+      "path": "esp/README.md",
+      "size": 2887
+    },
+    {
+      "path": "esp/agent.md",
+      "size": 2885
+    },
+    {
+      "path": "esp/boards/jc3248w535c.json",
+      "size": 951
+    },
+    {
+      "path": "esp/docs",
+      "size": 7
+    },
+    {
+      "path": "esp/eez/pulsmon/pulsmon.eez-project",
+      "size": 481524
+    },
+    {
+      "path": "esp/eez/pulsmon/src/ui/actions.h",
+      "size": 194
+    },
+    {
+      "path": "esp/eez/pulsmon/src/ui/fonts.h",
+      "size": 424
+    },
+    {
+      "path": "esp/eez/pulsmon/src/ui/fonts/ui_font_font_18.c",
+      "size": 71921
+    },
+    {
+      "path": "esp/eez/pulsmon/src/ui/images.c",
+      "size": 64
+    },
+    {
+      "path": "esp/eez/pulsmon/src/ui/images.h",
+      "size": 394
+    },
+    {
+      "path": "esp/eez/pulsmon/src/ui/screens.c",
+      "size": 10439
+    },
+    {
+      "path": "esp/eez/pulsmon/src/ui/screens.h",
+      "size": 781
+    },
+    {
+      "path": "esp/eez/pulsmon/src/ui/structs.h",
+      "size": 93
+    },
+    {
+      "path": "esp/eez/pulsmon/src/ui/styles.c",
+      "size": 96
+    },
+    {
+      "path": "esp/eez/pulsmon/src/ui/styles.h",
+      "size": 194
+    },
+    {
+      "path": "esp/eez/pulsmon/src/ui/ui.c",
+      "size": 644
+    },
+    {
+      "path": "esp/eez/pulsmon/src/ui/ui.h",
+      "size": 273
+    },
+    {
+      "path": "esp/eez/pulsmon/src/ui/vars.h",
+      "size": 573
+    },
+    {
+      "path": "esp/fonts/Nexa-ExtraLight.ttf",
+      "size": 134576
+    },
+    {
+      "path": "esp/fonts/monofonto.ttf",
+      "size": 78644
+    },
+    {
+      "path": "esp/libraries/readme.txt",
+      "size": 236
+    },
+    {
+      "path": "esp/partitions.csv",
+      "size": 187
+    },
+    {
+      "path": "esp/platformio.ini",
+      "size": 1376
+    },
+    {
+      "path": "esp/sdkconfig.defaults",
+      "size": 157
+    },
+    {
+      "path": "esp/sdkconfig.pulsmon-esp32s3-display",
+      "size": 62899
+    },
+    {
+      "path": "esp/src/CMakeLists.txt",
+      "size": 418
+    },
+    {
+      "path": "esp/src/actions.c",
+      "size": 1799
+    },
+    {
+      "path": "esp/src/bmp_writer.c",
+      "size": 3155
+    },
+    {
+      "path": "esp/src/bmp_writer.h",
+      "size": 159
+    },
+    {
+      "path": "esp/src/bsp_err_check.h",
+      "size": 1625
+    },
+    {
+      "path": "esp/src/capture_config.h",
+      "size": 1002
+    },
+    {
+      "path": "esp/src/config_mode_trigger.c",
+      "size": 3293
+    },
+    {
+      "path": "esp/src/config_mode_trigger.h",
+      "size": 212
+    },
+    {
+      "path": "esp/src/display.h",
+      "size": 4429
+    },
+    {
+      "path": "esp/src/esp_bsp.c",
+      "size": 20445
+    },
+    {
+      "path": "esp/src/esp_bsp.h",
+      "size": 3557
+    },
+    {
+      "path": "esp/src/esp_lcd_axs15231b.c",
+      "size": 23671
+    },
+    {
+      "path": "esp/src/esp_lcd_axs15231b.h",
+      "size": 8742
+    },
+    {
+      "path": "esp/src/esp_lcd_touch.c",
+      "size": 7197
+    },
+    {
+      "path": "esp/src/esp_lcd_touch.h",
+      "size": 11722
+    },
+    {
+      "path": "esp/src/lcd_capture.c",
+      "size": 7713
+    },
+    {
+      "path": "esp/src/lcd_capture.h",
+      "size": 345
+    },
+    {
+      "path": "esp/src/lv_conf.h",
+      "size": 25928
+    },
+    {
+      "path": "esp/src/lv_port.c",
+      "size": 21937
+    },
+    {
+      "path": "esp/src/lv_port.h",
+      "size": 4630
+    },
+    {
+      "path": "esp/src/lvgl/lvgl.h",
+      "size": 126
+    },
+    {
+      "path": "esp/src/main.c",
+      "size": 6657
+    },
+    {
+      "path": "esp/src/news_service.c",
+      "size": 17985
+    },
+    {
+      "path": "esp/src/news_service.h",
+      "size": 153
+    },
+    {
+      "path": "esp/src/news_settings.c",
+      "size": 10409
+    },
+    {
+      "path": "esp/src/news_settings.h",
+      "size": 1023
+    },
+    {
+      "path": "esp/src/pulsemon_api_client.c",
+      "size": 12527
+    },
+    {
+      "path": "esp/src/pulsemon_api_client.h",
+      "size": 1582
+    },
+    {
+      "path": "esp/src/pulsemon_api_config.h",
+      "size": 236
+    },
+    {
+      "path": "esp/src/pulsemon_api_settings.c",
+      "size": 4015
+    },
+    {
+      "path": "esp/src/pulsemon_api_settings.h",
+      "size": 766
+    },
+    {
+      "path": "esp/src/pulsemon_meteo_service.c",
+      "size": 24651
+    },
+    {
+      "path": "esp/src/pulsemon_meteo_service.h",
+      "size": 193
+    },
+    {
+      "path": "esp/src/pulsemon_poller.c",
+      "size": 10631
+    },
+    {
+      "path": "esp/src/pulsemon_poller.h",
+      "size": 95
+    },
+    {
+      "path": "esp/src/pulsemon_settings.c",
+      "size": 4455
+    },
+    {
+      "path": "esp/src/pulsemon_settings.h",
+      "size": 728
+    },
+    {
+      "path": "esp/src/pulsemon_weather_icons.c",
+      "size": 10918
+    },
+    {
+      "path": "esp/src/pulsemon_weather_icons.h",
+      "size": 439
+    },
+    {
+      "path": "esp/src/sd_storage.c",
+      "size": 5514
+    },
+    {
+      "path": "esp/src/sd_storage.h",
+      "size": 218
+    },
+    {
+      "path": "esp/src/svg2bin_decoder.c",
+      "size": 12949
+    },
+    {
+      "path": "esp/src/svg2bin_decoder.h",
+      "size": 1506
+    },
+    {
+      "path": "esp/src/ui/actions.h",
+      "size": 289
+    },
+    {
+      "path": "esp/src/ui/fonts.h",
+      "size": 575
+    },
+    {
+      "path": "esp/src/ui/fonts/ui_font_font_18.c",
+      "size": 75438
+    },
+    {
+      "path": "esp/src/ui/fonts/ui_font_test.c",
+      "size": 403839
+    },
+    {
+      "path": "esp/src/ui/fonts/ui_font_ui_16.c",
+      "size": 65781
+    },
+    {
+      "path": "esp/src/ui/fonts/ui_font_ui_18.c",
+      "size": 74934
+    },
+    {
+      "path": "esp/src/ui/fonts/ui_font_ui_40.c",
+      "size": 273559
+    },
+    {
+      "path": "esp/src/ui/images.c",
+      "size": 122
+    },
+    {
+      "path": "esp/src/ui/images.h",
+      "size": 474
+    },
+    {
+      "path": "esp/src/ui/images/ui_image_clear_day.c",
+      "size": 1623222
+    },
+    {
+      "path": "esp/src/ui/images/ui_image_gear.c",
+      "size": 181989
+    },
+    {
+      "path": "esp/src/ui/screens.c",
+      "size": 100053
+    },
+    {
+      "path": "esp/src/ui/screens.h",
+      "size": 3883
+    },
+    {
+      "path": "esp/src/ui/structs.h",
+      "size": 93
+    },
+    {
+      "path": "esp/src/ui/styles.c",
+      "size": 3205
+    },
+    {
+      "path": "esp/src/ui/styles.h",
+      "size": 622
+    },
+    {
+      "path": "esp/src/ui/ui.c",
+      "size": 645
+    },
+    {
+      "path": "esp/src/ui/ui.h",
+      "size": 273
+    },
+    {
+      "path": "esp/src/ui/vars.h",
+      "size": 6047
+    },
+    {
+      "path": "esp/src/ui_backend.h",
+      "size": 1278
+    },
+    {
+      "path": "esp/src/ui_graphs.c",
+      "size": 15498
+    },
+    {
+      "path": "esp/src/ui_graphs.h",
+      "size": 310
+    },
+    {
+      "path": "esp/src/ui_screen.c",
+      "size": 4011
+    },
+    {
+      "path": "esp/src/ui_screen.h",
+      "size": 482
+    },
+    {
+      "path": "esp/src/vars.c",
+      "size": 11580
+    },
+    {
+      "path": "esp/src/vars.h",
+      "size": 490
+    },
+    {
+      "path": "esp/src/wifi_captive_dns.c",
+      "size": 4488
+    },
+    {
+      "path": "esp/src/wifi_captive_dns.h",
+      "size": 182
+    },
+    {
+      "path": "esp/src/wifi_config.h",
+      "size": 413
+    },
+    {
+      "path": "esp/src/wifi_config_server.c",
+      "size": 29648
+    },
+    {
+      "path": "esp/src/wifi_config_server.h",
+      "size": 190
+    },
+    {
+      "path": "esp/src/wifi_credentials.c",
+      "size": 3290
+    },
+    {
+      "path": "esp/src/wifi_credentials.h",
+      "size": 668
+    },
+    {
+      "path": "esp/src/wifi_manager.c",
+      "size": 16421
+    },
+    {
+      "path": "esp/src/wifi_manager.h",
+      "size": 1276
+    },
+    {
+      "path": "make-a.sh",
+      "size": 886
+    },
+    {
+      "path": "makepkg-tmp.sh",
+      "size": 482
+    },
+    {
+      "path": "pulsemon-api.conf",
+      "size": 1369
+    },
+    {
+      "path": "pulsemon-api.install",
+      "size": 860
+    },
+    {
+      "path": "pulsemon-api.service",
+      "size": 469
+    },
+    {
+      "path": "pulsemon-api.sh",
+      "size": 660
+    },
+    {
+      "path": "sync-drive.filter",
+      "size": 1038
+    },
+    {
+      "path": "sync-drive.sh",
+      "size": 1186
+    }
+  ]
+}

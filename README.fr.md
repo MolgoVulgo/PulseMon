@@ -36,7 +36,7 @@ PulseMon/
 └── README.fr.md
 ```
 
-`docs/` est la racine documentaire canonique. Dans le snapshot fourni, `api/docs` et `esp/docs` contiennent la cible relative `../docs` ; ils représentent l’intention de liaison vers la documentation canonique.
+`docs/` est la racine documentaire canonique. Dans la source publiée, `api/docs` et `esp/docs` contiennent la cible relative `../docs` ; ils représentent l’intention de liaison vers la documentation canonique. Google Drive ne permet pas de prouver le type d’objet filesystem d’origine ; ce type doit donc être vérifié dans le worktree d’application avant de modifier l’un de ces chemins.
 
 ## Installation et lancement backend
 
@@ -117,9 +117,13 @@ OpenWeather et GNews utilisent HTTPS avec validation des certificats via le bund
 
 L’UI générée contient encore un ancien écran FAN inaccessible et les bindings de compatibilité nécessaires à la compilation de cette sortie. Cet écran ne fait pas partie de la navigation active ni du contrat backend. Son retrait physique exige une modification dans EEZ Studio puis une régénération.
 
-## Génération du snapshot
+## Publication du projet et livraison des correctifs
 
-`make-a.sh` crée le snapshot `PulseMon.zip` utilisé pour les analyses et correctifs. Il exclut volontairement les builds locaux, environnements virtuels, caches, `tmp/`, configurations SDK locales et autres contenus propres à la machine. L’archive est un snapshot contrôlé du projet, pas une copie exhaustive du répertoire de travail.
+La publication Google Drive connectée `pulsemon/` constitue la source de contexte par défaut pour les analyses et correctifs. `REPO_INDEX.json` décrit l’ensemble source actuellement publié ; les fichiers ciblés doivent être à la fois déclarés dans cet index et réellement lisibles depuis Drive. Une publication plus récente de l’index remplace la baseline de contexte précédente.
+
+Les archives de correctif sont livrées séparément sous `pulsemon/patch/`. Ce dossier n’est pas une source projet, est exclu de `REPO_INDEX.json` et ne doit pas être interprété comme une chaîne de patchs implicitement appliquée.
+
+`make-a.sh` continue de produire l’export local filtré `PulseMon.zip` pour les workflows qui demandent explicitement un ZIP. Il n’est plus la source de contexte par défaut lorsque la publication Drive est disponible, sauf si l’utilisateur désigne explicitement un ZIP précis comme base de travail.
 
 ## Documentation
 
@@ -132,6 +136,6 @@ L’UI générée contient encore un ancien écran FAN inaccessible et les bindi
 - `docs/fr/configuration.md` — environnement backend et configuration firmware ;
 - `docs/fr/weather-news.md` — implémentation météo et actualités ;
 - `docs/fr/web-configuration.md` — portail local ESP32 ;
-- `docs/fr/development.md` — build, tests et génération du snapshot ;
+- `docs/fr/development.md` — build, tests, publication Drive et workflow de correctif ;
 - `docs/fr/p8-validation.md` — protocole P8 de build et validation matérielle ;
 - `docs/fr/troubleshooting.md` — vérifications opérationnelles.

@@ -2,17 +2,22 @@
 
 ## Source of truth
 
-Use the supplied `PulseMon.zip` snapshot and the files actually present in it. A newly supplied snapshot replaces any previous snapshot and patch chain. Do not use remote repositories and do not reconstruct intentionally filtered files from assumptions.
+Use the connected Google Drive publication under `pulsemon/` as the project context source. Read `pulsemon/REPO_INDEX.json` first and use it as the map of the current published source set. For every file involved in a task, verify that the path is declared in the index and read the actual Drive file content before relying on it.
+
+`pulsemon/patch/` is a delivery area for patch archives. It is not project source, is not part of the indexed baseline and must never be consumed implicitly as an already-applied patch chain. `PulseMon.zip` may still exist as a local or explicitly supplied export, but it is not the default source of truth unless the user explicitly designates a specific ZIP as the working base.
+
+The connected PulseMon Google Drive is the authorized remote source for this workflow. Do not use GitHub or another remote repository as a fallback, and do not reconstruct intentionally filtered files from assumptions.
 
 Read first:
 
-1. `README.md` or `README.fr.md`;
-2. `docs/README.md` and the relevant canonical document;
-3. `api/app/main.py` for active backend routes;
-4. `api/app/config.py` for the complete 20-variable `STATS_*` contract;
-5. `esp/platformio.ini` for firmware environments;
-6. `esp/src/main.c`, `pulsemon_api_settings.*`, `pulsemon_api_config.h`, `pulsemon_poller.c` and the relevant firmware modules;
-7. the exact files involved in the requested change.
+1. `REPO_INDEX.json`;
+2. `README.md` or `README.fr.md`;
+3. `docs/README.md` and the relevant canonical document;
+4. `api/app/main.py` for active backend routes;
+5. `api/app/config.py` for the complete 20-variable `STATS_*` contract;
+6. `esp/platformio.ini` for firmware environments;
+7. `esp/src/main.c`, `pulsemon_api_settings.*`, `pulsemon_api_config.h`, `pulsemon_poller.c` and the relevant firmware modules;
+8. the exact files involved in the requested change.
 
 ## Active architecture
 
@@ -56,9 +61,11 @@ The generated output retains an unreachable legacy FAN screen and compatibility 
 - Treat the deployment as local and personal, but avoid unnecessary LAN exposure.
 - Do not make the configuration portal or captive DNS permanent station-LAN services.
 
-## Snapshot rules
+## Publication rules
 
-`make-a.sh` intentionally creates a filtered `PulseMon.zip`. Excluded directories such as `tmp/`, build trees, caches and local SDK files may exist outside the snapshot. Do not classify an excluded file as missing unless the active contract requires it to be present in the snapshot.
+`sync-drive.sh` publishes a deliberately filtered project view to Google Drive and generates `REPO_INDEX.json` from the same filter rules. Files excluded by `sync-drive.filter` may exist in the developer worktree without being part of the published context. Do not classify an intentionally excluded file as missing unless the active contract requires it to be published.
+
+`patch/` is excluded from source synchronization and indexing so delivered patch archives remain separate from the project baseline. A newer `REPO_INDEX.json` publication becomes the current context baseline; historical patch archives do not modify that baseline by themselves.
 
 ## Validation rules
 

@@ -58,7 +58,7 @@ Ce profil réalise le précontrôle et les tests backend, compile les deux envir
 
 Le projet généré conserve actuellement un ancien écran FAN inaccessible. Son retrait est une tâche EEZ Studio, pas une édition directe des sources.
 
-## Génération du snapshot
+## Génération optionnelle du snapshot local
 
 Depuis la racine :
 
@@ -66,13 +66,13 @@ Depuis la racine :
 ./make-a.sh
 ```
 
-Le script recrée `PulseMon.zip` et exclut volontairement les contenus de travail locaux : `.git`, environnements virtuels, builds PlatformIO, caches, `tmp/`, `sdkconfig*` locaux, modules Node et rapports de tests.
-
-L’absence d’un fichier dans `PulseMon.zip` ne suffit pas à conclure qu’il manque dans le worktree développeur. Le snapshot est volontairement filtré.
+Le script recrée l’export local filtré `PulseMon.zip`. Il reste utile pour les workflows qui demandent explicitement un ZIP, mais il n’est plus la baseline par défaut des analyses de correctifs lorsque la publication Google Drive connectée est disponible. L’absence d’un fichier dans ce ZIP ne suffit pas à conclure qu’il manque dans le worktree développeur ou dans la publication Drive.
 
 ## Baseline de patch
 
-Un nouveau `PulseMon.zip` remplace le snapshot précédent et sa chaîne de patchs. L’analyse et la livraison doivent repartir uniquement de ce nouveau snapshot. Un dépôt distant n’est pas une source de secours.
+La publication Google Drive connectée `pulsemon/` constitue la baseline de contexte par défaut. Lire d’abord `REPO_INDEX.json`, relever `generated_at` et `file_count`, vérifier que chaque chemin source ciblé y est déclaré, puis lire le contenu réel du fichier Drive avant analyse ou modification. Une publication plus récente de `REPO_INDEX.json` remplace la baseline précédente.
+
+`pulsemon/patch/` est uniquement la zone de livraison des correctifs. La consulter pour choisir le prochain numéro disponible et confirmer la livraison, mais ne jamais considérer implicitement les archives présentes comme déjà appliquées. `PulseMon.zip` ne devient une baseline que si l’utilisateur désigne explicitement un ZIP précis pour la tâche. GitHub et les autres dépôts distants ne sont pas des sources de secours.
 
 ## Baseline documentaire
 
@@ -83,3 +83,11 @@ Avant de documenter un comportement :
 3. distinguer runtime actif, artefacts générés de compatibilité et changements planifiés ;
 4. mettre à jour anglais et français ensemble ;
 5. ne pas présenter un comportement planifié comme implémenté.
+
+## Synchronisation Google Drive
+
+Avant `./sync-drive.sh`, Codex recherche les secrets dans les fichiers, exécute les tests applicables et prépare ou nettoie les diagnostics. Le script génère uniquement `REPO_INDEX.json`, lance `rclone sync` vers `${REMOTE:-gdrive:pulsemon}` et publie l’index après réussite. Il ne lance aucun test et ne produit aucun diagnostic.
+
+`sync-drive.filter` est commun à la liste locale rclone utilisée pour l’index et au transfert. L’index ne se référence pas lui-même. Les sources actives, la documentation, la configuration de build, l’UI générée nécessaire, le projet EEZ, le packaging et les tests retenus sont inclus. Les environnements locaux, builds, caches, secrets/fichiers d’environnement, `tmp/`, `tools/`, états de l’éditeur EEZ, anciennes captures, réglages locaux des éditeurs/agents et la zone de livraison racine `patch/` sont exclus. Le test historique des routes supprimées et les tests dépendant de l’outillage P8 exclu ne sont pas publiés. L’ancien écran généré nécessaire reste un artefact de compatibilité inactif.
+
+Placer les éléments volontairement préparés pour une analyse externe dans `diagnostics/` à la racine ; `.gitkeep` préserve ce répertoire lorsqu’il est vide. `api/diagnostics/` contient les captures runtime et est exclu. Les ZIP de correctif sont déposés séparément dans `pulsemon/patch/` après validation du packaging et leur présence doit être confirmée par relecture Drive ou nouveau listing du dossier. Le script ne recherche pas de secrets dans le contenu : cette vérification reste un préalable. `rclone sync` reproduit les fichiers source inclus tandis que la zone `patch/`, exclue, reste hors de cette synchronisation.
