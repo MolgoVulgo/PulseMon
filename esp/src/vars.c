@@ -46,13 +46,10 @@ static char g_ui_meteo_alert[METEO_ALERT_BUF_LEN];
 static int32_t g_ui_start_bar;
 static char g_ui_start_bar_texte[VAR_BUF_LEN];
 static char g_fan_1_label[VAR_BUF_LEN];
-static int32_t g_fan_1_rpm;
 static char g_fan_1_rpm_text[VAR_BUF_LEN];
 static char g_fan_2_label[VAR_BUF_LEN];
-static int32_t g_fan_2_rpm;
 static char g_fan_2_rpm_text[VAR_BUF_LEN];
 static char g_fan_3_label[VAR_BUF_LEN];
-static int32_t g_fan_3_rpm;
 static char g_fan_3_rpm_text[VAR_BUF_LEN];
 static int32_t g_fan_1_pct;
 static int32_t g_fan_2_pct;
@@ -115,31 +112,6 @@ static void set_numeric_from_text(numeric_var_t *target, const char *text)
     if (target->valid) {
         target->value = parsed;
     }
-}
-
-static int32_t parse_non_negative_int_or_zero(const char *value)
-{
-    if (value == NULL) {
-        return 0;
-    }
-
-    while (*value != '\0' && isspace((unsigned char)*value)) {
-        value++;
-    }
-    if (*value == '\0') {
-        return 0;
-    }
-
-    errno = 0;
-    char *end = NULL;
-    long parsed = strtol(value, &end, 10);
-    if (value == end || errno == ERANGE || parsed < 0) {
-        return 0;
-    }
-    if (parsed > INT32_MAX) {
-        return INT32_MAX;
-    }
-    return (int32_t)parsed;
 }
 
 const char *get_var_cpu_pct()
@@ -502,7 +474,6 @@ const char *get_var_fan_1_rpm()
 void set_var_fan_1_rpm(const char *value)
 {
     set_text(g_fan_1_rpm_text, sizeof(g_fan_1_rpm_text), value);
-    g_fan_1_rpm = parse_non_negative_int_or_zero(g_fan_1_rpm_text);
 }
 
 const char *get_var_fan_2_label()
@@ -523,7 +494,6 @@ const char *get_var_fan_2_rmp()
 void set_var_fan_2_rmp(const char *value)
 {
     set_text(g_fan_2_rpm_text, sizeof(g_fan_2_rpm_text), value);
-    g_fan_2_rpm = parse_non_negative_int_or_zero(g_fan_2_rpm_text);
 }
 
 const char *get_var_fan_2_rpm()
@@ -544,7 +514,6 @@ const char *get_var_fan_3_rpm()
 void set_var_fan_3_rpm(const char *value)
 {
     set_text(g_fan_3_rpm_text, sizeof(g_fan_3_rpm_text), value);
-    g_fan_3_rpm = parse_non_negative_int_or_zero(g_fan_3_rpm_text);
 }
 
 const char *get_var_fan_3_label()
@@ -605,20 +574,6 @@ void set_var_fan_3_pct(int32_t value)
     }
 }
 
-int32_t vars_get_fan_1_rpm_value(void)
-{
-    return g_fan_1_rpm;
-}
-
-int32_t vars_get_fan_2_rpm_value(void)
-{
-    return g_fan_2_rpm;
-}
-
-int32_t vars_get_fan_3_rpm_value(void)
-{
-    return g_fan_3_rpm;
-}
 
 void vars_get_graph_sample(vars_graph_sample_t *out)
 {

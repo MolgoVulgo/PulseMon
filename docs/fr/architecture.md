@@ -1,61 +1,57 @@
 # Architecture
 
-PulseMon est séparé en deux composants runtime : le backend Linux et le firmware ESP32-S3.
+PulseMon comporte deux runtimes actifs.
 
 ## Backend Linux
 
-Le backend est responsable de :
+Point d’entrée : `api/app/main.py`.
 
-- collecter les métriques Linux ;
-- lire la télémétrie CPU, mémoire, GPU AMD et ventilateurs ;
-- appliquer les fallbacks capteurs ordonnés ;
-- normaliser les unités et la précision numérique ;
-- conserver le snapshot courant en mémoire ;
-- conserver un historique court en mémoire ;
-- exposer l’API HTTP ;
-- exposer une UI locale de debug/admin ;
-- persister les configurations utilisateur et ventilateurs si nécessaire.
+Responsabilités :
 
-Le backend ne doit pas faire de lectures capteurs lourdes dans les handlers HTTP. Les handlers lisent le store mémoire déjà normalisé.
+- collecter la télémétrie CPU, mémoire et GPU AMD ;
+- normaliser les valeurs et préserver les états invalides explicites ;
+- publier les snapshots principal et GPU ;
+- maintenir des historiques bornés en mémoire ;
+- exposer l’API HTTP et l’UI locale de debug.
+
+Les handlers HTTP consomment les services et stores. Ils ne possèdent pas la boucle d’échantillonnage haute fréquence. Le backend n’utilise aucune base persistante.
 
 ## Firmware ESP32-S3
 
-Le firmware est responsable de :
+Point d’entrée : `esp/src/main.c`.
 
-- se connecter au Wi-Fi ;
-- fournir un point d’accès et un portail captif si nécessaire ;
-- localiser ou utiliser l’adresse backend configurée ;
-- interroger les endpoints backend ;
-- parser les payloads JSON ;
-- maintenir les caches d’affichage locaux ;
-- mettre à jour les écrans LVGL ;
-- afficher l’état réseau et la fraîcheur des données ;
-- récupérer météo et actualités autonomes si configurées.
+Responsabilités :
 
-Le firmware ne doit pas calculer les métriques Linux, inférer les champs manquants ou dépendre d’une requête HTTP active pendant le rendu.
+- gérer le Wi-Fi et le portail local de configuration limité à l’AP de configuration ;
+- interroger les endpoints dashboard backend ;
+- parser le JSON et préserver les dernières valeurs valides ;
+- mettre à jour les variables runtime et écrans LVGL ;
+- récupérer directement météo et contenu GNews ;
+- stocker l’hôte/port backend, les réglages Wi-Fi, météo et actualités en NVS.
+
+L’endpoint backend est chargé depuis le namespace NVS `pulsemon_api`. `esp/src/pulsemon_api_config.h` fournit l’hôte/port de fallback compilés ainsi que les valeurs fixes de polling et timeout. Il n’existe pas de découverte automatique du backend. Le portail HTTP suit le cycle réel de l’AP : démarrage sur `WIFI_EVENT_AP_START`, arrêt sur `WIFI_EVENT_AP_STOP`, avec refus des requêtes lorsque l’AP est inactif. Le DNS captif est lié uniquement à l’adresse `192.168.4.1` de l’AP de configuration. Un hotspot invisible ajouté au runtime sur Main, GPU et Météo ouvre l’AP après un appui de cinq secondes dans le coin supérieur gauche. La fenêtre manuelle dure dix minutes tout en conservant une connexion station fonctionnelle.
+
+## Navigation firmware active
+
+```text
+Main <-> GPU <-> Météo
+```
 
 ## Propriété des données
 
-Le backend possède la télémétrie Linux et la génération des payloads API.
+```text
+Backend : télémétrie Linux, payloads API, historiques bornés en mémoire
+Firmware : état Wi-Fi, cache affichage, navigation LVGL, météo/news, réglages NVS
+```
 
-Le firmware possède l’état d’affichage, la navigation UI, l’état Wi-Fi, la météo, les actualités autonomes et la configuration locale de l’appareil.
+## Propriété EEZ
+
+- `esp/src/ui/` : sortie générée compilée par le firmware ; ne jamais modifier directement.
+- `esp/eez/pulsmon/` : projet EEZ Studio et état sauvegardé ; modifier uniquement via EEZ Studio.
+- L’intégration runtime hors fichiers générés appartient à `vars.c`, `actions.c`, `ui_screen.c`, `ui_graphs.c` et aux modules non générés associés.
+
+L’UI générée conserve un ancien écran FAN inaccessible et des bindings de compatibilité. Ces artefacts ne définissent aucune route, API ou cible de navigation active. Leur retrait exige EEZ Studio et une régénération.
 
 ## Transport
 
-Le backend et le firmware communiquent en HTTP local avec JSON compact. Le polling est retenu car le déploiement cible contient un client embarqué principal sur réseau privé.
-
-MQTT et l’architecture à broker ne font pas partie de l’architecture active.
-
-## Séparation runtime
-
-Pipeline firmware :
-
-```text
-réseau -> client HTTP -> parseur JSON -> cache local -> variables LVGL -> écrans rendus
-```
-
-Pipeline backend :
-
-```text
-lectures capteurs -> normalisation -> store snapshot/historique -> sérialisation API
-```
+La télémétrie backend utilise HTTP local et JSON. OpenWeather et GNews utilisent HTTPS avec validation des certificats via le bundle ESP-IDF. GNews utilise aussi un header `X-Api-Key`.

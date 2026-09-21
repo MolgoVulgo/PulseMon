@@ -1,132 +1,68 @@
-# Weather and news modules
+# Weather and news
 
-The ESP32-S3 firmware includes autonomous information features that do not depend on the Linux backend once Wi-Fi and keys are configured.
+The ESP32-S3 fetches weather and news directly. These services do not use the Linux backend.
 
-## Weather
+## Weather configuration
 
-Weather data is fetched from OpenWeather by the firmware.
+Stored in NVS namespace `pulsemon_cfg`:
 
-The firmware stores OpenWeather configuration in NVS and updates generated UI variables for:
+- `ow_key`;
+- `gmt_min`;
+- `ow_city`;
+- `lang`.
 
-- current local time;
-- local date;
-- current temperature;
-- weather condition;
-- rolling forecast labels;
-- weather icons loaded from SD card assets.
+Supported weather languages are `fr`, `en`, `de`, `es` and `it`. The default GMT offset is `+60 minutes`; the default language is `fr`.
 
-The OpenWeather key must not be logged or returned by configuration endpoints.
+## OpenWeather transport
+
+The firmware uses these HTTPS endpoints:
+
+```text
+https://api.openweathermap.org/data/2.5/weather
+https://api.openweathermap.org/data/3.0/onecall
+https://api.openweathermap.org/data/2.5/forecast
+```
+
+The API key is placed in the `appid` query parameter required by OpenWeather. TLS certificates are validated through the ESP-IDF certificate bundle. The firmware does not log the request URL or the key.
+
+Weather refresh is scheduled every 30 minutes. The service keeps the last valid weather snapshot when a request, TLS validation or parsing step fails.
 
 ## Weather icons
 
-Weather icons are loaded from the SD card mount point:
+Binary icons are loaded from the SD card using `/sdcard/icon_150.bin` and `/sdcard/icon_50.bin`.
 
-- `/sdcard/icon_150.bin` for the main current-weather icon;
-- `/sdcard/icon_50.bin` for rolling forecast icons.
+## GNews
 
-Startup diagnostics should validate SD mounting and icon-bin decoding.
-
-## News provider
-
-News headlines are fetched directly by the ESP32-S3 from GNews.
-
-The provider is GNews only. NewsAPI is not used as fallback.
-
-Endpoint:
+GNews uses:
 
 ```text
 https://gnews.io/api/v4/top-headlines
 ```
 
-Query parameters:
-
-| Parameter | Value |
-|---|---|
-| `category` | `general` |
-| `lang` | `fr` |
-| `country` | `fr` |
-| `max` | `5` |
-| `from` | current UTC time minus 15 days, ISO formatted |
-
-Authentication header:
+Authentication:
 
 ```text
-X-Api-Key: <GNews key from NVS>
+X-Api-Key: <key stored in NVS>
 ```
 
-The key must not be placed in the URL during normal operation.
+TLS certificates are validated through the ESP-IDF certificate bundle.
 
-## News NVS storage
+Default settings:
 
-Recommended namespace: `news`.
-
-Recommended keys:
-
-| Key | Purpose |
-|---|---|
-| `provider` | fixed provider name, `gnews` |
-| `gnews_key` | GNews API key |
-| `enabled` | module enable flag |
-| `refresh_min` | refresh interval |
-| `category` | GNews category |
-| `lang` | headline language |
-| `country` | country filter |
-| `max_items` | maximum requested articles |
-| `slide_speed` | ticker speed |
-| `max_age_days` | maximum article age |
-| `last_ok_ts` | last successful fetch timestamp |
-| `last_error` | compact last error code |
-
-Default behavior:
-
+- enabled;
 - refresh every 30 minutes;
-- request up to 5 articles;
-- reject articles older than 15 days;
-- keep the last valid headline in cache;
-- leave the line empty if no valid content exists.
+- category `general`;
+- language `fr`;
+- country `fr`;
+- maximum 5 items;
+- maximum article age 15 days;
+- ticker speed 35.
 
-## News request preconditions
-
-Before calling GNews, the firmware must have:
-
-- Wi-Fi connected;
-- DNS working;
-- valid SNTP time;
-- GNews key stored in NVS;
-- news module enabled;
-- refresh interval elapsed;
-- no active backoff.
-
-SNTP time is required for TLS validation and for computing the `from` parameter.
-
-## Article validation
-
-A valid article must have:
-
-- a non-empty title longer than 10 characters;
-- a parsable `publishedAt` value;
-- publication time within the maximum age window;
-- `lang=fr` when the field is present;
-- valid UTF-8 text.
-
-The UI uses cleaned titles only. It does not display article descriptions, content, URLs or images.
+The service requires Wi-Fi, DNS, valid SNTP time and a stored GNews key. It validates article title, publication date, age, optional language and UTF-8 content, then keeps valid headlines in a local cache.
 
 ## Information line priority
 
-The information line uses this priority:
-
 1. weather alert;
-2. valid news headline;
-3. cached news headline;
+2. current valid news item;
+3. cached news item;
 4. empty line.
-
-Weather alerts always override news. Technical errors should remain in diagnostics and logs, not in the normal information line.
-
-## Backoff
-
-Recommended retry behavior:
-
-- temporary network, TLS or server error: retry after the normal long interval;
-- rate limit: long backoff;
-- quota or authorization error: no aggressive retry;
-- parse or empty result: preserve cache and retry later.

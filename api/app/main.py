@@ -6,30 +6,19 @@ import time
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
+from app.collectors import configure_gpu_selection
 from app.config import AppConfig, load_config
 from app.diagnostics.logging import configure_logging
 from app.diagnostics.probe import capture_gpu_raw_vs_display, capture_raw_metrics, probe_sources
 from app.models import (
     DashboardResponse,
-    DbFanDeleteResponse,
-    DbFansListResponse,
-    DbFanWriteRequest,
-    DbFanWriteResponse,
-    DbDataResponse,
     ErrorResponse,
-    FansConfigResponse,
-    FansConfigUpdateRequest,
-    FansDashboardResponse,
-    FansMetaResponse,
-    FansReferenceResponse,
     GpuDashboardResponse,
     GpuHistoryResponse,
     GpuMetaResponse,
     HealthResponse,
     HistoryResponse,
     MetaResponse,
-    UserConfigResponse,
-    UserConfigUpdateRequest,
 )
 from app.services import (
     GpuSnapshotUnavailableError,
@@ -37,10 +26,6 @@ from app.services import (
     SnapshotUnavailableError,
     build_dashboard_from_store,
     build_dashboard_live,
-    build_fans_dashboard,
-    build_fans_meta,
-    get_fans_reference_catalog,
-    get_fans_mapping_config,
     build_gpu_dashboard_from_store,
     build_gpu_dashboard_live,
     build_gpu_history,
@@ -48,16 +33,6 @@ from app.services import (
     GpuSamplerService,
     build_history,
     build_meta,
-    save_fans_mapping_config,
-    get_user_config,
-    save_user_config,
-    get_db_data_view,
-    create_db_fan,
-    hard_delete_db_fan,
-    list_db_fans,
-    restore_db_fan,
-    soft_delete_db_fan,
-    update_db_fan,
 )
 from app.store import GpuHistoryStore, GpuSnapshotStore, HistoryStore, SnapshotStore
 from app.ui import get_ui_html
@@ -70,6 +45,10 @@ STEP_MAX = 10
 STEP_DEFAULT = 1
 
 config: AppConfig = load_config()
+configure_gpu_selection(
+    pci_slot=config.gpu_pci_slot,
+    temp_label_priority=config.gpu_temp_label_priority,
+)
 configure_logging(config.log_level)
 logger = logging.getLogger(__name__)
 
@@ -271,121 +250,6 @@ def get_gpu_history(window: int = WINDOW_DEFAULT, step: int = STEP_DEFAULT, mode
 @app.get("/api/v1/gpu/meta", response_model=GpuMetaResponse)
 def get_gpu_meta() -> GpuMetaResponse:
     return build_gpu_meta()
-
-
-@app.get("/api/v1/fans/dashboard", response_model=FansDashboardResponse)
-def get_fans_dashboard() -> FansDashboardResponse:
-    return build_fans_dashboard()
-
-
-@app.get("/api/v1/fans/meta", response_model=FansMetaResponse)
-def get_fans_meta() -> FansMetaResponse:
-    return build_fans_meta()
-
-
-@app.get("/api/v1/fans/config", response_model=FansConfigResponse)
-def get_fans_config() -> FansConfigResponse:
-    payload = get_fans_mapping_config()
-    return FansConfigResponse(
-        v=1,
-        mapping_path=payload.get("mapping_path", ""),
-        allowed_roles=payload.get("allowed_roles", ["unknown"]),
-        mappings=payload.get("mappings", []),
-    )
-
-
-@app.put("/api/v1/fans/config", response_model=FansConfigResponse)
-def put_fans_config(request: FansConfigUpdateRequest) -> FansConfigResponse:
-    payload = save_fans_mapping_config({"mappings": [item.model_dump() for item in request.mappings]})
-    return FansConfigResponse(
-        v=1,
-        mapping_path=payload.get("mapping_path", ""),
-        allowed_roles=payload.get("allowed_roles", ["unknown"]),
-        mappings=payload.get("mappings", []),
-    )
-
-
-@app.get("/api/v1/fans/reference", response_model=FansReferenceResponse)
-def get_fans_reference() -> FansReferenceResponse:
-    payload = get_fans_reference_catalog()
-    items = payload.get("items", [])
-    return FansReferenceResponse(
-        v=1,
-        generated_at=payload.get("generated_at"),
-        count=len(items) if isinstance(items, list) else 0,
-        items=items if isinstance(items, list) else [],
-    )
-
-
-@app.get("/api/v1/user/config", response_model=UserConfigResponse)
-def get_user_config_v1() -> UserConfigResponse:
-    payload = get_user_config()
-    return UserConfigResponse(v=1, settings=payload.get("settings", {}))
-
-
-@app.put("/api/v1/user/config", response_model=UserConfigResponse)
-def put_user_config_v1(request: UserConfigUpdateRequest) -> UserConfigResponse:
-    payload = save_user_config({"settings": request.settings})
-    return UserConfigResponse(v=1, settings=payload.get("settings", {}))
-
-
-@app.get("/api/v1/db/data", response_model=DbDataResponse)
-def get_db_data() -> DbDataResponse:
-    payload = get_db_data_view()
-    return DbDataResponse(
-        v=1,
-        db_path=str(payload.get("db_path", "")),
-        fan_mappings=payload.get("fan_mappings", []),
-        user_settings=payload.get("user_settings", {}),
-    )
-
-
-@app.get("/api/v1/db/fans", response_model=DbFansListResponse)
-def get_db_fans(include_deleted: bool = True) -> DbFansListResponse:
-    payload = list_db_fans(include_deleted=include_deleted)
-    return DbFansListResponse(v=1, items=payload.get("items", []))
-
-
-@app.post("/api/v1/db/fans", response_model=DbFanWriteResponse)
-def post_db_fan(request: DbFanWriteRequest) -> DbFanWriteResponse:
-    payload = create_db_fan(request.mapping.model_dump())
-    return DbFanWriteResponse(v=1, item=payload)
-
-
-@app.put("/api/v1/db/fans/{fan_id}", response_model=DbFanWriteResponse)
-def put_db_fan(fan_id: int, request: DbFanWriteRequest) -> DbFanWriteResponse:
-    try:
-        payload = update_db_fan(fan_id, request.mapping.model_dump())
-    except KeyError:
-        _raise_api_error(404, "not_found", "fan_id")
-    return DbFanWriteResponse(v=1, item=payload)
-
-
-@app.post("/api/v1/db/fans/{fan_id}/soft-delete", response_model=DbFanWriteResponse)
-def post_db_fan_soft_delete(fan_id: int) -> DbFanWriteResponse:
-    try:
-        payload = soft_delete_db_fan(fan_id)
-    except KeyError:
-        _raise_api_error(404, "not_found", "fan_id")
-    return DbFanWriteResponse(v=1, item=payload)
-
-
-@app.post("/api/v1/db/fans/{fan_id}/restore", response_model=DbFanWriteResponse)
-def post_db_fan_restore(fan_id: int) -> DbFanWriteResponse:
-    try:
-        payload = restore_db_fan(fan_id)
-    except KeyError:
-        _raise_api_error(404, "not_found", "fan_id")
-    return DbFanWriteResponse(v=1, item=payload)
-
-
-@app.delete("/api/v1/db/fans/{fan_id}", response_model=DbFanDeleteResponse)
-def delete_db_fan(fan_id: int) -> DbFanDeleteResponse:
-    try:
-        payload = hard_delete_db_fan(fan_id)
-    except KeyError:
-        _raise_api_error(404, "not_found", "fan_id")
-    return DbFanDeleteResponse(v=1, deleted_id=int(payload.get("deleted_id", fan_id)))
 
 
 def _raise_api_error(status_code: int, error: str, field: str | None = None) -> None:

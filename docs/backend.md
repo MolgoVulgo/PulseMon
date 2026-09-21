@@ -1,67 +1,45 @@
 # Linux backend
 
-The backend is a Python/FastAPI service that collects Linux telemetry and exposes it through local HTTP endpoints.
+The backend is a Python 3.11+/FastAPI service.
 
-## Runtime responsibilities
+## Runtime structure
 
-The backend must:
+- collectors: `api/app/collectors/`;
+- response models: `api/app/models/`;
+- orchestration services: `api/app/services/`;
+- current snapshots and histories: `api/app/store/`;
+- HTTP entry point: `api/app/main.py`;
+- local UI: `api/app/ui.py` and `api/app/ui/index.html`.
 
-- collect CPU, memory, AMD GPU and fan metrics;
-- normalize units;
-- apply stable fallback rules;
-- keep missing values explicit;
-- maintain a current snapshot;
-- maintain bounded in-memory history;
-- serialize compact JSON;
-- expose diagnostics without flooding logs;
-- avoid heavy sensor access in HTTP handlers.
+## Sampling and publication
 
-## Recommended module boundaries
+Defaults from `api/app/config.py`:
 
-A clean implementation separates:
+- sensor acquisition: `0.1 s`;
+- snapshot/history publication: `0.5 s`;
+- history capacity: `600` entries;
+- display EMA alpha: `0.25`.
 
-- configuration loading;
-- domain and API models;
-- sensor collectors;
-- normalization;
-- snapshot and history stores;
-- services that assemble responses;
-- HTTP route handlers;
-- diagnostics and raw capture tools.
+Main and GPU samplers publish to separate snapshot and history stores. HTTP handlers read those stores; they do not perform the normal sensor acquisition path themselves.
 
-## Sampling and publishing
+Missing metrics remain present through invalid metric envelopes or nullable history points.
 
-The backend uses two runtime cadences:
+## Runtime storage
 
-- sensor acquisition, controlled by `STATS_SAMPLE_INTERVAL_S`;
-- snapshot/history publication, controlled by `STATS_PUBLISH_INTERVAL_S`.
+The backend has no persistent database. Current snapshots and bounded histories are stored in memory and are rebuilt after restart. Diagnostic captures, when explicitly enabled, are written to configured JSONL paths and are not part of the API state model.
 
-The default behavior can sample faster than it publishes, then expose display-ready values from memory.
+## Local UI
 
-## History
+`/ui` displays current main and GPU metrics plus main history. It is a local debug/observation surface, not an administration interface.
 
-History is kept in memory with bounded capacity controlled by `STATS_HISTORY_CAPACITY`.
+## Optional API key
 
-History responses must remain compact, aligned and bounded. The embedded client must receive arrays that can be displayed without realignment.
+When `STATS_API_KEY` is set, `/api/v1/*` routes require the configured header, default `X-API-Key`.
 
-## Smoothing
+Current integration limitation: the ESP32 firmware and backend web UI do not add this header. The standard local deployment therefore leaves `STATS_API_KEY` unset until those clients are updated.
 
-Display smoothing can be applied to percentage values before publication. The documented active behavior uses a median window followed by EMA smoothing controlled by `STATS_DISPLAY_EMA_ALPHA`.
+## Strict configuration validation
 
-Raw values remain useful for diagnostics. Display values are preferred for UI stability.
+All 20 backend `STATS_*` variables are parsed centrally by `api/app/config.py`. Startup rejects malformed values, non-finite numbers, out-of-range intervals and capacities, invalid booleans, invalid HTTP header names, invalid PCI BDF values and invalid GPU temperature-label lists.
 
-## Sensor failure policy
-
-A failure on one metric must not collapse the whole snapshot.
-
-Rules:
-
-- keep the field present;
-- mark the metric invalid or return `null` depending on payload form;
-- preserve the last coherent service state;
-- log actionable diagnostics;
-- avoid fabricating values.
-
-## Authentication
-
-Authentication is optional for private LAN use. When `STATS_API_KEY` is configured, API routes require the configured header, defaulting to `X-API-Key`.
+The packaged launcher executes `python -m app.config` before Uvicorn, and importing `app.main` validates the same contract before runtime services are constructed. Error messages identify the variable and expected contract without echoing secret values.

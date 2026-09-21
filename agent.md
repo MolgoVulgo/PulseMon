@@ -1,413 +1,81 @@
-# agent-stats-linux.md
+# PulseMon agent context
 
-## Contexte du dépôt
+## Source of truth
 
-Ce fichier définit le cadre de travail d’un **agent Codex** pour le projet **Stats Linux vers ESP32-S3**.
+Use the supplied `PulseMon.zip` snapshot and the files actually present in it. A newly supplied snapshot replaces any previous snapshot and patch chain. Do not use remote repositories and do not reconstruct intentionally filtered files from assumptions.
 
-Le dépôt doit être traité comme un projet **bi-brique** :
-- **backend Linux** en **Python 3.11+ / FastAPI / Pydantic / psutil** ;
-- **firmware embarqué** en **ESP-IDF / C ou C++ / LVGL** pour **ESP32-S3**.
+Read first:
 
-Le système cible est structuré autour de :
-- une collecte locale des métriques Linux ;
-- une API HTTP locale versionnée ;
-- un client HTTP embarqué sur ESP32-S3 ;
-- un affichage temps réel de métriques CPU / RAM / GPU.
+1. `README.md` or `README.fr.md`;
+2. `docs/README.md` and the relevant canonical document;
+3. `api/app/main.py` for active backend routes;
+4. `api/app/config.py` for the complete 20-variable `STATS_*` contract;
+5. `esp/platformio.ini` for firmware environments;
+6. `esp/src/main.c`, `pulsemon_api_settings.*`, `pulsemon_api_config.h`, `pulsemon_poller.c` and the relevant firmware modules;
+7. the exact files involved in the requested change.
 
----
-
-## Règle de cadrage
-
-- Traiter ce dépôt comme un projet **API Python + firmware ESP-IDF**.
-- Ne pas appliquer un cadrage Qt / QML / CMake desktop hérité d’un autre projet.
-- Ne pas refondre l’architecture en dehors du périmètre validé.
-- Respecter strictement l’architecture retenue :
-  - **Linux** : collecte + normalisation + cache + API HTTP locale ;
-  - **ESP32-S3** : polling HTTP + parsing JSON + cache local + rendu LVGL.
-- Ne pas introduire de MQTT en V1.
-- Ne pas introduire de cloud, de broker, de persistance longue durée ou de dashboard web riche sans demande explicite.
-
----
-
-## Sources de vérité du projet
-
-Lire d’abord, dans cet ordre :
-1. `docs/specs/cahier_des_charges_stats_linux_esp_32.md`
-2. `docs/specs/cahier_fonctionnel_stats_linux_esp_32.md`
-3. `docs/plans/plan_implementation_api_stats_linux.md`
-4. `platformio.ini` (racine si présent, sinon `esp/platformio.ini`)
-5. `esp/src/`
-6. `esp/sdkconfig.defaults`
-7. `esp/boards/`
-8. la zone réellement touchée dans le dépôt
-9. les fichiers de configuration et d’entrée du module modifié
-
-Les décisions déjà figées sont les suivantes :
-- backend Linux en Python ;
-- API HTTP locale ;
-- JSON compact versionné ;
-- polling simple ;
-- ESP32-S3 en ESP-IDF ;
-- UI LVGL ;
-- métriques V1 limitées à CPU / RAM / GPU ;
-- graphes V1 limités à CPU/GPU usage + température ;
-- `cpu.power_w` nullable ;
-- `gpu.power_w` prévue au contrat ;
-- pas de MQTT en V1.
-
----
-
-## Architecture à respecter
-
-### Backend Linux
-
-Le backend est responsable de :
-- lecture des métriques Linux ;
-- application des fallbacks capteurs ;
-- normalisation des unités ;
-- maintien d’un snapshot courant ;
-- maintien d’un historique court en mémoire ;
-- exposition HTTP des endpoints V1 ;
-- stabilité stricte du contrat JSON.
-
-Découpage attendu en priorité :
-- `config`
-- `models`
-- `collectors`
-- `normalizers`
-- `store`
-- `services`
-- `api`
-- `diagnostics`
-
-### Firmware ESP32-S3
-
-Le firmware est responsable de :
-- Wi‑Fi ;
-- découverte ou configuration du backend ;
-- client HTTP ;
-- parsing JSON ;
-- cache local ;
-- rendu LVGL ;
-- affichage de l’état réseau et de l’obsolescence.
-
-Découpage attendu en priorité :
-- réseau
-- client HTTP
-- parsing JSON
-- cache local
-- UI LVGL
-- supervision / erreurs
-
-### Règles de séparation
-
-- Ne pas faire de lecture système Linux dans les handlers HTTP.
-- Ne pas faire dépendre l’UI ESP32 d’une requête réseau synchrone en cours.
-- Ne pas déplacer de logique métier côté ESP32 si elle doit être fixée côté backend.
-- Ne pas casser le contrat JSON pour contourner une difficulté de collecte.
-
----
-
-## Contrat API à préserver
-
-Les endpoints V1 de référence sont :
-- `GET /api/v1/health`
-- `GET /api/v1/dashboard`
-- `GET /api/v1/history`
-- `GET /api/v1/meta`
-- `GET /api/v1/gpu/dashboard`
-- `GET /api/v1/gpu/history`
-- `GET /api/v1/gpu/meta`
-
-Contraintes impératives :
-- JSON versionné avec `"v": 1` ;
-- structure stable ;
-- noms de champs fixes ;
-- unités fixes ;
-- champs toujours présents ;
-- valeurs absentes à `null`, jamais supprimées ;
-- enveloppe métrique stable (`value_raw`, `value_display`, `source`, `unit`, `sampled_at`, `estimated`, `valid`) ;
-- tableaux d’historique plats et alignés ;
-- aucune reconstruction métier côté client ESP32.
-
-Métriques instantanées V1 :
-- `cpu.pct`
-- `cpu.temp_c`
-- `cpu.power_w`
-- `mem.used_b`
-- `mem.total_b`
-- `mem.pct`
-- `gpu.pct`
-- `gpu.temp_c`
-- `gpu.power_w`
-
-Séries historiques V1 :
-- `cpu_pct`
-- `cpu_temp_c`
-- `gpu_pct`
-- `gpu_temp_c`
-
----
-
-## Priorités techniques du projet
-
-Toujours prioriser dans cet ordre :
-1. exactitude du mapping capteurs Linux ;
-2. stabilité du modèle interne ;
-3. stabilité du JSON `dashboard` ;
-4. cohérence du JSON `history` ;
-5. robustesse des fallbacks ;
-6. gestion de l’obsolescence ;
-7. résilience réseau côté ESP32 ;
-8. rendu UI.
-
-Le principe directeur du projet est simple :
-- si les métriques sont correctes,
-- si le snapshot est frais,
-- si l’historique est cohérent,
-- et si le JSON reste stable,
-- alors l’intégration ESP32 devient essentiellement un travail de consommation et d’affichage.
-
----
-
-## Politique de modification
-
-- Modifier uniquement les fichiers nécessaires à l’intention du changement.
-- Conserver les changements localisés, lisibles et testables.
-- Ne pas toucher aux artefacts générés, builds, caches ou dépendances lockées sans nécessité explicite.
-- Ne pas ajouter de fonctionnalités hors périmètre V1 sans demande explicite.
-- En cas de doute, préférer une correction minimale dans le module déjà responsable.
-- Si le changement impacte le contrat JSON, mettre à jour la documentation associée et les tests de non-régression.
-- Si le changement impacte les fallbacks capteurs, documenter précisément la source retenue et le fallback appliqué.
-- Si le changement impacte l’ESP32, préserver le découplage réseau / parsing / cache / UI.
-
-### Collaboration obligatoire
-
-- Ne jamais générer du code en solo sans exposer d’abord le constat technique.
-- Toujours détailler ce qui va être modifié avant toute modification de code.
-- Toujours expliciter les hypothèses réelles quand une structure de dépôt ou un capteur n’est pas encore confirmé.
-
----
-
-## Contraintes techniques du dépôt
-
-### Backend
-
-- Python 3.11+.
-- Framework HTTP : FastAPI.
-- Modèles : Pydantic.
-- Collecte généraliste : psutil.
-- Collecte spécifique AMD : sysfs / hwmon / DRM / amdgpu.
-- Pas de lecture lourde à chaque requête HTTP.
-- Boucle d’échantillonnage interne cible : **acquisition 10 Hz / publication 2 Hz** (configurable).
-- Historique en ring buffer mémoire.
-
-### Firmware
-
-- ESP32-S3.
-- ESP-IDF natif.
-- UI via LVGL.
-- Interdiction explicite: ne jamais lancer de build, flash ou monitor ESP (`idf.py`/`pio`) sauf demande explicite contraire de l’utilisateur.
-- Polling `dashboard` cible : **1 Hz**.
-- Polling `history` : **optionnel** (non utilisé dans le firmware actuel, graphes locaux alimentés par snapshots).
-- Conserver le dernier snapshot valide en cas d’échec.
-- Signaler explicitement les données obsolètes.
-- Ressources embarquées contraintes (RAM/Flash/CPU) : privilégier les modifications sobres.
-- Éviter les allocations dynamiques inutiles.
-- Éviter les blocages longs dans les tâches critiques (latence et WDT).
-- Prioriser la stabilité runtime (pas de reset/WDT).
-- Gérer explicitement les erreurs matérielles.
-
-### Logs firmware
-
-- Utiliser `ESP_LOGI`, `ESP_LOGW`, `ESP_LOGE` avec des tags par module.
-- Les logs doivent être activables/désactivables via flags de build, sans modifier la logique métier.
-- Limiter le bruit des logs en fonctionnement nominal.
-
-### Règles UI générée (ESP)
-
-- Vérifier la cohérence des types entre `src/ui/vars.h` et `src/ui/screens.c` (même type attendu pour chaque `get_var_*`) avant toute analyse.
-- Exigence: types `get_var_*` cohérents entre `src/ui/vars.h` et `src/ui/screens.c`.
-- Aucune modification directe dans `src/ui/` (fichiers générés).
-- Interdiction absolue de modifier les fichiers dans `src/ui/` (générés).
-- Si un problème est détecté dans `src/ui/`, l’expliquer clairement sans modifier ces fichiers.
-
-### Interdits V1
-
-- MQTT.
-- multi-machines.
-- écriture ou pilotage de la machine Linux.
-- persistance longue durée.
-- sécurité complexe.
-- structure JSON variable selon la machine.
-- valeurs synthétiques inventées pour masquer une métrique absente.
-
----
-
-## Commandes standard
-
-Les commandes exactes dépendent de la structure réelle du dépôt.
-Ne pas les inventer si le dépôt ne les expose pas encore.
-
-### Backend Python
-
-Si un module `api/` ou équivalent existe :
-
-```bash
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-pytest -q
-```
-
-### Firmware ESP-IDF
-
-Si un projet ESP-IDF est présent :
-
-```bash
-idf.py build
-idf.py flash
-idf.py monitor
-```
-
-Si la compilation est pilotée via PlatformIO (configuration actuelle du dépôt) :
-
-```bash
-pio run -e LVGL-320-480
-```
-
-### Principe
-
-- valider uniquement ce qui est réellement exécutable dans l’environnement courant ;
-- ne pas prétendre avoir compilé ou flashé si ce n’est pas le cas ;
-- signaler explicitement toute limite d’environnement.
-
----
-
-## Validation attendue
-
-Avant de conclure :
-
-### Pour le backend
-- tests unitaires ou d’intégration ciblés ;
-- vérification des endpoints impactés ;
-- vérification de la stabilité du JSON ;
-- vérification du comportement avec métriques absentes ;
-- vérification de `state.ok` et `state.stale_ms`.
-
-### Pour le firmware
-- ne pas exécuter de build/flash/monitor ESP sans demande explicite de l’utilisateur ;
-- validation du parsing JSON ;
-- validation de la résilience sur perte réseau ;
-- vérification rapide de non-régression UI si la zone LVGL est touchée.
-
-### Si une validation ne peut pas être exécutée
-Le signaler explicitement avec la raison réelle :
-- dépendance manquante ;
-- capteur absent ;
-- machine Linux cible indisponible ;
-- environnement ESP-IDF non disponible ;
-- matériel non connecté ;
-- dépôt incomplet ;
-- commande non encore définie dans le projet.
-
----
-
-## Règles spécifiques capteurs / métriques
-
-- CPU usage : source attendue `psutil.cpu_percent(interval=None)`.
-- CPU temp : priorité `Tdie`, fallback `Tctl`.
-- CPU power : optionnelle ; `None` si non fiable ou absente.
-- RAM : via `psutil.virtual_memory()`.
-- GPU usage : priorité `gpu_busy_percent` côté amdgpu.
-- GPU temp : lecture `hwmon`/amdgpu.
-- GPU power : télémétrie amdgpu si disponible.
-
-Règles impératives :
-- ne jamais fabriquer une pseudo-mesure ;
-- ne jamais supprimer un champ parce qu’une sonde est absente ;
-- journaliser la cause d’absence d’une métrique ;
-- conserver un comportement déterministe pour le client.
-
----
-
-## Logging / diagnostics
-
-Journaliser utilement :
-- démarrage du service ;
-- configuration effective ;
-- capteurs détectés ;
-- source retenue pour chaque métrique ;
-- fallback retenu ;
-- erreurs de lecture ;
-- erreurs HTTP ;
-- invalidité des paramètres.
-
-Éviter :
-- le bruit à chaque tick en production ;
-- les logs verbeux sans valeur ;
-- les suppositions présentées comme des faits.
-
----
-
-## Structure de réponse attendue
-
-- Constat technique
-- Actions appliquées
-- Validation exécutée
-- Limites / hypothèses, si nécessaires
-
-Style attendu :
-- direct
-- court
-- orienté exécution
-- pas de code sauf si l’utilisateur le demande
-- des faits, pas des explications longues
-- pas de tirades intermminables
-
----
-
-## Commits Git
-
-- Faire des commits par unité logique cohérente et testable.
-- Ne jamais faire de commit automatiquement sans demande explicite de l’utilisateur.
-- Ne jamais pousser soi-même.
-- Messages en anglais.
-- Conventional commit recommandé :
+## Active architecture
 
 ```text
-<type>(<scope>): <summary>
+Linux backend: api/
+ESP32-S3 firmware: esp/
+Canonical documentation: docs/ and docs/fr/
 ```
 
-Scopes recommandés dans ce projet :
-- `api`
-- `collectors`
-- `normalizers`
-- `store`
-- `services`
-- `firmware`
-- `lvgl`
-- `docs`
-- `tests`
+Backend entry point: `api/app/main.py`.
+Firmware entry point: `esp/src/main.c`.
 
-Le message doit décrire exactement le diff réel :
-- `git status`
-- `git diff --stat HEAD`
-- `git diff HEAD`
+## Current product contract
 
-Mentionner dans le corps :
-- changements fonctionnels ;
-- robustesse / gestion d’erreurs ;
-- impact contrat JSON ;
-- tests exécutés ;
-- docs mises à jour.
+- monitoring: CPU, memory and AMD GPU, including GPU fan telemetry when exposed by the driver;
+- backend state: current snapshots and bounded histories in memory only;
+- backend HTTP API: seven monitoring routes under `/api/v1` plus `/ui`;
+- firmware screens: Main, GPU and Weather;
+- external content: OpenWeather and GNews fetched directly by the ESP32-S3;
+- firmware persistence: backend host/port, Wi-Fi, weather and news settings in NVS;
+- backend endpoint: NVS namespace `pulsemon_api`, with compiled fallback in `esp/src/pulsemon_api_config.h`;
+- backend API key: optional server capability not currently sent by the firmware or backend UI;
+- configuration portal: HTTP server and captive DNS active only while the setup AP is active, with DNS bound to `192.168.4.1`;
+- local trigger: five-second hold in the top-left corner of Main/GPU/Weather, opening a ten-minute manual AP window while preserving station connectivity.
 
-### Template
+There is no active backend FAN subsystem, database layer, user-configuration API or administration UI. Do not reintroduce these contracts implicitly.
 
-```text
-<type>(<scope>): <summary>
+## Generated UI boundary
 
-- ...
-- ...
+- Never edit `esp/src/ui/` directly.
+- Never edit `esp/eez/pulsmon/` outside EEZ Studio.
+- Runtime integration changes belong in the owning non-generated modules.
 
-Tests: <commande> (<résultat>)
-Docs: <liste de fichiers ou "none">
+The generated output retains an unreachable legacy FAN screen and compatibility bindings. They are not an active feature. Their physical removal requires EEZ Studio and regeneration.
+
+## Transport and secrets
+
+- OpenWeather and GNews use HTTPS with certificate validation through the ESP-IDF certificate bundle.
+- GNews uses `X-Api-Key`.
+- Do not log or return Wi-Fi passwords or API keys.
+- Treat the deployment as local and personal, but avoid unnecessary LAN exposure.
+- Do not make the configuration portal or captive DNS permanent station-LAN services.
+
+## Snapshot rules
+
+`make-a.sh` intentionally creates a filtered `PulseMon.zip`. Excluded directories such as `tmp/`, build trees, caches and local SDK files may exist outside the snapshot. Do not classify an excluded file as missing unless the active contract requires it to be present in the snapshot.
+
+## Validation rules
+
+Backend:
+
+```bash
+cd api
+python3 -m app.config
+python3 -m pytest -q
 ```
+
+All backend environment variables are validated centrally before runtime startup. Do not add direct `STATS_*` reads elsewhere in the Python runtime; the launcher may read validated bind/port/logging values to build the Uvicorn command.
+
+Firmware build, flash or monitor must not be run without explicit user instruction. When requested, use an environment defined in `esp/platformio.ini`.
+
+For the explicitly authorized P8 phase, Codex must run `python3 tools/p8_validate.py --codex-full` from the project root. This profile tests the backend, builds both firmware environments, flashes release firmware, captures 180 seconds of serial output and checks `http://192.168.0.10:8000`. Preserve `report.json`, `report.md` and `hardware-checklist.json`, then finalize the same evidence with `--resume-report ... --checklist-file ... --require-hardware`. Never claim hardware validation while any manual check is not `pass`.
+
+Documentation changes must keep English and French aligned and must describe current behavior rather than intended future behavior.
+
+Do not create commits, push changes or access remote repositories without explicit instruction.

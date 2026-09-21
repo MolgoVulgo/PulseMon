@@ -6,6 +6,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "freertos/timers.h"
 
 #include "esp_err.h"
 #include "esp_event.h"
@@ -25,13 +26,16 @@ static esp_event_handler_instance_t s_wifi_handler_any_id;
 static esp_event_handler_instance_t s_wifi_handler_got_ip;
 static SemaphoreHandle_t s_state_lock;
 static SemaphoreHandle_t s_scan_lock;
+static TimerHandle_t s_manual_config_timer;
 static pulsemon_wifi_connected_cb_t s_connected_cb;
+static pulsemon_wifi_config_mode_cb_t s_config_mode_cb;
 static int s_retry_count;
 static bool s_started;
 static bool s_connected;
 static bool s_ap_active;
 static bool s_has_credentials;
 static bool s_scan_active;
+static bool s_manual_config_active;
 static char s_current_ssid[PULSEMON_WIFI_STATUS_SSID_MAX_LEN + 1];
 static char s_current_ip[16];
 static wifi_ap_record_t s_scan_records[PULSEMON_WIFI_SCAN_MAX_RESULTS];
@@ -69,9 +73,23 @@ static void set_connected_state(bool connected, const char *ssid, const char *ip
 
 static void set_ap_active(bool active)
 {
+    bool changed;
+
     state_lock();
+    changed = s_ap_active != active;
     s_ap_active = active;
+    if (!active) {
+        s_manual_config_active = false;
+    }
     state_unlock();
+
+    if (!active && s_manual_config_timer != NULL) {
+        xTimerStop(s_manual_config_timer, 0);
+    }
+
+    if (changed && s_config_mode_cb != NULL) {
+        s_config_mode_cb(active);
+    }
 }
 
 static esp_err_t configure_ap(void)
@@ -91,8 +109,7 @@ static esp_err_t configure_ap(void)
 
     esp_err_t err = esp_wifi_set_config(WIFI_IF_AP, &ap_config);
     if (err == ESP_OK) {
-        set_ap_active(true);
-        ESP_LOGI(TAG, "config portal ap active ssid=%s", PULSEMON_WIFI_AP_SSID);
+        ESP_LOGI(TAG, "config portal ap configured ssid=%s", PULSEMON_WIFI_AP_SSID);
     }
     return err;
 }
@@ -119,18 +136,34 @@ static esp_err_t disable_config_ap_if_connected(void)
     state_lock();
     bool connected = s_connected;
     bool ap_active = s_ap_active;
+    bool manual_config_active = s_manual_config_active;
     state_unlock();
 
-    if (!connected || !ap_active) {
+    if (!connected || !ap_active || manual_config_active) {
         return ESP_OK;
     }
 
-    esp_err_t err = esp_wifi_set_mode(WIFI_MODE_STA);
-    if (err == ESP_OK) {
-        set_ap_active(false);
-        ESP_LOGI(TAG, "config portal ap stopped");
+    return esp_wifi_set_mode(WIFI_MODE_STA);
+}
+
+static void manual_config_timeout_cb(TimerHandle_t timer)
+{
+    (void)timer;
+
+    state_lock();
+    bool should_disable = s_manual_config_active && s_connected && s_ap_active;
+    s_manual_config_active = false;
+    state_unlock();
+
+    if (!should_disable) {
+        return;
     }
-    return err;
+
+    ESP_LOGI(TAG, "manual configuration window expired, disabling setup ap");
+    esp_err_t err = esp_wifi_set_mode(WIFI_MODE_STA);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "unable to disable setup ap after timeout: %s", esp_err_to_name(err));
+    }
 }
 
 static esp_err_t configure_sta(const pulsemon_wifi_credentials_t *credentials)
@@ -186,6 +219,18 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
     (void)arg;
     (void)event_data;
 
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_START) {
+        ESP_LOGI(TAG, "config portal ap active ssid=%s", PULSEMON_WIFI_AP_SSID);
+        set_ap_active(true);
+        return;
+    }
+
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STOP) {
+        ESP_LOGI(TAG, "config portal ap stopped");
+        set_ap_active(false);
+        return;
+    }
+
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         if (pulsemon_wifi_credentials_present()) {
             esp_err_t err = connect_sta_from_nvs();
@@ -229,9 +274,11 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
     }
 }
 
-esp_err_t pulsemon_wifi_manager_init(pulsemon_wifi_connected_cb_t connected_cb)
+esp_err_t pulsemon_wifi_manager_init(
+    pulsemon_wifi_connected_cb_t connected_cb, pulsemon_wifi_config_mode_cb_t config_mode_cb)
 {
     s_connected_cb = connected_cb;
+    s_config_mode_cb = config_mode_cb;
 
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -260,6 +307,17 @@ esp_err_t pulsemon_wifi_manager_init(pulsemon_wifi_connected_cb_t connected_cb)
     if (s_scan_lock == NULL) {
         s_scan_lock = xSemaphoreCreateMutex();
         if (s_scan_lock == NULL) {
+            return ESP_ERR_NO_MEM;
+        }
+    }
+    if (s_manual_config_timer == NULL) {
+        s_manual_config_timer = xTimerCreate(
+            "config_window",
+            pdMS_TO_TICKS(PULSEMON_WIFI_MANUAL_CONFIG_TIMEOUT_MS),
+            pdFALSE,
+            NULL,
+            manual_config_timeout_cb);
+        if (s_manual_config_timer == NULL) {
             return ESP_ERR_NO_MEM;
         }
     }
@@ -321,6 +379,43 @@ esp_err_t pulsemon_wifi_manager_start(void)
         s_started = true;
     }
     return err;
+}
+
+esp_err_t pulsemon_wifi_manager_open_config_mode(void)
+{
+    state_lock();
+    bool started = s_started;
+    s_manual_config_active = started;
+    state_unlock();
+
+    if (!started) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    esp_err_t err = enable_config_ap();
+    if (err != ESP_OK) {
+        state_lock();
+        s_manual_config_active = false;
+        state_unlock();
+        return err;
+    }
+
+    if (s_manual_config_timer == NULL || xTimerReset(s_manual_config_timer, 0) != pdPASS) {
+        state_lock();
+        bool connected = s_connected;
+        s_manual_config_active = false;
+        state_unlock();
+        if (connected) {
+            esp_wifi_set_mode(WIFI_MODE_STA);
+        }
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(
+        TAG,
+        "manual configuration window opened for %u ms",
+        (unsigned)PULSEMON_WIFI_MANUAL_CONFIG_TIMEOUT_MS);
+    return ESP_OK;
 }
 
 esp_err_t pulsemon_wifi_manager_apply_credentials(const char *ssid, const char *password)

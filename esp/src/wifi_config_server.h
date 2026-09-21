@@ -4,5 +4,6 @@
 #include "esp_err.h"
 
 esp_err_t pulsemon_wifi_config_server_start(void);
+esp_err_t pulsemon_wifi_config_server_stop(void);
 
 #endif

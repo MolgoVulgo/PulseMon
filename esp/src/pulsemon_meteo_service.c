@@ -10,6 +10,7 @@
 
 #include "cJSON.h"
 #include "esp_bsp.h"
+#include "esp_crt_bundle.h"
 #include "esp_err.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
@@ -218,6 +219,7 @@ static bool fetch_url(const char *url, char *body, size_t body_len)
         .user_data = &acc,
         .buffer_size = 1024,
         .buffer_size_tx = 512,
+        .crt_bundle_attach = esp_crt_bundle_attach,
     };
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
     if (client == NULL) {
@@ -666,7 +668,7 @@ static void fetch_weather_once(void)
     char url[320];
     snprintf(url,
              sizeof(url),
-             "http://api.openweathermap.org/data/2.5/weather?id=%lu&appid=%s&units=metric&lang=%s",
+             "https://api.openweathermap.org/data/2.5/weather?id=%lu&appid=%s&units=metric&lang=%s",
              (unsigned long)settings.openweather_city_id,
              settings.openweather_key,
              settings.language);
@@ -684,7 +686,7 @@ static void fetch_weather_once(void)
         memset(body, 0, PULSEMON_METEO_BODY_CAP);
         snprintf(url,
                  sizeof(url),
-                 "http://api.openweathermap.org/data/3.0/onecall?lat=%.6f&lon=%.6f&exclude=current,minutely,hourly,alerts&appid=%s&units=metric&lang=%s",
+                 "https://api.openweathermap.org/data/3.0/onecall?lat=%.6f&lon=%.6f&exclude=current,minutely,hourly,alerts&appid=%s&units=metric&lang=%s",
                  snapshot.lat,
                  snapshot.lon,
                  settings.openweather_key,
@@ -695,7 +697,7 @@ static void fetch_weather_once(void)
         memset(body, 0, PULSEMON_METEO_BODY_CAP);
         snprintf(url,
                  sizeof(url),
-                 "http://api.openweathermap.org/data/2.5/forecast?id=%lu&appid=%s&units=metric&lang=%s",
+                 "https://api.openweathermap.org/data/2.5/forecast?id=%lu&appid=%s&units=metric&lang=%s",
                  (unsigned long)settings.openweather_city_id,
                  settings.openweather_key,
                  settings.language);

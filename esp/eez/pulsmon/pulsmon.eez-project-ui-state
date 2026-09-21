@@ -1,6 +1,6 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[pulsmon.eez-project]:/userPages/4",
+    "selectedUserPageObject": "[pulsmon.eez-project]:/userPages/3",
     "selectedActionObject": "[pulsmon.eez-project]:/actions/0",
     "selectedGlobalVariableObject": "[pulsmon.eez-project]:/variables/globalVariables/41",
     "selectedStyleObject": "[pulsmon.eez-project]:/lvglStyles/styles/1/childStyles/0",
@@ -228,10 +228,10 @@
                 {
                   "type": "tab",
                   "id": "#56c77853-7bd0-4b79-81ec-025216de3de3",
-                  "name": "meteo",
+                  "name": "fan",
                   "component": "editor",
                   "config": {
-                    "objectPath": "[pulsmon.eez-project]:/userPages/4",
+                    "objectPath": "[pulsmon.eez-project]:/userPages/3",
                     "permanent": false
                   },
                   "icon": "svg:page"
@@ -1096,7 +1096,7 @@
           "x": -240,
           "y": -160
         },
-        "scale": 1.1
+        "scale": 2
       },
       "timeline": {
         "isEditorActive": false,
@@ -1114,14 +1114,14 @@
             "1": {}
           },
           "1": {
-            "0": {
-              "$selected": true
-            }
+            "0": {}
           },
           "2": {},
           "3": {},
           "4": {},
-          "5": {},
+          "5": {
+            "$selected": true
+          },
           "6": {}
         }
       },
@@ -1146,22 +1146,22 @@
           "0": {},
           "1": {},
           "2": {},
-          "3": {},
+          "3": {
+            "$selected": true
+          },
           "4": {},
           "5": {},
           "6": {},
           "7": {},
           "8": {},
           "9": {},
-          "10": {
-            "$selected": true
-          }
+          "10": {}
         }
       },
       "transform": {
         "translate": {
           "x": -451.14453125,
-          "y": -414.62109375
+          "y": -294.62109375
         },
         "scale": 2
       },
@@ -1176,7 +1176,11 @@
       "selectionFront": {},
       "selectionBack": {
         "0": {
-          "1": {}
+          "1": {
+            "1": {
+              "$selected": true
+            }
+          }
         }
       },
       "transform": {

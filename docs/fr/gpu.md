@@ -12,7 +12,8 @@ Le périmètre GPU inclut :
 - valeurs lissées prêtes à afficher ;
 - valeurs brutes pour diagnostics ;
 - dashboard GPU dédié ;
-- historique GPU borné.
+- historique GPU borné ;
+- RPM et pourcentage du ventilateur GPU lorsque le pilote AMD les expose.
 
 ## Sélection des sources
 
@@ -25,6 +26,8 @@ La priorité des labels de température est contrôlée par `STATS_GPU_TEMP_LABE
 L’utilisation GPU peut être visuellement nerveuse. Le backend peut exposer à la fois des valeurs brutes et des valeurs d’affichage. La valeur d’affichage utilise un lissage pour stabiliser l’UI sans masquer les diagnostics bruts.
 
 Le firmware doit utiliser les valeurs d’affichage pour le rendu et réserver les valeurs brutes au diagnostic.
+
+Les valeurs de ventilateur sont de la télémétrie GPU. Elles ne représentent pas un sous-système générique de mapping ou de gestion FAN.
 
 ## API GPU
 

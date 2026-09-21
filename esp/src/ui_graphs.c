@@ -24,16 +24,15 @@
 #define TEMP_HYST_DOWN_OFFSET 6
 
 #ifndef UI_GRAPHS_SCALE_DEBUG
-#define UI_GRAPHS_SCALE_DEBUG 1
+#define UI_GRAPHS_SCALE_DEBUG 0
 #endif
 
 #if UI_GRAPHS_SCALE_DEBUG
+static const char *TAG = "ui_graphs";
 #define SCALE_DEBUG(fmt, ...) ESP_LOGI(TAG, fmt, ##__VA_ARGS__)
 #else
 #define SCALE_DEBUG(fmt, ...) ((void)0)
 #endif
-
-static const char *TAG = "ui_graphs";
 
 static lv_obj_t *s_usage_chart;
 static lv_obj_t *s_temp_chart;

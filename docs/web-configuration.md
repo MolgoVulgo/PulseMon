@@ -1,67 +1,42 @@
-# ESP32 web configuration
+# ESP32 local web configuration
 
-The ESP32-S3 firmware exposes a small local web interface on its HTTP configuration server. This portal is for device setup, not for a rich monitoring dashboard.
+The firmware exposes an ESP-IDF HTTP configuration server only while the setup AP is active. The server is used for the backend endpoint, Wi-Fi, weather and news settings; it is not a monitoring dashboard or a permanent LAN service.
 
-## Pages
+## Pages and routes
 
-- `GET /` serves the PulseMon configuration page.
-- `GET /wifi` serves the Wi-Fi configuration page.
+- `GET /` — weather/news configuration page;
+- `GET /wifi` — Wi-Fi configuration page;
+- `GET /api/config` — backend endpoint and non-secret weather/news state;
+- `POST /api/config` — update backend, weather and news settings;
+- `POST /api/config/clear` — clear backend, weather and news namespaces and restore endpoint fallback;
+- `GET /api/wifi/status` — current station/AP status;
+- `GET /api/wifi/scan` — scan visible networks;
+- `POST /api/wifi` — save and apply station credentials;
+- `POST /api/wifi/clear` — clear credentials and enable the setup AP;
+- unknown GET paths — serve the main page for captive-portal behavior.
 
-Unknown `GET` paths can fall back to `/` to support captive portal behavior.
+## Configuration fields
 
-## Configuration API
+`POST /api/config` accepts form fields:
 
-The firmware configuration API includes:
+- required `backend_host`, validated as an IPv4 address or DNS/mDNS hostname;
+- required `backend_port`, integer `1..65535`;
+- `openweather_key` and `clear_openweather_key`;
+- `gnews_key` and `clear_gnews_key`;
+- required `gmt_offset_min`;
+- optional `openweather_city_id`;
+- required `language`;
+- optional `news_max_items`;
+- optional `news_slide_speed`.
 
-- `GET /api/config`;
-- `POST /api/config`;
-- `POST /api/config/clear`.
+`GET /api/config` returns `backend_host`, `backend_port` and key-presence flags, never key values. The endpoint is stored in NVS namespace `pulsemon_api`. A successful save reloads the active backend target immediately; no reboot is required.
 
-`POST /api/config` accepts `application/x-www-form-urlencoded` fields such as:
+## Wi-Fi AP behavior
 
-- `openweather_key`;
-- `clear_openweather_key`;
-- `gnews_key`;
-- `clear_gnews_key`;
-- `news_max_items`;
-- `news_slide_speed`;
-- `gmt_offset_min`;
-- `openweather_city_id`;
-- `language`.
+The setup AP is `PulseMon-Setup` with an empty password in the current configuration. It is enabled automatically when credentials are missing or the station connection repeatedly fails. That automatic AP is disabled after a successful station connection; a manually opened window remains active until its timeout.
 
-## NVS namespaces
+`WIFI_EVENT_AP_START` starts the HTTP server and captive DNS. `WIFI_EVENT_AP_STOP` stops captive DNS first and then the HTTP server. Captive DNS binds only to `192.168.4.1`; it no longer listens on all interfaces. Every HTTP handler also checks that the setup AP is active and returns `503 Service Unavailable` otherwise.
 
-Main PulseMon configuration is stored in `pulsemon_cfg`:
+The setup AP has no application-level authentication and currently uses an empty Wi-Fi password. Exposure is therefore intentionally limited to periods when configuration mode is required. When the firmware is connected in normal station mode with the AP disabled, the portal is not available through the station LAN address.
 
-| Key | Purpose |
-|---|---|
-| `ow_key` | OpenWeather API key |
-| `gmt_min` | GMT offset in minutes |
-| `ow_city` | OpenWeather city id |
-| `lang` | UI/weather language |
-
-News configuration is stored in `news`:
-
-| Key | Purpose |
-|---|---|
-| `provider` | active provider, fixed to GNews |
-| `gnews_key` | GNews key |
-| `enabled` | news module enable flag |
-| `refresh_min` | refresh interval |
-| `category` | GNews category |
-| `lang` | GNews language |
-| `country` | GNews country |
-| `max_items` | maximum article count |
-| `slide_speed` | LVGL circular scroll speed |
-| `max_age_days` | maximum article age |
-| `last_ok_ts` | last successful fetch timestamp |
-| `last_error` | compact last error code |
-
-## Secret handling
-
-`GET /api/config` must not return API keys. It should only return presence flags such as:
-
-- `openweather_key_set`;
-- `gnews_key_set`.
-
-Reset operations must clear the related keys from NVS.
+An explicit local trigger is available on every active screen: hold the top-left corner for five seconds. The firmware keeps the current station connection and opens `PulseMon-Setup` for ten minutes. The HTTP server and captive DNS follow the resulting AP lifecycle. When the ten-minute window expires, the AP closes automatically if the station is connected; if station connectivity is unavailable, the normal fallback rules keep configuration access available. The trigger does not erase credentials or change NVS settings.

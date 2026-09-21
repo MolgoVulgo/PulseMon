@@ -20,6 +20,7 @@
 #include "wifi_captive_dns.h"
 #include "lcd_capture.h"
 #include "capture_config.h"
+#include "config_mode_trigger.h"
 
 static const char *TAG = "pulsemon";
 
@@ -44,9 +45,38 @@ static void pulsemon_on_wifi_connected(void)
     news_service_request_update();
 }
 
+static void pulsemon_on_config_mode_changed(bool active)
+{
+    if (active) {
+        esp_err_t web_ret = pulsemon_wifi_config_server_start();
+        if (web_ret != ESP_OK) {
+            ESP_LOGE(TAG, "wifi config server start failed: %s", esp_err_to_name(web_ret));
+            return;
+        }
+
+        esp_err_t dns_ret = pulsemon_wifi_captive_dns_start();
+        if (dns_ret != ESP_OK) {
+            ESP_LOGE(TAG, "wifi captive dns start failed: %s", esp_err_to_name(dns_ret));
+        }
+        return;
+    }
+
+    esp_err_t dns_ret = pulsemon_wifi_captive_dns_stop();
+    if (dns_ret != ESP_OK) {
+        ESP_LOGE(TAG, "wifi captive dns stop failed: %s", esp_err_to_name(dns_ret));
+    }
+
+    esp_err_t web_ret = pulsemon_wifi_config_server_stop();
+    if (web_ret != ESP_OK) {
+        ESP_LOGE(TAG, "wifi config server stop failed: %s", esp_err_to_name(web_ret));
+    }
+}
+
 void app_main(void)
 {
+#if PULSEMON_DEBUG
     ets_printf("pulsemon: app_main enter\n");
+#endif
     ESP_LOGI(TAG, "app_main start");
 
     const bsp_display_cfg_t bsp_cfg = {
@@ -84,15 +114,6 @@ void app_main(void)
     set_var_gpu_fan_rpm("--");
     set_var_gpu_fan_rpm_1("--");
     set_var_gpu_vram_used(0);
-    set_var_fan_1_label("Fan 1");
-    set_var_fan_1_rpm("0");
-    set_var_fan_1_pct(0);
-    set_var_fan_2_label("Fan 2");
-    set_var_fan_2_rpm("0");
-    set_var_fan_2_pct(0);
-    set_var_fan_3_label("Fan 3");
-    set_var_fan_3_rpm("0");
-    set_var_fan_3_pct(0);
     set_var_ui_meteo_houre("--:--");
     set_var_ui_meteo_date("--");
     set_var_ui_meteo_temp("--");
@@ -147,7 +168,7 @@ void app_main(void)
 #endif
 
     startup_progress(40, "Reseau: init");
-    esp_err_t wifi_ret = pulsemon_wifi_manager_init(pulsemon_on_wifi_connected);
+    esp_err_t wifi_ret = pulsemon_wifi_manager_init(pulsemon_on_wifi_connected, pulsemon_on_config_mode_changed);
     if (wifi_ret != ESP_OK) {
         ESP_LOGE(TAG, "wifi manager init failed: %s", esp_err_to_name(wifi_ret));
     }
@@ -175,23 +196,16 @@ void app_main(void)
         startup_progress(70, "Services reseau indisponibles");
     }
 
-    startup_progress(80, "Config locale");
-    esp_err_t web_ret = pulsemon_wifi_config_server_start();
-    if (web_ret != ESP_OK) {
-        ESP_LOGE(TAG, "wifi config server init failed: %s", esp_err_to_name(web_ret));
-    }
-
-    startup_progress(85, "DNS captif");
-    esp_err_t dns_ret = pulsemon_wifi_captive_dns_start();
-    if (dns_ret != ESP_OK) {
-        ESP_LOGE(TAG, "wifi captive dns init failed: %s", esp_err_to_name(dns_ret));
-    }
-
     if (wifi_ret == ESP_OK) {
-        startup_progress(90, "Monitoring: Wi-Fi");
+        startup_progress(85, "Monitoring: Wi-Fi");
         wifi_ret = pulsemon_wifi_manager_start();
         if (wifi_ret != ESP_OK) {
             ESP_LOGE(TAG, "wifi manager start failed: %s", esp_err_to_name(wifi_ret));
+        } else {
+            esp_err_t trigger_ret = pulsemon_config_mode_trigger_start();
+            if (trigger_ret != ESP_OK) {
+                ESP_LOGE(TAG, "local config trigger init failed: %s", esp_err_to_name(trigger_ret));
+            }
         }
     }
 

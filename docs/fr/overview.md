@@ -1,32 +1,43 @@
 # Vue d’ensemble
 
-PulseMon est une pile de supervision locale composée d’un backend Linux et d’un firmware d’affichage ESP32-S3.
+PulseMon est une pile de supervision locale pour une station Linux et un afficheur ESP32-S3 sur réseau privé.
 
-Le backend Linux collecte la télémétrie de l’hôte et l’expose via une API HTTP compacte. Le firmware ESP32-S3 interroge l’API, parse les données, conserve les dernières valeurs valides et affiche l’information via LVGL.
+## Périmètre actif
 
-Le projet cible une station personnelle sur réseau local privé. Il privilégie le comportement déterministe, les payloads compacts, le déploiement simple et l’autonomie locale plutôt que les fonctions de supervision lourdes.
+Le backend Linux fournit :
 
-## Périmètre
+- utilisation, température et puissance CPU optionnelle ;
+- mémoire utilisée, totale et pourcentage ;
+- utilisation GPU AMD, fréquences, VRAM, température, puissance et ventilateur GPU lorsque le pilote les expose ;
+- snapshots courants des dashboards principal et GPU ;
+- historiques principal et GPU bornés en mémoire ;
+- UI locale de debug sous `/ui`.
 
-PulseMon couvre :
+L’ESP32-S3 fournit :
 
-- utilisation, température et puissance optionnelle CPU ;
-- utilisation et capacité mémoire ;
-- utilisation, température, puissance et écran détaillé GPU AMD ;
-- supervision ventilateurs et mapping configurable ;
-- historique court pour graphes ;
-- UI web locale de debug/admin ;
-- écrans ESP32-S3 pour métriques principales, GPU, météo et ligne d’information ;
-- récupération autonome météo et actualités côté ESP32-S3.
+- configuration Wi-Fi station avec AP de secours ;
+- polling des dashboards backend principal et GPU ;
+- cache local des dernières valeurs valides ;
+- écrans actifs Main, GPU et Météo ;
+- récupération autonome de la météo et des brèves GNews ;
+- configuration web locale de l’endpoint backend et des réglages Wi-Fi, météo et actualités lorsque l’AP de configuration est actif, avec un déclencheur tactile local de cinq secondes pour une fenêtre manuelle bornée.
 
 ## Modèle runtime
 
-Le backend échantillonne l’hôte à cadence fixe, stocke le snapshot courant en mémoire, stocke un historique court dans un ring buffer, puis sert les réponses API depuis cet état mémoire.
+```text
+Capteurs Linux -> collecteurs -> services -> stores mémoire -> JSON FastAPI
+JSON FastAPI -> client HTTP ESP -> parsing/cache -> variables runtime -> écrans LVGL
+```
 
-Le firmware ne calcule jamais les métriques Linux. Il consomme le contrat backend, accepte les valeurs nulles pour les métriques indisponibles et conserve le dernier état d’affichage valide en cas d’erreur réseau ou de parsing.
+Météo et actualités sont récupérées directement par l’ESP32-S3 et ne transitent pas par le backend Linux.
 
-## Hors périmètre
+## Modèle de persistance
 
-PulseMon n’est pas un service cloud de monitoring, une plateforme d’observabilité multi-hôtes, un profiler de processus, un outil de pilotage distant ni une API publique exposée sur Internet.
+- snapshots et historiques backend : mémoire volatile uniquement ;
+- endpoint backend, réglages Wi-Fi, météo et actualités ESP32 : NVS ;
+- fallback endpoint, timeout HTTP et intervalle de polling : configuration compilée dans le firmware ;
+- stockage long terme des métriques : non implémenté.
 
-Il ne nécessite pas MQTT, broker, stockage long terme en base, authentification multi-utilisateur forte ni dashboard web riche pour l’usage nominal.
+## Non-objectifs
+
+Le projet courant n’est pas un service cloud, une plateforme multi-hôtes, un système de contrôle distant, une base de métriques long terme ni une API Internet publique. MQTT, broker externe, sous-système générique de gestion FAN et sécurité multi-utilisateur forte sont hors du design actif.

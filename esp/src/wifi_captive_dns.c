@@ -1,7 +1,9 @@
 #include "wifi_captive_dns.h"
 
 #include <errno.h>
+#include <stdbool.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -10,12 +12,17 @@
 #include "lwip/inet.h"
 #include "lwip/sockets.h"
 
+#include "wifi_config.h"
+
 static const char *TAG = "wifi_captive_dns";
 static TaskHandle_t s_dns_task;
+static volatile bool s_stop_requested;
+static int s_dns_socket = -1;
 
 #define DNS_PORT 53
 #define DNS_BUF_SIZE 512
 #define DNS_HEADER_SIZE 12
+#define DNS_RECV_TIMEOUT_MS 250
 
 static size_t dns_question_end(const uint8_t *buf, size_t len)
 {
@@ -69,10 +76,10 @@ static size_t build_dns_response(uint8_t *buf, size_t len)
     buf[pos++] = 0x3C;
     buf[pos++] = 0x00;
     buf[pos++] = 0x04;
-    buf[pos++] = 192;
-    buf[pos++] = 168;
-    buf[pos++] = 4;
-    buf[pos++] = 1;
+
+    uint32_t ap_addr = inet_addr(PULSEMON_WIFI_AP_IPV4);
+    memcpy(&buf[pos], &ap_addr, sizeof(ap_addr));
+    pos += sizeof(ap_addr);
     return pos;
 }
 
@@ -88,27 +95,47 @@ static void dns_task(void *arg)
         return;
     }
 
-    struct sockaddr_in addr = {
-        .sin_family = AF_INET,
-        .sin_port = htons(DNS_PORT),
-        .sin_addr.s_addr = htonl(INADDR_ANY),
+    struct timeval timeout = {
+        .tv_sec = 0,
+        .tv_usec = DNS_RECV_TIMEOUT_MS * 1000,
     };
-
-    if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        ESP_LOGE(TAG, "bind failed errno=%d", errno);
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+        ESP_LOGE(TAG, "receive timeout setup failed errno=%d", errno);
         close(sock);
         s_dns_task = NULL;
         vTaskDelete(NULL);
         return;
     }
 
-    ESP_LOGI(TAG, "captive dns started");
+    struct sockaddr_in addr = {
+        .sin_family = AF_INET,
+        .sin_port = htons(DNS_PORT),
+        .sin_addr.s_addr = inet_addr(PULSEMON_WIFI_AP_IPV4),
+    };
+
+    if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        ESP_LOGE(TAG, "bind failed address=%s errno=%d", PULSEMON_WIFI_AP_IPV4, errno);
+        close(sock);
+        s_dns_task = NULL;
+        vTaskDelete(NULL);
+        return;
+    }
+
+    s_dns_socket = sock;
+    ESP_LOGI(TAG, "captive dns started address=%s", PULSEMON_WIFI_AP_IPV4);
     uint8_t buf[DNS_BUF_SIZE];
-    while (1) {
+    while (!s_stop_requested) {
         struct sockaddr_in source_addr;
         socklen_t socklen = sizeof(source_addr);
         int len = recvfrom(sock, buf, sizeof(buf), 0, (struct sockaddr *)&source_addr, &socklen);
         if (len <= 0) {
+            if (s_stop_requested) {
+                break;
+            }
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                continue;
+            }
+            ESP_LOGW(TAG, "recvfrom failed errno=%d", errno);
             continue;
         }
 
@@ -118,18 +145,39 @@ static void dns_task(void *arg)
         }
         sendto(sock, buf, response_len, 0, (struct sockaddr *)&source_addr, socklen);
     }
+
+    close(sock);
+    s_dns_socket = -1;
+    s_dns_task = NULL;
+    ESP_LOGI(TAG, "captive dns stopped");
+    vTaskDelete(NULL);
 }
 
 esp_err_t pulsemon_wifi_captive_dns_start(void)
 {
     if (s_dns_task != NULL) {
-        return ESP_OK;
+        return s_stop_requested ? ESP_ERR_INVALID_STATE : ESP_OK;
     }
 
+    s_stop_requested = false;
     BaseType_t ok = xTaskCreate(dns_task, "wifi_dns", 4096, NULL, 3, &s_dns_task);
     if (ok != pdPASS) {
         s_dns_task = NULL;
         return ESP_ERR_NO_MEM;
+    }
+    return ESP_OK;
+}
+
+esp_err_t pulsemon_wifi_captive_dns_stop(void)
+{
+    if (s_dns_task == NULL) {
+        return ESP_OK;
+    }
+
+    s_stop_requested = true;
+    int sock = s_dns_socket;
+    if (sock >= 0) {
+        shutdown(sock, SHUT_RDWR);
     }
     return ESP_OK;
 }

@@ -1,28 +1,34 @@
 # Documentation PulseMon
 
-Ce répertoire contient la documentation française du projet.
+Ce répertoire est la racine documentaire canonique du snapshot `PulseMon.zip` courant.
 
-L’anglais reste la langue par défaut dans `/docs`. Les traductions françaises sont stockées dans `/docs/fr`.
+L’implémentation et les fichiers de configuration du snapshot sont la source de vérité. La documentation doit décrire le runtime existant. Les éléments historiques, générés ou planifiés doivent être isolés et qualifiés explicitement.
+
+La documentation anglaise est la version par défaut. Le miroir français est stocké dans `docs/fr/`.
 
 ## Index
 
-- `overview.md` — objet du projet, périmètre et modèle runtime.
-- `architecture.md` — backend, firmware, transport et responsabilités.
-- `api.md` — contrat API HTTP et payloads.
-- `backend.md` — comportement du backend Linux.
-- `firmware.md` — comportement du firmware ESP32-S3.
-- `configuration.md` — configuration backend, ESP32, météo et news.
-- `gpu.md` — supervision GPU AMD.
-- `fans.md` — supervision et configuration ventilateurs.
-- `weather-news.md` — modules météo et GNews autonomes.
-- `web-configuration.md` — portail de configuration ESP32.
-- `development.md` — installation, build, tests et contribution.
-- `troubleshooting.md` — diagnostics, défauts courants et validations.
+- `overview.md` — périmètre actif et non-objectifs.
+- `architecture.md` — responsabilités backend/firmware et flux de données.
+- `api.md` — endpoints HTTP et contrats courants.
+- `backend.md` — runtime backend Linux.
+- `firmware.md` — écrans actifs, polling et propriété EEZ.
+- `configuration.md` — environnement backend, NVS et paramètres compilés firmware.
+- `gpu.md` — télémétrie GPU AMD.
+- `weather-news.md` — implémentations OpenWeather et GNews.
+- `web-configuration.md` — serveur local de configuration ESP32.
+- `development.md` — installation, tests, environnements firmware et génération du snapshot.
+- `p8-validation.md` — workflow reproductible de build, upload, série et validation matérielle.
+- `troubleshooting.md` — vérifications opérationnelles basées sur l’implémentation courante.
 
-## Règles de documentation
+## Règles documentaires canoniques
 
-- Toute documentation comportementale va dans `/docs`.
-- Toute version française va dans `/docs/fr`.
-- Les README racine restent courts et opérationnels.
-- Les noms de champs API et chemins d’endpoints doivent rester exacts.
-- Aucun secret, clé API ou valeur privée locale ne doit être documenté en clair.
+- Maintenir les versions anglaise et française alignées.
+- Utiliser les noms exacts des endpoints, variables d’environnement et environnements de build.
+- Décrire le backend comme un service de métriques en mémoire, sans base persistante.
+- Traiter RPM et pourcentage du ventilateur GPU comme de la télémétrie GPU, pas comme un sous-système FAN générique.
+- Documenter l’hôte/port backend comme stockés en NVS avec fallback compilé ; la clé API backend reste ni stockée ni envoyée.
+- Documenter le serveur HTTP de configuration et le DNS captif comme services limités à l’AP de configuration, pas comme services LAN permanents.
+- Traiter `esp/src/ui/` comme sortie générée et `esp/eez/pulsmon/` comme données appartenant à EEZ Studio.
+- Ne mentionner l’ancien écran généré inaccessible que lorsque la frontière EEZ ou le dépannage l’exige.
+- Documenter les limites connues comme des faits courants jusqu’à modification du code.

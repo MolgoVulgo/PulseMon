@@ -1,121 +1,137 @@
 # PulseMon
 
-PulseMon est un système de supervision locale pour une machine Linux et un afficheur ESP32-S3.
+PulseMon est un système de supervision locale composé d’un backend Linux et d’un afficheur ESP32-S3.
 
-Il collecte les métriques Linux sur l’hôte, les expose via une API HTTP locale, puis affiche l’état courant sur un écran dédié piloté par ESP32-S3 et LVGL. Le projet est conçu pour un réseau local privé, sans dépendance cloud obligatoire et sans broker externe.
+L’hôte Linux collecte les métriques système et les expose via une API HTTP FastAPI. L’ESP32-S3 interroge cette API, conserve les dernières valeurs valides dans un cache local et affiche les écrans actifs avec LVGL. Le déploiement cible est une station personnelle sur réseau local privé, sans MQTT, cloud obligatoire ni broker externe.
 
-## Ce que fait le projet
+## Périmètre actif
 
-PulseMon fournit :
+Le runtime courant fournit :
 
-- un backend Linux en Python/FastAPI ;
-- la supervision CPU, mémoire, GPU AMD et ventilateurs ;
-- une API HTTP locale consommée par le firmware ESP32-S3 ;
-- un historique court en mémoire pour les graphes ;
-- une UI web locale de debug et d’administration côté backend ;
-- un firmware ESP32-S3 avec configuration Wi-Fi, polling API, rendu LVGL, météo et brèves d’actualité autonomes ;
-- un stockage local de configuration côté backend et côté firmware.
+- utilisation, température et puissance CPU optionnelle ;
+- utilisation et capacité mémoire ;
+- utilisation GPU AMD, fréquences, VRAM, température, puissance et ventilateur GPU lorsque disponibles ;
+- snapshots courants et historiques mémoire bornés ;
+- UI locale backend de debug sous `/ui` ;
+- écrans ESP32-S3 actifs Main, GPU et Météo ;
+- météo OpenWeather et brèves GNews autonomes côté ESP32-S3 ;
+- persistance NVS de l’endpoint backend, du Wi-Fi, de la météo et des actualités côté ESP32-S3 ;
+- portail de configuration et DNS captif exposés uniquement lorsque l’AP de configuration est actif, avec un appui tactile explicite de cinq secondes pour ouvrir une fenêtre manuelle bornée.
 
-## À quoi il sert
-
-PulseMon sert à disposer d’un petit tableau de bord matériel permanent pour une station Linux. Il donne une visibilité immédiate sur le CPU, la RAM, le GPU, les ventilateurs et l’état runtime sans ouvrir de dashboard desktop ni dépendre d’un service distant.
-
-L’ESP32-S3 peut aussi afficher des informations utiles lorsque le PC Linux est indisponible, notamment la météo et des brèves d’actualité, si les clés API nécessaires sont configurées sur l’appareil.
+Le backend n’utilise aucune base persistante. Les snapshots et historiques sont reconstruits après redémarrage.
 
 ## Structure du dépôt
 
 ```text
 PulseMon/
-├── api/                  # point d’entrée backend Linux et fichiers spécifiques API
-├── esp/                  # point d’entrée firmware ESP32-S3 et fichiers spécifiques firmware
-├── docs/                 # documentation canonique en anglais
-│   └── fr/               # documentation française
-├── README.md             # README anglais par défaut
-└── README.fr.md          # README français
+├── api/                         # backend Linux
+├── esp/                         # firmware ESP32-S3
+│   ├── src/ui/                  # UI générée par EEZ et compilée par le firmware
+│   └── eez/pulsmon/             # projet EEZ Studio et état sauvegardé de l’application
+├── docs/                        # documentation canonique anglaise
+│   └── fr/                      # miroir français
+├── tools/                       # runner reproductible de validation P8
+├── make-a.sh                    # génère le snapshot PulseMon.zip volontairement filtré
+├── README.md
+└── README.fr.md
 ```
 
-La documentation canonique est stockée dans `/docs`. Les chemins `api/docs` et `esp/docs` sont des liens symboliques vers `/docs`.
+`docs/` est la racine documentaire canonique. Dans le snapshot fourni, `api/docs` et `esp/docs` contiennent la cible relative `../docs` ; ils représentent l’intention de liaison vers la documentation canonique.
 
-## Prérequis
-
-Backend :
-
-- hôte Linux ;
-- Python 3.11 ou supérieur ;
-- FastAPI ;
-- uvicorn ;
-- psutil ;
-- Pydantic ;
-- pytest et httpx pour les tests ;
-- accès aux chemins Linux sysfs, hwmon et DRM pour la télémétrie CPU/GPU AMD.
-
-Firmware :
-
-- carte ESP32-S3 avec écran ;
-- PlatformIO avec support ESP-IDF ;
-- LVGL ;
-- accès Wi-Fi ;
-- carte SD optionnelle pour les icônes météo ;
-- clés OpenWeather et GNews optionnelles pour les modules météo/news autonomes.
-
-## Installer le backend
+## Installation et lancement backend
 
 ```bash
 cd api
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-```
-
-## Lancer le backend
-
-```bash
-cd api
 .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Le backend expose l’API sous `/api/v1/*` et l’UI locale de debug/admin sous `/ui`.
+L’API est exposée sous `/api/v1/*` et l’UI locale sous `/ui`.
 
-## Compiler le firmware
+Valider l’environnement backend avant démarrage :
+
+```bash
+cd api
+python3 -m app.config
+```
+
+Tests backend :
+
+```bash
+cd api
+.venv/bin/pytest -q
+```
+
+## Build firmware
+
+Environnement principal :
 
 ```bash
 cd esp
-pio run -e LVGL-320-480
+pio run -e pulsmon-esp32s3-display
 ```
 
-Les identifiants Wi-Fi ne sont pas compilés dans le firmware. Ils sont stockés en NVS via le portail de configuration ESP32-S3.
+Environnement de développement avec flags de debug PulseMon :
 
-## Configurer le projet
+```bash
+cd esp
+pio run -e pulsmon-esp32s3-display-dev
+```
 
-La configuration backend passe par variables d’environnement. Les paramètres principaux couvrent le bind, le port, la cadence d’échantillonnage, la capacité d’historique, la clé API optionnelle, les indices de détection GPU, les diagnostics et le stockage SQLite local.
+L’environnement PlatformIO par défaut est `pulsmon-esp32s3-display`.
 
-La configuration ESP32-S3 passe par NVS et le portail local. Elle stocke les identifiants Wi-Fi, l’adresse API backend, les paramètres OpenWeather, les paramètres GNews et les options d’affichage. Les clés API ne doivent pas être imprimées, loguées ni retournées par les endpoints de configuration.
+## Runner de validation P8
 
-La configuration détaillée est documentée dans `/docs/fr/configuration.md`.
+Pour que Codex exécute la validation P8 complète — tests backend, builds release/debug, flash release, monitor série et contrôles API sur `192.168.0.10:8000` :
 
-## Contribuer
+```bash
+python3 tools/p8_validate.py --codex-full
+```
 
-Les contributions doivent respecter ces règles :
+Le premier rapport génère une checklist matérielle. Codex doit ensuite finaliser le même rapport avec `--resume-report`, `--checklist-file` et `--require-hardware`. Voir `docs/fr/p8-validation.md`.
 
-- conserver la séparation backend, contrat API, polling firmware et rendu LVGL ;
-- conserver des payloads JSON stables et compacts ;
-- rendre les métriques indisponibles nullables au lieu de supprimer les champs ;
-- ne pas modifier directement les fichiers UI générés côté ESP32 ;
-- ne jamais exposer les secrets dans les logs, URLs, écrans ou exports de configuration ;
-- ajouter des tests pour toute modification du contrat API ;
-- mettre à jour `/docs` et `/docs/fr` quand le comportement change.
+## Modèle de configuration firmware
 
-## Documentation détaillée
+L’hôte et le port backend, les identifiants Wi-Fi, les paramètres OpenWeather et les paramètres GNews sont stockés en NVS via le portail local.
 
-- `/docs/fr/README.md` — index de documentation ;
-- `/docs/fr/overview.md` — vue d’ensemble ;
-- `/docs/fr/architecture.md` — architecture backend/firmware ;
-- `/docs/fr/api.md` — contrat API HTTP ;
-- `/docs/fr/backend.md` — comportement du backend Linux ;
-- `/docs/fr/firmware.md` — comportement du firmware ESP32-S3 ;
-- `/docs/fr/configuration.md` — configuration backend et appareil ;
-- `/docs/fr/gpu.md` — supervision GPU AMD ;
-- `/docs/fr/fans.md` — supervision et configuration ventilateurs ;
-- `/docs/fr/weather-news.md` — modules météo et actualités autonomes ;
-- `/docs/fr/web-configuration.md` — portail de configuration ESP32 ;
-- `/docs/fr/development.md` — build, tests et workflow de contribution ;
-- `/docs/fr/troubleshooting.md` — diagnostics et exploitation.
+L’endpoint backend utilise :
+
+- le namespace NVS `pulsemon_api`, clés `host` et `port` ;
+- les fallbacks compilés `PULSEMON_API_DEFAULT_HOST` et `PULSEMON_API_DEFAULT_PORT` de `esp/src/pulsemon_api_config.h` ;
+- les valeurs compilées `PULSEMON_HTTP_TIMEOUT_MS` et `PULSEMON_DASHBOARD_POLL_MS`.
+
+Une sauvegarde via le portail recharge immédiatement l’endpoint. L’effacement de la configuration PulseMon supprime l’endpoint NVS et restaure le fallback compilé. La clé API backend optionnelle n’est ni stockée ni envoyée par le firmware courant.
+
+## Positionnement sécurité
+
+PulseMon cible un usage local et personnel. La sécurité reste proportionnée à ce contexte : les secrets ne doivent pas être logués ni retournés par les endpoints de configuration, les entrées restent validées et les expositions LAN inutiles doivent être évitées. Le serveur HTTP de configuration démarre uniquement avec l’AP de configuration et s’arrête avec lui ; le DNS captif est lié exclusivement à `192.168.4.1`. Un appui maintenu cinq secondes dans le coin supérieur gauche de n’importe quel écran actif ouvre `PulseMon-Setup` pendant une fenêtre manuelle de dix minutes, sans effacer les identifiants ni couper une liaison station fonctionnelle.
+
+OpenWeather et GNews utilisent HTTPS avec validation des certificats via le bundle ESP-IDF. GNews utilise en complément le header `X-Api-Key`.
+
+## Propriété EEZ et artefact généré conservé
+
+- `esp/src/ui/` est une sortie générée compilée par le firmware et ne doit jamais être modifiée directement.
+- `esp/eez/pulsmon/` appartient au workflow EEZ Studio et ne doit pas être modifié hors EEZ Studio.
+- L’intégration runtime appartient aux modules non générés sous `esp/src/`.
+
+L’UI générée contient encore un ancien écran FAN inaccessible et les bindings de compatibilité nécessaires à la compilation de cette sortie. Cet écran ne fait pas partie de la navigation active ni du contrat backend. Son retrait physique exige une modification dans EEZ Studio puis une régénération.
+
+## Génération du snapshot
+
+`make-a.sh` crée le snapshot `PulseMon.zip` utilisé pour les analyses et correctifs. Il exclut volontairement les builds locaux, environnements virtuels, caches, `tmp/`, configurations SDK locales et autres contenus propres à la machine. L’archive est un snapshot contrôlé du projet, pas une copie exhaustive du répertoire de travail.
+
+## Documentation
+
+- `docs/fr/README.md` — index documentaire ;
+- `docs/fr/overview.md` — périmètre actif et non-objectifs ;
+- `docs/fr/architecture.md` — responsabilités et flux ;
+- `docs/fr/api.md` — contrat HTTP backend ;
+- `docs/fr/backend.md` — runtime backend ;
+- `docs/fr/firmware.md` — runtime firmware et écrans actifs ;
+- `docs/fr/configuration.md` — environnement backend et configuration firmware ;
+- `docs/fr/weather-news.md` — implémentation météo et actualités ;
+- `docs/fr/web-configuration.md` — portail local ESP32 ;
+- `docs/fr/development.md` — build, tests et génération du snapshot ;
+- `docs/fr/p8-validation.md` — protocole P8 de build et validation matérielle ;
+- `docs/fr/troubleshooting.md` — vérifications opérationnelles.

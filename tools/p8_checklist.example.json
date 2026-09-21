@@ -1,0 +1,12 @@
+{
+  "metrics_visible": {"status": "pending", "note": ""},
+  "endpoint_reload": {"status": "pending", "note": ""},
+  "local_trigger": {"status": "pending", "note": ""},
+  "sta_preserved": {"status": "pending", "note": ""},
+  "portal_ap_only": {"status": "pending", "note": ""},
+  "manual_timeout": {"status": "pending", "note": ""},
+  "backend_recovery": {"status": "pending", "note": ""},
+  "wifi_recovery": {"status": "pending", "note": ""},
+  "nvs_persistence": {"status": "pending", "note": ""},
+  "weather_news_tls": {"status": "pending", "note": ""}
+}

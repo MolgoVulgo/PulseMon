@@ -1,7 +1,6 @@
 #ifndef UI_SCREEN_H
 #define UI_SCREEN_H
 
-#include <stdbool.h>
 #include <stdint.h>
 
 #include "ui/screens.h"
@@ -14,8 +13,8 @@ void ui_screen_start(void);
 void ui_screen_set_start_progress(int32_t pct, const char *text);
 void ui_screen_show_main_and_release_start(void);
 void ui_screen_set_active(enum ScreensEnum screen_id);
+void ui_screen_load(enum ScreensEnum screen_id, lv_scr_load_anim_t anim);
 enum ScreensEnum ui_screen_get_active(void);
-void ui_screen_set_fans_visibility(bool fan2_visible, bool fan3_visible);
 
 #ifdef __cplusplus
 }

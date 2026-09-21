@@ -11,11 +11,14 @@
 #include "esp_bsp.h"
 #include "pulsemon_api_client.h"
 #include "pulsemon_api_config.h"
+#include "pulsemon_api_settings.h"
 #include "ui_screen.h"
 #include "vars.h"
 
 static const char *TAG = "pulsemon_poller";
 static TaskHandle_t s_poller_task;
+static bool s_backend_offline_mode;
+static bool s_auto_switched_to_meteo;
 
 #ifndef PULSEMON_LATENCY_DEBUG
 #define PULSEMON_LATENCY_DEBUG 0
@@ -174,15 +177,43 @@ static void mark_backend_offline(const char *why)
     set_var_host_meta(why ? why : "backend offline");
 }
 
+static void maybe_switch_to_meteo_offline(enum ScreensEnum active_screen)
+{
+    if (active_screen == SCREEN_ID_METEO) {
+        return;
+    }
+    ui_screen_load(SCREEN_ID_METEO, LV_SCR_LOAD_ANIM_MOVE_LEFT);
+    s_auto_switched_to_meteo = true;
+    ESP_LOGI(TAG, "backend offline: auto switch to meteo");
+}
+
+static void maybe_switch_back_to_main_online(void)
+{
+    if (!s_auto_switched_to_meteo) {
+        return;
+    }
+    ui_screen_load(SCREEN_ID_MAIN, LV_SCR_LOAD_ANIM_MOVE_RIGHT);
+    s_auto_switched_to_meteo = false;
+    ESP_LOGI(TAG, "backend online: auto switch to main");
+}
+
 static void poller_task(void *arg)
 {
     (void)arg;
     uint32_t tick_seq = 0;
 
-    ESP_LOGI(TAG, "poller start target=%s:%d", PULSEMON_API_HOST, PULSEMON_API_PORT);
+    esp_err_t endpoint_err = pulsemon_api_client_reload_endpoint();
+    if (endpoint_err != ESP_OK && endpoint_err != ESP_ERR_INVALID_SIZE) {
+        ESP_LOGW(TAG, "backend endpoint load failed: %s", esp_err_to_name(endpoint_err));
+    }
+    pulsemon_api_settings_t endpoint;
+    pulsemon_api_client_get_endpoint(&endpoint);
+    ESP_LOGI(TAG, "poller start target=%s:%u", endpoint.host, (unsigned)endpoint.port);
 
     while (1) {
+#if PULSEMON_LATENCY_DEBUG
         int64_t t_cycle_start_us = esp_timer_get_time();
+#endif
         tick_seq++;
 
         enum ScreensEnum active_screen = ui_screen_get_active();
@@ -203,45 +234,70 @@ static void poller_task(void *arg)
 #if PULSEMON_LATENCY_DEBUG
         int64_t fetch_ms = (esp_timer_get_time() - t_cycle_start_us) / 1000;
 #endif
+#if PULSEMON_LATENCY_DEBUG
         int64_t lock_wait_ms = -1;
         int64_t ui_apply_ms = -1;
         bool got_lock = false;
         bool ui_updated = false;
+#endif
 
         if (!ok) {
+            if (!s_backend_offline_mode) {
+                s_backend_offline_mode = true;
+            }
             if (gpu_page_active) {
                 ESP_LOGW(TAG, "gpu dashboard fetch failed: %s", gpu_err);
             } else {
                 ESP_LOGW(TAG, "dashboard fetch failed: %s", err);
             }
+#if PULSEMON_LATENCY_DEBUG
             int64_t t_lock_wait_start_us = esp_timer_get_time();
+#endif
             if (bsp_display_lock(100)) {
+#if PULSEMON_LATENCY_DEBUG
                 lock_wait_ms = (esp_timer_get_time() - t_lock_wait_start_us) / 1000;
                 got_lock = true;
                 int64_t t_ui_apply_start_us = esp_timer_get_time();
+#endif
                 mark_backend_offline("backend offline");
+#if PULSEMON_LATENCY_DEBUG
                 ui_apply_ms = (esp_timer_get_time() - t_ui_apply_start_us) / 1000;
+#endif
+                bsp_display_unlock();
+            }
+            if (bsp_display_lock(100)) {
+                maybe_switch_to_meteo_offline(active_screen);
                 bsp_display_unlock();
             }
         } else {
+            if (s_backend_offline_mode) {
+                s_backend_offline_mode = false;
+            }
+#if PULSEMON_LATENCY_DEBUG
             int64_t t_lock_wait_start_us = esp_timer_get_time();
+#endif
             if (bsp_display_lock(100)) {
+#if PULSEMON_LATENCY_DEBUG
                 lock_wait_ms = (esp_timer_get_time() - t_lock_wait_start_us) / 1000;
                 got_lock = true;
                 int64_t t_ui_apply_start_us = esp_timer_get_time();
+#endif
                 if (gpu_page_active) {
                     update_ui_from_gpu_dashboard(&gpu_dashboard);
                 } else {
                     update_ui_from_dashboard(&dashboard);
                 }
+#if PULSEMON_LATENCY_DEBUG
                 ui_apply_ms = (esp_timer_get_time() - t_ui_apply_start_us) / 1000;
                 ui_updated = true;
+#endif
+                maybe_switch_back_to_main_online();
                 bsp_display_unlock();
             }
         }
 
-        int64_t cycle_ms = (esp_timer_get_time() - t_cycle_start_us) / 1000;
 #if PULSEMON_LATENCY_DEBUG
+        int64_t cycle_ms = (esp_timer_get_time() - t_cycle_start_us) / 1000;
         LAT_DEBUG("tick=%lu screen=%s ok=%d fetch=%lldms lock=%lldms ui=%lldms cycle=%lldms",
                   (unsigned long)tick_seq,
                   gpu_page_active ? "gpu" : (active_screen == SCREEN_ID_METEO ? "meteo" : "main"),
@@ -250,7 +306,6 @@ static void poller_task(void *arg)
                   (long long)lock_wait_ms,
                   (long long)ui_apply_ms,
                   (long long)cycle_ms);
-#endif
         if (!got_lock) {
             ESP_LOGW(TAG, "ui lock timeout tick=%lu", (unsigned long)tick_seq);
         }
@@ -263,6 +318,7 @@ static void poller_task(void *arg)
         if (cycle_ms > PULSEMON_DASHBOARD_POLL_MS) {
             ESP_LOGW(TAG, "poll cycle overrun=%lldms tick=%lu", (long long)cycle_ms, (unsigned long)tick_seq);
         }
+#endif
 
         vTaskDelay(pdMS_TO_TICKS(PULSEMON_DASHBOARD_POLL_MS));
     }

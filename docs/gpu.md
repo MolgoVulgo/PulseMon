@@ -12,7 +12,8 @@ The GPU monitoring scope includes:
 - display-ready smoothed values;
 - raw values for diagnostics;
 - dedicated GPU dashboard data;
-- bounded GPU history.
+- bounded GPU history;
+- GPU fan RPM and percentage when exposed by the AMD driver.
 
 ## Source selection
 
@@ -25,6 +26,8 @@ Temperature label priority is controlled by `STATS_GPU_TEMP_LABEL_PRIORITY`, wit
 GPU usage can be visually noisy. The backend can expose both raw and display values. The display value uses smoothing to stabilize the UI without hiding raw diagnostics.
 
 The firmware should use display values for rendering and raw values only when explicitly needed for diagnostics.
+
+GPU fan values are part of GPU telemetry. They do not represent a generic FAN mapping or management subsystem.
 
 ## GPU API
 
