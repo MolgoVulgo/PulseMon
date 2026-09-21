@@ -10,7 +10,7 @@
 //
 
 void init_style_defaut_MAIN_DEFAULT(lv_style_t *style) {
-    lv_style_set_bg_color(style, lv_color_hex(0x0f1115));
+    lv_style_set_bg_color(style, lv_color_hex(0x000000));
     lv_style_set_text_font(style, &ui_font_ui_16);
 };
 

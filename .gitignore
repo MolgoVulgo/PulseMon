@@ -9,3 +9,6 @@ erreur.txt
 esp/sdkconfig.*.old
 
 .pulsemon-results/
+
+# Generated exchange index published separately to Google Drive.
+/REPO_INDEX.json

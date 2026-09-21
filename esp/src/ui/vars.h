@@ -54,7 +54,15 @@ enum FlowGlobalVariables {
     FLOW_GLOBAL_VARIABLE_UI_METEO_ALERT = 38,
     FLOW_GLOBAL_VARIABLE_UI_START_BAR = 39,
     FLOW_GLOBAL_VARIABLE_UI_START_BAR_TEXTE = 40,
-    FLOW_GLOBAL_VARIABLE_GPU_FAN_RPM_1 = 41
+    FLOW_GLOBAL_VARIABLE_GPU_FAN_RPM_1 = 41,
+    FLOW_GLOBAL_VARIABLE_NAME_PRINTER = 42,
+    FLOW_GLOBAL_VARIABLE_PRINTER_IP = 43,
+    FLOW_GLOBAL_VARIABLE_PRINT_FILE_NAME = 44,
+    FLOW_GLOBAL_VARIABLE_PRINT_TIME_START = 45,
+    FLOW_GLOBAL_VARIABLE_PRINT_TIME_END = 46,
+    FLOW_GLOBAL_VARIABLE_PRINT_TIME_ELAPSED = 47,
+    FLOW_GLOBAL_VARIABLE_PRINT_TIME_REMAINING = 48,
+    FLOW_GLOBAL_VARIABLE_PRINT_BAR = 49
 };
 
 // Native global variables
@@ -143,6 +151,22 @@ extern const char *get_var_ui_start_bar_texte();
 extern void set_var_ui_start_bar_texte(const char *value);
 extern const char *get_var_gpu_fan_rpm_1();
 extern void set_var_gpu_fan_rpm_1(const char *value);
+extern const char *get_var_name_printer();
+extern void set_var_name_printer(const char *value);
+extern const char *get_var_printer_ip();
+extern void set_var_printer_ip(const char *value);
+extern const char *get_var_print_file_name();
+extern void set_var_print_file_name(const char *value);
+extern const char *get_var_print_time_start();
+extern void set_var_print_time_start(const char *value);
+extern const char *get_var_print_time_end();
+extern void set_var_print_time_end(const char *value);
+extern const char *get_var_print_time_elapsed();
+extern void set_var_print_time_elapsed(const char *value);
+extern const char *get_var_print_time_remaining();
+extern void set_var_print_time_remaining(const char *value);
+extern int32_t get_var_print_bar();
+extern void set_var_print_bar(int32_t value);
 
 #ifdef __cplusplus
 }
