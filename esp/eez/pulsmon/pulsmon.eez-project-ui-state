@@ -1,9 +1,9 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[pulsmon.eez-project]:/userPages/3",
+    "selectedUserPageObject": "[pulsmon.eez-project]:/userPages/4",
     "selectedActionObject": "[pulsmon.eez-project]:/actions/0",
-    "selectedGlobalVariableObject": "[pulsmon.eez-project]:/variables/globalVariables/41",
-    "selectedStyleObject": "[pulsmon.eez-project]:/lvglStyles/styles/1/childStyles/0",
+    "selectedGlobalVariableObject": "[pulsmon.eez-project]:/variables/globalVariables/48",
+    "selectedStyleObject": "[pulsmon.eez-project]:/lvglStyles/styles/0",
     "selectedFontObject": "[pulsmon.eez-project]:/fonts/2",
     "subnavigationSelectedItems": {
       "variables-tab/sub-navigation/selected-item": "Global"
@@ -27,8 +27,8 @@
           },
           {
             "type": "border",
-            "selected": 0,
-            "size": 240,
+            "selected": 1,
+            "size": 140.5,
             "location": "right",
             "children": [
               {
@@ -194,11 +194,21 @@
             {
               "type": "tabset",
               "id": "EDITORS",
-              "weight": 56.361350574712645,
-              "selected": 2,
+              "weight": 66.57181571815718,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
+                {
+                  "type": "tab",
+                  "id": "#a781d711-fbc8-4a94-8cdf-7e8fa88d4cf6",
+                  "name": "printer",
+                  "component": "editor",
+                  "config": {
+                    "objectPath": "[pulsmon.eez-project]:/userPages/4",
+                    "permanent": false
+                  },
+                  "icon": "svg:page"
+                },
                 {
                   "type": "tab",
                   "id": "#fbd4cc6a-4bd3-420b-84ef-919ac082f26a",
@@ -224,17 +234,6 @@
                     "permanent": false
                   },
                   "icon": "material:settings"
-                },
-                {
-                  "type": "tab",
-                  "id": "#56c77853-7bd0-4b79-81ec-025216de3de3",
-                  "name": "fan",
-                  "component": "editor",
-                  "config": {
-                    "objectPath": "[pulsmon.eez-project]:/userPages/3",
-                    "permanent": false
-                  },
-                  "icon": "svg:page"
                 }
               ],
               "active": true
@@ -242,7 +241,7 @@
             {
               "type": "row",
               "id": "#e24489e9-733c-45f8-88ba-7a79bcfb49e2",
-              "weight": 28.638649425287355,
+              "weight": 18.428184281842817,
               "children": [
                 {
                   "type": "tabset",
@@ -1144,16 +1143,22 @@
       "selectionBack": {
         "0": {
           "0": {},
-          "1": {},
-          "2": {},
-          "3": {
+          "1": {
             "$selected": true
           },
+          "2": {
+            "$selected": true
+          },
+          "3": {},
           "4": {},
           "5": {},
           "6": {},
-          "7": {},
-          "8": {},
+          "7": {
+            "$selected": true
+          },
+          "8": {
+            "$selected": true
+          },
           "9": {},
           "10": {}
         }
@@ -1176,11 +1181,7 @@
       "selectionFront": {},
       "selectionBack": {
         "0": {
-          "1": {
-            "1": {
-              "$selected": true
-            }
-          }
+          "1": {}
         }
       },
       "transform": {
@@ -1205,7 +1206,7 @@
       "transform": {
         "translate": {
           "x": -403.33203125,
-          "y": -279.08203125
+          "y": -159.08203125
         },
         "scale": 2
       },
@@ -1221,9 +1222,7 @@
         "$selected": true
       },
       "1": {
-        "0": {
-          "$selected": true
-        }
+        "0": {}
       }
     }
   },
@@ -1241,8 +1240,8 @@
   "lvglPart": "MAIN",
   "lvglState": "DEFAULT",
   "lvglExpandedPropertiesGroup": [
-    "BORDER",
-    "TEXT"
+    "TEXT",
+    "BORDER"
   ],
   "showInactiveFlowsInDebugger": true,
   "globalFlowZoom": true,

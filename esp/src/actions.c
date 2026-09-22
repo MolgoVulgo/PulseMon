@@ -1,6 +1,7 @@
 #include "ui/actions.h"
 
 #include "ui_screen.h"
+#include "printer_service.h"
 #include "ui/screens.h"
 
 static lv_obj_t *screen_from_id(enum ScreensEnum target)
@@ -12,6 +13,8 @@ static lv_obj_t *screen_from_id(enum ScreensEnum target)
             return objects.gpu;
         case SCREEN_ID_METEO:
             return objects.meteo;
+        case SCREEN_ID_PRINTER:
+            return objects.printer;
         default:
             return NULL;
     }
@@ -19,6 +22,9 @@ static lv_obj_t *screen_from_id(enum ScreensEnum target)
 
 static void action_swipe_to(enum ScreensEnum target, lv_scr_load_anim_t anim)
 {
+    if (target == SCREEN_ID_PRINTER && !printer_service_is_available()) {
+        return;
+    }
     lv_obj_t *target_obj = screen_from_id(target);
     if (target_obj == NULL) {
         return;
@@ -61,6 +67,18 @@ void action_ui_swipe(lv_event_t *e)
     }
     if (target == objects.meteo && dir == LV_DIR_RIGHT) {
         action_swipe_to(SCREEN_ID_GPU, LV_SCR_LOAD_ANIM_MOVE_RIGHT);
+        lv_indev_wait_release(indev);
+        return;
+    }
+    if (target == objects.meteo && dir == LV_DIR_LEFT) {
+        if (printer_service_is_available()) {
+            action_swipe_to(SCREEN_ID_PRINTER, LV_SCR_LOAD_ANIM_MOVE_LEFT);
+        }
+        lv_indev_wait_release(indev);
+        return;
+    }
+    if (target == objects.printer && dir == LV_DIR_RIGHT) {
+        action_swipe_to(SCREEN_ID_METEO, LV_SCR_LOAD_ANIM_MOVE_RIGHT);
         lv_indev_wait_release(indev);
     }
 }

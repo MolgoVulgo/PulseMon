@@ -24,6 +24,14 @@ static char g_gpu_vram_total[VAR_BUF_LEN];
 static char g_gpu_mem_clock[VAR_BUF_LEN];
 static char g_gpu_fan_rpm[VAR_BUF_LEN];
 static char g_gpu_fan_rpm_1[VAR_BUF_LEN];
+static char g_name_printer[VAR_BUF_LEN];
+static char g_printer_ip[VAR_BUF_LEN];
+static char g_print_file_name[VAR_BUF_LEN];
+static char g_print_time_start[VAR_BUF_LEN];
+static char g_print_time_end[VAR_BUF_LEN];
+static char g_print_time_elapsed[VAR_BUF_LEN];
+static char g_print_time_remaining[VAR_BUF_LEN];
+static int32_t g_print_bar;
 static char g_host_meta[HOST_META_BUF_LEN];
 static int32_t g_gpu_vram_used;
 static char g_ui_meteo_condition[VAR_BUF_LEN];
@@ -236,6 +244,92 @@ const char *get_var_gpu_fan_rpm_1(void)
 void set_var_gpu_fan_rpm_1(const char *value)
 {
     set_text(g_gpu_fan_rpm_1, sizeof(g_gpu_fan_rpm_1), value);
+}
+
+const char *get_var_name_printer(void)
+{
+    return g_name_printer;
+}
+
+void set_var_name_printer(const char *value)
+{
+    set_text(g_name_printer, sizeof(g_name_printer), value);
+}
+
+const char *get_var_printer_ip(void)
+{
+    return g_printer_ip;
+}
+
+void set_var_printer_ip(const char *value)
+{
+    set_text(g_printer_ip, sizeof(g_printer_ip), value);
+}
+
+const char *get_var_print_file_name(void)
+{
+    return g_print_file_name;
+}
+
+void set_var_print_file_name(const char *value)
+{
+    set_text(g_print_file_name, sizeof(g_print_file_name), value);
+}
+
+const char *get_var_print_time_start(void)
+{
+    return g_print_time_start;
+}
+
+void set_var_print_time_start(const char *value)
+{
+    set_text(g_print_time_start, sizeof(g_print_time_start), value);
+}
+
+const char *get_var_print_time_end(void)
+{
+    return g_print_time_end;
+}
+
+void set_var_print_time_end(const char *value)
+{
+    set_text(g_print_time_end, sizeof(g_print_time_end), value);
+}
+
+const char *get_var_print_time_elapsed(void)
+{
+    return g_print_time_elapsed;
+}
+
+void set_var_print_time_elapsed(const char *value)
+{
+    set_text(g_print_time_elapsed, sizeof(g_print_time_elapsed), value);
+}
+
+const char *get_var_print_time_remaining(void)
+{
+    return g_print_time_remaining;
+}
+
+void set_var_print_time_remaining(const char *value)
+{
+    set_text(g_print_time_remaining, sizeof(g_print_time_remaining), value);
+}
+
+int32_t get_var_print_bar(void)
+{
+    return g_print_bar;
+}
+
+void set_var_print_bar(int32_t value)
+{
+    if (value < 0) {
+        g_print_bar = 0;
+    } else if (value > 100) {
+        g_print_bar = 100;
+    } else {
+        g_print_bar = value;
+    }
 }
 
 int32_t get_var_gpu_vram_used()

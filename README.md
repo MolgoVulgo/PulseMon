@@ -2,7 +2,7 @@
 
 PulseMon is a local monitoring system composed of a Linux backend and an ESP32-S3 display.
 
-The Linux host collects system metrics and exposes them through a FastAPI HTTP API. The ESP32-S3 polls that API, keeps the last valid values in a local cache and renders the active screens with LVGL. The intended deployment is a personal workstation on a private LAN, without MQTT, a mandatory cloud service or an external broker.
+The Linux host collects system metrics and exposes them through a FastAPI HTTP API. The ESP32-S3 polls that API, keeps the last valid values in a local cache and renders the active screens with LVGL. The intended deployment is a personal workstation on a private LAN, without a mandatory cloud service or an external broker. The optional Printer screen uses a direct LAN-only HTTP/MQTT link from the ESP32-S3 to the configured printer; it does not introduce a PulseMon broker or cloud dependency.
 
 ## Active scope
 
@@ -13,8 +13,9 @@ The current runtime provides:
 - AMD GPU usage, clocks, VRAM, temperature, power and GPU fan telemetry when available;
 - current snapshots and bounded in-memory histories;
 - a local backend debug UI under `/ui`;
-- active ESP32-S3 screens for Main, GPU and Weather;
+- active ESP32-S3 screens for Main, GPU and Weather, plus a Printer screen that is navigable only while the configured printer is reachable;
 - autonomous OpenWeather weather data and GNews headlines on the ESP32-S3;
+- read-only printer telemetry fetched directly by the ESP32-S3 over the local network;
 - NVS persistence for the backend endpoint, Wi-Fi, weather and news settings on the ESP32-S3;
 - a configuration portal and captive DNS exposed only while the setup AP is active, including an explicit five-second touch hold to open a bounded manual configuration window.
 
@@ -93,7 +94,7 @@ The first report generates a hardware checklist. Codex must then finalize the sa
 
 ## Firmware configuration model
 
-The backend host and port, Wi-Fi credentials, OpenWeather settings and GNews settings are stored in NVS through the local configuration portal.
+The backend host and port, Wi-Fi credentials, OpenWeather settings and GNews settings are stored in NVS through the local configuration portal. Printer connectivity is temporary compile-time configuration in `esp/src/printer_config.h`: `PRINTER_HOST` and `PRINTER_ACCESS_CODE` must be supplied locally until printer settings are moved to persistent configuration.
 
 The backend endpoint uses:
 
@@ -101,13 +102,13 @@ The backend endpoint uses:
 - compiled fallbacks `PULSEMON_API_DEFAULT_HOST` and `PULSEMON_API_DEFAULT_PORT` from `esp/src/pulsemon_api_config.h`;
 - compiled `PULSEMON_HTTP_TIMEOUT_MS` and `PULSEMON_DASHBOARD_POLL_MS` values.
 
-A portal save reloads the endpoint immediately. Clearing PulseMon configuration removes the NVS endpoint and restores the compiled fallback. The optional backend API key is not stored or sent by the current firmware.
+A portal save reloads the endpoint immediately. Clearing PulseMon configuration removes the NVS endpoint and restores the compiled fallback. The optional backend API key is not stored or sent by the current firmware. The printer service is read-only: it performs the local bootstrap/status protocol needed for display telemetry and exposes no print-control action.
 
 ## Security posture
 
-PulseMon targets a local and personal deployment. Security remains proportionate to that context: secrets must not be logged or returned by configuration endpoints, inputs must remain validated and unnecessary LAN exposure should be avoided. The configuration HTTP server starts only with the setup AP and stops when the AP stops; captive DNS is bound to `192.168.4.1` only. Holding the top-left corner of any active screen for five seconds opens `PulseMon-Setup` for a ten-minute manual configuration window without clearing credentials or disconnecting a working station link.
+PulseMon targets a local and personal deployment. Security remains proportionate to that context: secrets must not be logged or returned by configuration endpoints, inputs must remain validated and unnecessary LAN exposure should be avoided. The configuration HTTP server starts only with the setup AP and stops when the AP stops; captive DNS is bound to `192.168.4.1` only. Holding the top-left corner of Main, GPU or Weather for five seconds opens `PulseMon-Setup` for a ten-minute manual configuration window without clearing credentials or disconnecting a working station link.
 
-OpenWeather and GNews use HTTPS with certificate validation through the ESP-IDF certificate bundle. GNews additionally uses the `X-Api-Key` header.
+OpenWeather and GNews use HTTPS with certificate validation through the ESP-IDF certificate bundle. GNews additionally uses the `X-Api-Key` header. The printer access code is a secret: it must not be logged or committed with a real value. The published `printer_config.h` keeps empty placeholders.
 
 ## EEZ ownership and retained generated artifact
 

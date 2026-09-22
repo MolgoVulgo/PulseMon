@@ -27,21 +27,24 @@ Responsabilités :
 - parser le JSON et préserver les dernières valeurs valides ;
 - mettre à jour les variables runtime et écrans LVGL ;
 - récupérer directement météo et contenu GNews ;
-- stocker l’hôte/port backend, les réglages Wi-Fi, météo et actualités en NVS.
+- lire directement sur le LAN privé l’identité imprimante et la télémétrie du job courant ;
+- stocker l’hôte/port backend, les réglages Wi-Fi, météo et actualités en NVS ; l’hôte et le code imprimante restent temporairement compilés en dur.
 
 L’endpoint backend est chargé depuis le namespace NVS `pulsemon_api`. `esp/src/pulsemon_api_config.h` fournit l’hôte/port de fallback compilés ainsi que les valeurs fixes de polling et timeout. Il n’existe pas de découverte automatique du backend. Le portail HTTP suit le cycle réel de l’AP : démarrage sur `WIFI_EVENT_AP_START`, arrêt sur `WIFI_EVENT_AP_STOP`, avec refus des requêtes lorsque l’AP est inactif. Le DNS captif est lié uniquement à l’adresse `192.168.4.1` de l’AP de configuration. Un hotspot invisible ajouté au runtime sur Main, GPU et Météo ouvre l’AP après un appui de cinq secondes dans le coin supérieur gauche. La fenêtre manuelle dure dix minutes tout en conservant une connexion station fonctionnelle.
 
 ## Navigation firmware active
 
 ```text
-Main <-> GPU <-> Météo
+Main <-> GPU <-> Météo <-> Printer (uniquement si l’imprimante est disponible)
 ```
+
+Printer est filtré par le runtime non généré. Si sa disponibilité disparaît pendant son affichage, la navigation revient sur Météo.
 
 ## Propriété des données
 
 ```text
 Backend : télémétrie Linux, payloads API, historiques bornés en mémoire
-Firmware : état Wi-Fi, cache affichage, navigation LVGL, météo/news, réglages NVS
+Firmware : état Wi-Fi, cache affichage, navigation LVGL, météo/news, télémétrie imprimante directe en lecture seule, réglages NVS
 ```
 
 ## Propriété EEZ
@@ -54,4 +57,4 @@ L’UI générée conserve un ancien écran FAN inaccessible et des bindings de 
 
 ## Transport
 
-La télémétrie backend utilise HTTP local et JSON. OpenWeather et GNews utilisent HTTPS avec validation des certificats via le bundle ESP-IDF. GNews utilise aussi un header `X-Api-Key`.
+La télémétrie backend utilise HTTP local et JSON. OpenWeather et GNews utilisent HTTPS avec validation des certificats via le bundle ESP-IDF. GNews utilise aussi un header `X-Api-Key`. La télémétrie imprimante suit un chemin LAN distinct : HTTP port 80 pour le bootstrap du numéro de série, puis MQTT authentifié port 1883 pour l’enregistrement et les requêtes de statut en lecture seule. Aucun broker MQTT externe n’est utilisé.

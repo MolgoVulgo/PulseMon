@@ -6,6 +6,8 @@
 #include "ui/ui.h"
 #include "ui/screens.h"
 #include "ui_graphs.h"
+#include "printer_service.h"
+#include "printer_thumbnail.h"
 #include "vars.h"
 
 static lv_timer_t *s_ui_tick_timer;
@@ -22,6 +24,8 @@ static lv_obj_t *screen_object_from_id(enum ScreensEnum screen_id)
         return objects.gpu;
     case SCREEN_ID_METEO:
         return objects.meteo;
+    case SCREEN_ID_PRINTER:
+        return objects.printer;
     default:
         return NULL;
     }
@@ -41,6 +45,10 @@ static int32_t clamp_start_progress(int32_t pct)
 static void ui_labels_tick(lv_timer_t *timer)
 {
     (void)timer;
+    if (s_active_screen == SCREEN_ID_PRINTER && !printer_service_is_available()) {
+        ui_screen_load(SCREEN_ID_METEO, LV_SCR_LOAD_ANIM_MOVE_RIGHT);
+        return;
+    }
     tick_screen_by_id(s_active_screen);
 }
 
@@ -64,6 +72,9 @@ static void ui_prepare_screen_roots(void)
     if (objects.meteo != NULL) {
         lv_obj_clear_flag(objects.meteo, LV_OBJ_FLAG_SCROLLABLE);
     }
+    if (objects.printer != NULL) {
+        lv_obj_clear_flag(objects.printer, LV_OBJ_FLAG_SCROLLABLE);
+    }
     if (objects.obj21 != NULL) {
         lv_obj_clear_flag(objects.obj21, LV_OBJ_FLAG_SCROLLABLE);
     }
@@ -81,6 +92,7 @@ void ui_screen_start(void)
 
         s_active_screen = SCREEN_ID_MAIN;
         ui_prepare_screen_roots();
+        printer_thumbnail_init(objects.image_gode);
         ui_graphs_init(objects.usage_panel, objects.temp_panel);
         ui_graphs_init_gpu(objects.graph_gpu_pct, objects.graph_gpu_temp);
 
@@ -132,6 +144,9 @@ void ui_screen_show_main_and_release_start(void)
 
 void ui_screen_set_active(enum ScreensEnum screen_id)
 {
+    if (screen_id == SCREEN_ID_PRINTER && !printer_service_is_available()) {
+        return;
+    }
     if (screen_object_from_id(screen_id) == NULL) {
         return;
     }
@@ -140,6 +155,9 @@ void ui_screen_set_active(enum ScreensEnum screen_id)
 
 void ui_screen_load(enum ScreensEnum screen_id, lv_scr_load_anim_t anim)
 {
+    if (screen_id == SCREEN_ID_PRINTER && !printer_service_is_available()) {
+        return;
+    }
     if (screen_id < _SCREEN_ID_FIRST || screen_id > _SCREEN_ID_LAST) {
         return;
     }

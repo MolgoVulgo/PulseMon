@@ -12,3 +12,5 @@ esp/sdkconfig.*.old
 
 # Generated exchange index published separately to Google Drive.
 /REPO_INDEX.json
+diagnostics/*
+tools/__pycache__

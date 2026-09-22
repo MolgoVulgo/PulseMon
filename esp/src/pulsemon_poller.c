@@ -179,7 +179,7 @@ static void mark_backend_offline(const char *why)
 
 static void maybe_switch_to_meteo_offline(enum ScreensEnum active_screen)
 {
-    if (active_screen == SCREEN_ID_METEO) {
+    if (active_screen == SCREEN_ID_METEO || active_screen == SCREEN_ID_PRINTER) {
         return;
     }
     ui_screen_load(SCREEN_ID_METEO, LV_SCR_LOAD_ANIM_MOVE_LEFT);
@@ -187,9 +187,13 @@ static void maybe_switch_to_meteo_offline(enum ScreensEnum active_screen)
     ESP_LOGI(TAG, "backend offline: auto switch to meteo");
 }
 
-static void maybe_switch_back_to_main_online(void)
+static void maybe_switch_back_to_main_online(enum ScreensEnum active_screen)
 {
     if (!s_auto_switched_to_meteo) {
+        return;
+    }
+    if (active_screen != SCREEN_ID_METEO) {
+        s_auto_switched_to_meteo = false;
         return;
     }
     ui_screen_load(SCREEN_ID_MAIN, LV_SCR_LOAD_ANIM_MOVE_RIGHT);
@@ -291,7 +295,7 @@ static void poller_task(void *arg)
                 ui_apply_ms = (esp_timer_get_time() - t_ui_apply_start_us) / 1000;
                 ui_updated = true;
 #endif
-                maybe_switch_back_to_main_online();
+                maybe_switch_back_to_main_online(active_screen);
                 bsp_display_unlock();
             }
         }
@@ -300,7 +304,9 @@ static void poller_task(void *arg)
         int64_t cycle_ms = (esp_timer_get_time() - t_cycle_start_us) / 1000;
         LAT_DEBUG("tick=%lu screen=%s ok=%d fetch=%lldms lock=%lldms ui=%lldms cycle=%lldms",
                   (unsigned long)tick_seq,
-                  gpu_page_active ? "gpu" : (active_screen == SCREEN_ID_METEO ? "meteo" : "main"),
+                  gpu_page_active ? "gpu" :
+                      (active_screen == SCREEN_ID_METEO ? "meteo" :
+                           (active_screen == SCREEN_ID_PRINTER ? "printer" : "main")),
                   ok ? 1 : 0,
                   (long long)fetch_ms,
                   (long long)lock_wait_ms,

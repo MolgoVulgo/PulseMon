@@ -12,6 +12,7 @@
 #include "pulsemon_meteo_service.h"
 #include "news_service.h"
 #include "pulsemon_poller.h"
+#include "printer_service.h"
 #include "pulsemon_weather_icons.h"
 #include "ui_screen.h"
 #include "vars.h"
@@ -43,6 +44,7 @@ static void pulsemon_on_wifi_connected(void)
     pulsemon_poller_start();
     pulsemon_meteo_service_request_update();
     news_service_request_update();
+    printer_service_request_update();
 }
 
 static void pulsemon_on_config_mode_changed(bool active)
@@ -114,6 +116,14 @@ void app_main(void)
     set_var_gpu_fan_rpm("--");
     set_var_gpu_fan_rpm_1("--");
     set_var_gpu_vram_used(0);
+    set_var_name_printer("--");
+    set_var_printer_ip("--");
+    set_var_print_file_name("--");
+    set_var_print_time_start("--:--");
+    set_var_print_time_end("--:--");
+    set_var_print_time_elapsed("00:00:00");
+    set_var_print_time_remaining("00:00:00");
+    set_var_print_bar(0);
     set_var_ui_meteo_houre("--:--");
     set_var_ui_meteo_date("--");
     set_var_ui_meteo_temp("--");
@@ -192,6 +202,10 @@ void app_main(void)
 #else
         (void)news_ret;
 #endif
+        esp_err_t printer_ret = printer_service_start();
+        if (printer_ret != ESP_OK) {
+            ESP_LOGE(TAG, "printer service init failed: %s", esp_err_to_name(printer_ret));
+        }
     } else {
         startup_progress(70, "Services reseau indisponibles");
     }

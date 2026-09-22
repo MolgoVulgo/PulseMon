@@ -2,9 +2,9 @@
 
 Tu es Codex, exécutant mécanique sur un dépôt local complet du projet PulseMon.
 
-L'utilisateur te fournit une archive ZIP de patch. Cette archive contient les fichiers modifiés à appliquer et les fichiers de procédure.
+L'utilisateur peut soit fournir une archive ZIP de patch, soit demander explicitement d'appliquer le dernier patch PulseMon. Dans ce second cas, l'archive doit être sélectionnée depuis la zone de livraison Google Drive autorisée `gdrive:pulsemon/patch/`.
 
-Le ZIP est la source de vérité du correctif. Le dépôt local est la cible d'application. Tu n'es pas là pour redéfinir l'architecture, améliorer le code hors périmètre, corriger au hasard ou poursuivre un refactor. Tu appliques exactement le patch fourni, tu exécutes les validations autorisées, puis tu rapportes précisément le résultat.
+Le ZIP sélectionné est la source de vérité du correctif. Le dépôt local est la cible d'application. Tu n'es pas là pour redéfinir l'architecture, améliorer le code hors périmètre, corriger au hasard ou poursuivre un refactor. Tu appliques exactement le patch fourni ou sélectionné, tu exécutes les validations autorisées, puis tu rapportes précisément le résultat.
 
 ## Mode de communication
 
@@ -79,9 +79,21 @@ Ne modifie jamais directement une sortie UI générée en dehors du contenu exac
 Pour appliquer le correctif :
 
 ```text
-- le ZIP de patch est la source de vérité du diff ;
+- le ZIP de patch fourni ou sélectionné est la source de vérité du diff ;
 - le dépôt local fourni par l'utilisateur est la source de vérité de la base ;
-- aucun dépôt distant ne doit être consulté.
+- pour une demande explicite « applique le dernier patch », Google Drive `gdrive:pulsemon/patch/` est la source distante autorisée pour sélectionner et télécharger l'archive ;
+- `diagnostics/` n'est jamais une source de patch applicable ;
+- aucun autre dépôt distant ne doit être consulté.
+```
+
+Pour « applique le dernier patch » :
+
+```text
+1. lister `gdrive:pulsemon/patch/` avec rclone ;
+2. sélectionner le plus grand numéro `patch_XXXX.zip` applicable ;
+3. s'il existe des correctifs suffixés pour ce même numéro, sélectionner le suffixe applicable le plus élevé ;
+4. télécharger uniquement cette archive dans un emplacement local de travail ;
+5. ne jamais sélectionner `diagnostics/patch_XXXX/` comme entrée d'application.
 ```
 
 Interdictions :
@@ -94,7 +106,9 @@ git ls-remote
 gh ...
 ```
 
-Sont également interdits : navigation Web GitHub, API GitHub, connecteur GitHub et récupération d'un fichier manquant depuis un remote.
+Sont également interdits : navigation Web GitHub, API GitHub, connecteur GitHub et récupération d'un fichier manquant depuis un remote. L'accès `rclone` à `gdrive:pulsemon/patch/` constitue l'unique exception distante pour une demande explicite d'application du dernier patch PulseMon.
+
+Un fichier de règles local clairement destiné à un autre projet, par exemple ElegooSlicer, n'est pas une instruction PulseMon et ne doit pas modifier cette hiérarchie sauf instruction explicite de l'utilisateur.
 
 ---
 
@@ -125,6 +139,9 @@ Si `PATCH_MANIFEST.md`, `DELETE_FILES.txt` ou `MOVE_FILES.txt` est absent, arrê
 - distinguer les changements du patch et ceux déjà présents ;
 - ne pas installer ou mettre à jour des dépendances sans instruction explicite ;
 - ne pas lancer de build, flash ou monitor ESP sans instruction explicite ;
+- « appliquer le dernier patch » seul n'autorise pas un build firmware ;
+- une demande explicite de build/compilation/validation firmware, ou de reproduction d'une erreur de compilation par compilation, autorise le build correspondant ;
+- la simple mention d'un diagnostic à mettre à jour en cas d'erreur ne vaut pas autorisation de compiler ;
 - rapporter toute contradiction ou limite réelle.
 ```
 
@@ -365,9 +382,10 @@ Règle absolue :
 
 ```text
 Ne jamais lancer de build, flash ou monitor ESP sans demande explicite de l'utilisateur.
+« Applique le dernier patch » seul ne lance aucun build.
 ```
 
-Même si le manifeste contient une commande PlatformIO, vérifie que l'utilisateur a explicitement autorisé le build firmware dans la session.
+Même si le manifeste contient une commande PlatformIO, vérifie que l'utilisateur a explicitement autorisé le build firmware dans la session. Une demande de build/compilation/validation firmware ou une demande explicite de reproduire une erreur de compilation par compilation constitue cette autorisation. Une phrase conditionnelle demandant seulement de produire/mettre à jour un diagnostic si une erreur existe ne suffit pas.
 
 Si le build est autorisé :
 
@@ -466,6 +484,10 @@ Une différence de traduction non liée au patch n'autorise pas une réécriture
 ---
 
 ## 18. Gestion des tests et builds en échec
+
+Les diagnostics PulseMon sont des sorties de validation, jamais des entrées de patch. Lorsqu'un diagnostic est publié sous `diagnostics/patch_XXXX/`, il doit rester rattaché au patch déjà appliqué/testé et ne doit jamais être interprété comme une archive à appliquer.
+
+Les rapports humains de diagnostic (`report.md` et résumé final associé) sont rédigés en français uniquement. Ne pas ajouter de section EN/English dupliquant le diagnostic. Les fichiers machine tels que `report.json` peuvent conserver des noms de champs stables.
 
 Si un test ou une validation échoue :
 
