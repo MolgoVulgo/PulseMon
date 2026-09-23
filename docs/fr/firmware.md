@@ -18,16 +18,16 @@ Le firmware utilise PlatformIO, ESP-IDF et LVGL 8.4 avec la définition de carte
 5. connexion Wi-Fi ;
 6. serveur HTTP de configuration et DNS captif uniquement lorsque l’AP de configuration démarre réellement ;
 7. poller backend après connexion station ;
-8. service imprimante en lecture seule, qui reste inactif tant que le Wi-Fi et la configuration imprimante temporaire ne sont pas disponibles.
+8. service imprimante en lecture seule, démarré à la demande uniquement pendant l’affichage de l’écran Printer.
 
 ## Écrans actifs et navigation
 
 ```text
-Main --gauche--> GPU --gauche--> Météo --gauche--> Printer (si disponible)
+Main --gauche--> GPU --gauche--> Météo --gauche--> Printer
 Main <--droite-- GPU <--droite-- Météo <--droite-- Printer
 ```
 
-Printer est une cible conditionnelle. Un geste gauche depuis Météo ne l’ouvre que lorsque `printer_service_is_available()` vaut vrai. Si l’imprimante devient indisponible alors que Printer est affiché, le runtime revient sur Météo. Aucun fichier sous `esp/src/ui/` n’est modifié pour réaliser ce filtrage.
+La navigation vers Printer est inconditionnelle et indépendante de la disponibilité de l’imprimante. L’entrée sur Printer démarre le service imprimante en lecture seule ; la sortie de Printer arrête sa session MQTT et sa tâche. Le label EEZ généré `imp_gone`, visible par défaut, reste affiché jusqu’à la réception d’un statut `1002` valide rendant l’imprimante disponible. Si la disponibilité est perdue pendant que Printer reste affiché, l’écran reste sur Printer et `imp_gone` est réaffiché. Aucun fichier sous `esp/src/ui/` n’est modifié par l’intégration runtime.
 
 ## Polling backend
 
@@ -42,7 +42,7 @@ L’hôte et le port backend sont chargés depuis le namespace NVS `pulsemon_api
 
 ## Télémétrie imprimante
 
-`esp/src/printer_service.c` dialogue directement avec l’imprimante configurée sur le LAN privé. Il n’utilise ni bibliothèque intermédiaire, ni daemon, ni cloud, ni broker externe. L’implémentation courante est strictement en lecture seule.
+`esp/src/printer_service.c` dialogue directement avec l’imprimante configurée sur le LAN privé. Il n’utilise ni bibliothèque intermédiaire, ni daemon, ni cloud, ni broker externe. L’implémentation courante est strictement en lecture seule. Aucun trafic LAN Printer n’est produit lorsque l’écran Printer n’est pas actif : la tâche et le client MQTT sont créés à l’entrée puis libérés à la sortie.
 
 Séquence de connexion :
 
@@ -55,7 +55,7 @@ Séquence de connexion :
 
 Le service alimente `name_printer`, `printer_ip`, `print_file_name`, `print_time_start`, `print_time_end`, `print_time_elapsed`, `print_time_remaining` et `print_bar`. Les heures de début/fin sont calculées depuis l’horloge locale et les durées écoulée/restante fournies par l’imprimante. Une réponse de statut valide rend Printer disponible ; un échec bootstrap, MQTT ou statut le rend indisponible.
 
-Pour la preview du job courant, la méthode `1002` reste la source du nom de fichier actif. Lorsque ce nom change, le firmware envoie la méthode MQTT en lecture seule `1045 GET_FILE_THUMBNAIL` avec `storage_media="local"` et `file_name=<filename>`. Une réponse valide fournit la preview du slicer dans `result.thumbnail` sous forme de PNG encodé en base64. Le firmware décode ce PNG puis en transfère la propriété au cache d’affichage. Les réponses MQTT volumineuses sont réassemblées dans un buffer temporaire borné à 256 Kio, en PSRAM lorsqu’elle est disponible.
+Pour la preview du job courant, la méthode `1002` reste la source du nom de fichier actif. Lorsque ce nom change, le firmware envoie la méthode MQTT en lecture seule `1045 GET_FILE_THUMBNAIL` avec `storage_media="local"` et `file_name=<filename>`. Une réponse valide fournit la preview du slicer dans `result.thumbnail` sous forme de PNG encodé en base64. Le firmware décode ce PNG puis en transfère la propriété au cache d’affichage. Le réassemblage des réponses MQTT utilise une allocation temporaire bornée à 256 Kio demandée explicitement en PSRAM en priorité, avec fallback sur le heap normal. Le PNG décodé suit la même politique PSRAM prioritaire. Ces allocations sont libérées lorsqu’elles ne sont plus nécessaires et la miniature en cache est effacée lorsque le service Printer s’arrête.
 
 `esp/src/printer_thumbnail.c` relie l’image runtime au cadre EEZ généré `image_gode` sans modifier `esp/src/ui/`. Le support PNG LVGL est déjà actif via `LV_USE_PNG=1` ; le cache image runtime est réglé à une entrée afin que le PNG soit décodé une fois puis réutilisé pendant l’affichage. L’ancienne preview est effacée lors d’un changement de job ou à la fin du job. Un échec MQTT/thumbnail transitoire est retenté au maximum toutes les 30 secondes ; une réponse 1045 valide mais sans PNG exploitable n’est pas retentée tant que le nom du job actif ne change pas. Le code d’accès imprimante ne fait pas partie de la requête thumbnail et n’est jamais écrit dans les logs.
 

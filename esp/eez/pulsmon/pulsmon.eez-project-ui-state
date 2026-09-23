@@ -1241,7 +1241,8 @@
   "lvglState": "DEFAULT",
   "lvglExpandedPropertiesGroup": [
     "TEXT",
-    "BORDER"
+    "BORDER",
+    "BACKGROUND"
   ],
   "showInactiveFlowsInDebugger": true,
   "globalFlowZoom": true,

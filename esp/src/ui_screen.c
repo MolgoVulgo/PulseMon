@@ -13,6 +13,7 @@
 static lv_timer_t *s_ui_tick_timer;
 static lv_timer_t *s_graph_timer;
 static bool s_started;
+static bool s_printer_was_available;
 static enum ScreensEnum s_active_screen = SCREEN_ID_MAIN;
 
 static lv_obj_t *screen_object_from_id(enum ScreensEnum screen_id)
@@ -31,6 +32,76 @@ static lv_obj_t *screen_object_from_id(enum ScreensEnum screen_id)
     }
 }
 
+static void ui_reset_printer_values(void)
+{
+    set_var_name_printer("--");
+    set_var_printer_ip("--");
+    set_var_print_file_name("--");
+    set_var_print_time_start("--:--");
+    set_var_print_time_end("--:--");
+    set_var_print_time_elapsed("00:00:00");
+    set_var_print_time_remaining("00:00:00");
+    set_var_print_bar(0);
+}
+
+static void ui_update_printer_availability(void)
+{
+    bool available = printer_service_is_available();
+    if (!available && s_printer_was_available) {
+        ui_reset_printer_values();
+    }
+    s_printer_was_available = available;
+
+    if (objects.imp_gone != NULL) {
+        if (available) {
+            lv_obj_add_flag(objects.imp_gone, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_clear_flag(objects.imp_gone, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    if (objects.image_gode != NULL) {
+        if (available) {
+            lv_obj_clear_flag(objects.image_gode, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(objects.image_gode, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+}
+
+static void ui_apply_screen_transition(enum ScreensEnum previous, enum ScreensEnum next)
+{
+    if (previous == next) {
+        if (next == SCREEN_ID_PRINTER) {
+            ui_update_printer_availability();
+        }
+        return;
+    }
+
+    if (previous == SCREEN_ID_PRINTER) {
+        printer_service_stop();
+        ui_reset_printer_values();
+        s_printer_was_available = false;
+        if (objects.imp_gone != NULL) {
+            lv_obj_clear_flag(objects.imp_gone, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (objects.image_gode != NULL) {
+            lv_obj_add_flag(objects.image_gode, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    if (next == SCREEN_ID_PRINTER) {
+        ui_reset_printer_values();
+        s_printer_was_available = false;
+        if (objects.imp_gone != NULL) {
+            lv_obj_clear_flag(objects.imp_gone, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (objects.image_gode != NULL) {
+            lv_obj_add_flag(objects.image_gode, LV_OBJ_FLAG_HIDDEN);
+        }
+        (void)printer_service_start();
+    }
+}
+
 static int32_t clamp_start_progress(int32_t pct)
 {
     if (pct < 0) {
@@ -45,9 +116,8 @@ static int32_t clamp_start_progress(int32_t pct)
 static void ui_labels_tick(lv_timer_t *timer)
 {
     (void)timer;
-    if (s_active_screen == SCREEN_ID_PRINTER && !printer_service_is_available()) {
-        ui_screen_load(SCREEN_ID_METEO, LV_SCR_LOAD_ANIM_MOVE_RIGHT);
-        return;
+    if (s_active_screen == SCREEN_ID_PRINTER) {
+        ui_update_printer_availability();
     }
     tick_screen_by_id(s_active_screen);
 }
@@ -132,7 +202,9 @@ void ui_screen_show_main_and_release_start(void)
     lv_obj_t *start = objects.start;
     bool release_start = start != NULL && lv_scr_act() == start;
     lv_scr_load_anim(objects.main, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, release_start);
+    enum ScreensEnum previous = s_active_screen;
     s_active_screen = SCREEN_ID_MAIN;
+    ui_apply_screen_transition(previous, SCREEN_ID_MAIN);
     if (release_start) {
         objects.start = NULL;
         objects.ui_start_bar = NULL;
@@ -144,20 +216,17 @@ void ui_screen_show_main_and_release_start(void)
 
 void ui_screen_set_active(enum ScreensEnum screen_id)
 {
-    if (screen_id == SCREEN_ID_PRINTER && !printer_service_is_available()) {
-        return;
-    }
     if (screen_object_from_id(screen_id) == NULL) {
         return;
     }
+
+    enum ScreensEnum previous = s_active_screen;
     s_active_screen = screen_id;
+    ui_apply_screen_transition(previous, screen_id);
 }
 
 void ui_screen_load(enum ScreensEnum screen_id, lv_scr_load_anim_t anim)
 {
-    if (screen_id == SCREEN_ID_PRINTER && !printer_service_is_available()) {
-        return;
-    }
     if (screen_id < _SCREEN_ID_FIRST || screen_id > _SCREEN_ID_LAST) {
         return;
     }
@@ -167,14 +236,17 @@ void ui_screen_load(enum ScreensEnum screen_id, lv_scr_load_anim_t anim)
         return;
     }
 
+    enum ScreensEnum previous = s_active_screen;
     if (lv_scr_act() == target) {
         s_active_screen = screen_id;
+        ui_apply_screen_transition(previous, screen_id);
         tick_screen_by_id(screen_id);
         return;
     }
 
     lv_scr_load_anim(target, anim, 220, 0, false);
     s_active_screen = screen_id;
+    ui_apply_screen_transition(previous, screen_id);
     tick_screen_by_id(screen_id);
 }
 

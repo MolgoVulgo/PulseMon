@@ -202,10 +202,6 @@ void app_main(void)
 #else
         (void)news_ret;
 #endif
-        esp_err_t printer_ret = printer_service_start();
-        if (printer_ret != ESP_OK) {
-            ESP_LOGE(TAG, "printer service init failed: %s", esp_err_to_name(printer_ret));
-        }
     } else {
         startup_progress(70, "Services reseau indisponibles");
     }

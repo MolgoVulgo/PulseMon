@@ -1579,6 +1579,16 @@ void create_screen_printer() {
             lv_obj_set_style_border_color(obj, lv_color_hex(0xffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
         }
+        {
+            // imp_gone
+            lv_obj_t *obj = lv_label_create(parent_obj);
+            objects.imp_gone = obj;
+            lv_obj_set_pos(obj, 148, 117);
+            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+            lv_obj_set_style_bg_color(obj, lv_color_hex(0xb77070), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_bg_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_label_set_text_static(obj, "Imprimante Indisponible");
+        }
     }
     
     tick_screen_printer();

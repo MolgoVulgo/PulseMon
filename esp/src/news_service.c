@@ -13,6 +13,7 @@
 #include "esp_crt_bundle.h"
 #include "esp_err.h"
 #include "esp_http_client.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_timer.h"
@@ -31,9 +32,21 @@
 static const char *TAG = "pulsemon_news";
 #define NEWS_LOGI(fmt, ...) ESP_LOGI(TAG, fmt, ##__VA_ARGS__)
 #define NEWS_LOGW(fmt, ...) ESP_LOGW(TAG, fmt, ##__VA_ARGS__)
+
+static void news_log_heap(const char *stage)
+{
+    NEWS_LOGI("heap stage=%s free_8bit=%u largest_8bit=%u internal=%u largest_internal=%u spiram=%u",
+              stage,
+              (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
+              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
+              (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+              (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+}
 #else
 #define NEWS_LOGI(fmt, ...) ((void)0)
 #define NEWS_LOGW(fmt, ...) ((void)0)
+#define news_log_heap(stage) ((void)0)
 #endif
 
 #define NEWS_HTTP_TIMEOUT_MS 8000
@@ -379,20 +392,26 @@ static bool fetch_gnews(const news_settings_t *settings, time_t now, char *body,
         .crt_bundle_attach = esp_crt_bundle_attach,
     };
     NEWS_LOGI("request GET %s", url);
+    news_log_heap("before_http_init");
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
     if (client == NULL) {
         NEWS_LOGW("http init failed");
+        news_log_heap("http_init_failed");
         return false;
     }
+    news_log_heap("after_http_init");
     esp_http_client_set_header(client, "X-Api-Key", settings->gnews_key);
     esp_http_client_set_header(client, "User-Agent", "PulseMonESP32");
     esp_http_client_set_header(client, "Accept", "application/json");
 
+    news_log_heap("before_tls_perform");
     int64_t started_us = esp_timer_get_time();
     esp_err_t err = esp_http_client_perform(client);
     int elapsed_ms = (int)((esp_timer_get_time() - started_us) / 1000);
     int status = esp_http_client_get_status_code(client);
+    news_log_heap(err == ESP_OK ? "after_http_perform" : "after_http_perform_failed");
     esp_http_client_cleanup(client);
+    news_log_heap("after_http_cleanup");
     if (http_status != NULL) {
         *http_status = status;
     }
@@ -514,12 +533,15 @@ static void fetch_news_once(void)
         return;
     }
 
+    news_log_heap("before_body_alloc");
     char *body = (char *)calloc(1, NEWS_BODY_CAP);
     if (body == NULL) {
-        NEWS_LOGW("body alloc failed");
+        NEWS_LOGW("body alloc failed bytes=%u", (unsigned)NEWS_BODY_CAP);
+        news_log_heap("body_alloc_failed");
         apply_cache_if_available(now, &settings);
         return;
     }
+    news_log_heap("after_body_alloc");
 
     int status = 0;
     news_cache_t fresh = {0};
@@ -531,7 +553,9 @@ static void fetch_news_once(void)
         build_news_line(&s_cache, line, sizeof(line));
         apply_info_line(line, settings.slide_speed);
         NEWS_LOGI("cache updated count=%u next_fetch_in=%dm", (unsigned)s_cache.count, (int)settings.refresh_min);
+        news_log_heap("before_body_free_success");
         free(body);
+        news_log_heap("after_body_free_success");
         return;
     }
 
@@ -544,7 +568,9 @@ static void fetch_news_once(void)
     }
     apply_cache_if_available(now, &settings);
     NEWS_LOGW("update failed status=%d next_retry_in=%llds", status, (long long)(s_next_allowed_fetch - now));
+    news_log_heap("before_body_free_failed");
     free(body);
+    news_log_heap("after_body_free_failed");
 }
 
 static void news_task(void *arg)

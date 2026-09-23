@@ -6620,6 +6620,58 @@
               "value": 0,
               "valueType": "literal",
               "previewValue": 0
+            },
+            {
+              "objID": "ad2f7f08-23b3-4055-e3ea-5cf00fcbf734",
+              "type": "LVGLLabelWidget",
+              "left": 148,
+              "top": 117,
+              "width": 184,
+              "height": 17,
+              "customInputs": [],
+              "customOutputs": [],
+              "style": {
+                "objID": "0922e4d6-62f4-4a01-83b4-7031e698a974",
+                "useStyle": "default",
+                "conditionalStyles": [],
+                "childStyles": []
+              },
+              "timeline": [],
+              "eventHandlers": [],
+              "identifier": "imp_gone",
+              "leftUnit": "px",
+              "topUnit": "px",
+              "widthUnit": "content",
+              "heightUnit": "content",
+              "children": [],
+              "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlagType": "literal",
+              "clickableFlagType": "literal",
+              "flagScrollbarMode": "",
+              "flagScrollDirection": "",
+              "scrollSnapX": "",
+              "scrollSnapY": "",
+              "checkedStateType": "literal",
+              "disabledStateType": "literal",
+              "states": "",
+              "localStyles": {
+                "objID": "d3a62053-55ad-4193-dbef-58bf60d01ba3",
+                "definition": {
+                  "MAIN": {
+                    "DEFAULT": {
+                      "bg_color": "#b77070",
+                      "bg_opa": 255
+                    }
+                  }
+                }
+              },
+              "group": "",
+              "groupIndex": 0,
+              "text": "Imprimante Indisponible",
+              "textType": "literal",
+              "longMode": "WRAP",
+              "recolor": false,
+              "useStaticText": true
             }
           ],
           "widgetFlags": "CLICKABLE|PRESS_LOCK|CLICK_FOCUSABLE|GESTURE_BUBBLE|SNAPPABLE|SCROLLABLE|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER",

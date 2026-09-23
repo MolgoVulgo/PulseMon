@@ -18,16 +18,16 @@ The firmware uses PlatformIO, ESP-IDF and LVGL 8.4 on the custom `jc3248w535c` b
 5. Wi-Fi connection;
 6. configuration HTTP server and captive DNS only when the setup AP actually starts;
 7. backend poller after station connection;
-8. read-only printer service, which remains inactive until Wi-Fi and temporary printer configuration are available.
+8. read-only printer service, started on demand only while the Printer screen is active.
 
 ## Active screens and navigation
 
 ```text
-Main --left--> GPU --left--> Weather --left--> Printer (when available)
+Main --left--> GPU --left--> Weather --left--> Printer
 Main <--right-- GPU <--right-- Weather <--right-- Printer
 ```
 
-Printer is a conditional target. A left gesture from Weather opens it only while `printer_service_is_available()` is true. If the printer becomes unavailable while Printer is displayed, runtime navigation returns to Weather. No file under `esp/src/ui/` is modified to implement this gating.
+Printer navigation is unconditional and independent from printer availability. Entering Printer starts the read-only printer service; leaving Printer stops its MQTT session and task. The EEZ-generated `imp_gone` label is visible by default and remains visible until a valid method-1002 status makes the printer available. If availability is lost while Printer stays open, the screen remains on Printer and `imp_gone` is shown again. No file under `esp/src/ui/` is modified by the runtime integration.
 
 ## Backend polling
 
@@ -42,7 +42,7 @@ The backend host and port are loaded from NVS namespace `pulsemon_api`. `pulsemo
 
 ## Printer telemetry
 
-`esp/src/printer_service.c` talks directly to the configured printer on the private LAN. It does not use an intermediate library, daemon, cloud service or external broker. The current implementation is read-only.
+`esp/src/printer_service.c` talks directly to the configured printer on the private LAN. It does not use an intermediate library, daemon, cloud service or external broker. The current implementation is read-only. The service has no Printer LAN traffic while the Printer screen is not active; its task and MQTT client are created on entry and released on exit.
 
 Connection flow:
 
@@ -55,7 +55,7 @@ Connection flow:
 
 The service updates `name_printer`, `printer_ip`, `print_file_name`, `print_time_start`, `print_time_end`, `print_time_elapsed`, `print_time_remaining` and `print_bar`. Start/end clock values are derived from the current local clock plus the printer-reported elapsed/remaining durations. A valid status response makes Printer available; bootstrap, MQTT or status failure makes it unavailable.
 
-For the current-job preview, method `1002` remains the source of the active filename. When that filename changes, the firmware sends read-only MQTT method `1045 GET_FILE_THUMBNAIL` with `storage_media="local"` and `file_name=<filename>`. A successful response returns the slicer preview in `result.thumbnail` as base64 PNG. The firmware decodes that PNG and transfers ownership to the display cache. Oversized MQTT responses are reassembled in a bounded temporary buffer (maximum 256 KiB), using PSRAM when available.
+For the current-job preview, method `1002` remains the source of the active filename. When that filename changes, the firmware sends read-only MQTT method `1045 GET_FILE_THUMBNAIL` with `storage_media="local"` and `file_name=<filename>`. A successful response returns the slicer preview in `result.thumbnail` as base64 PNG. The firmware decodes that PNG and transfers ownership to the display cache. MQTT response reassembly uses a bounded temporary allocation (maximum 256 KiB) requested explicitly from PSRAM first, with normal heap fallback. The decoded PNG uses the same PSRAM-first policy. Both are released when no longer needed, and the cached thumbnail is cleared when the Printer service stops.
 
 `esp/src/printer_thumbnail.c` binds the runtime image to the EEZ-generated `image_gode` frame without modifying `esp/src/ui/`. LVGL PNG support is already enabled by `LV_USE_PNG=1`; the runtime image cache is set to one entry so the PNG is decoded once and reused while displayed. The previous preview is cleared on job change or when the job ends. A transient MQTT/thumbnail failure is retried no more than once every 30 seconds; a valid method-1045 response with no usable PNG is not retried until the active filename changes. The printer access code is not part of the thumbnail request and is never written to logs.
 
