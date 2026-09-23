@@ -88,10 +88,7 @@ printer_thumbnail_fetch_result_t printer_thumbnail_decode_base64_png(const char 
     size_t decoded_cap = (b64_len / 4U) * 3U + 3U;
     uint8_t *decoded = heap_caps_malloc(decoded_cap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (decoded == NULL) {
-        decoded = malloc(decoded_cap);
-    }
-    if (decoded == NULL) {
-        ESP_LOGW(TAG, "thumbnail method=1045 decode allocation failed bytes=%u", (unsigned)decoded_cap);
+        ESP_LOGW(TAG, "thumbnail method=1045 PSRAM allocation failed bytes=%u", (unsigned)decoded_cap);
         return THUMBNAIL_FETCH_RETRY;
     }
 

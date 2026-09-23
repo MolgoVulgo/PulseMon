@@ -16,6 +16,8 @@ typedef struct {
     bool connected;
     bool ap_active;
     bool has_credentials;
+    bool manual_config_active;
+    uint32_t manual_config_remaining_ms;
     char ssid[PULSEMON_WIFI_STATUS_SSID_MAX_LEN + 1];
     char ip[16];
 } pulsemon_wifi_status_t;

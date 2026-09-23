@@ -67,7 +67,7 @@ Codex doit guider l’opérateur pour vérifier chaque point et inscrire une pre
 - appui cinq secondes dans le coin supérieur gauche ouvrant `PulseMon-Setup` ;
 - maintien de la connexion station pendant la fenêtre AP ;
 - portail non exposé comme service permanent sur le LAN station ;
-- fermeture de l’AP manuel après environ dix minutes ;
+- fermeture de l’AP manuel après environ cinq minutes ;
 - conservation du dernier état et récupération après perte backend ;
 - récupération après perte Wi-Fi sans effacement NVS ;
 - persistance de la configuration après redémarrage ;

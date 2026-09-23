@@ -16,7 +16,7 @@ Le runtime courant fournit :
 - écrans ESP32-S3 actifs Main, GPU et Météo, plus un écran Printer accessible uniquement tant que l’imprimante configurée est joignable ;
 - météo OpenWeather et brèves GNews autonomes côté ESP32-S3 ;
 - télémétrie imprimante en lecture seule récupérée directement par l’ESP32-S3 sur le réseau local ;
-- persistance NVS de l’endpoint backend, du Wi-Fi, de la météo et des actualités côté ESP32-S3 ;
+- persistance NVS de l’endpoint backend, du Wi-Fi, de l’imprimante, de la météo et des actualités côté ESP32-S3 ;
 - portail de configuration et DNS captif exposés uniquement lorsque l’AP de configuration est actif, avec un appui tactile explicite de cinq secondes pour ouvrir une fenêtre manuelle bornée.
 
 Le backend n’utilise aucune base persistante. Les snapshots et historiques sont reconstruits après redémarrage.
@@ -94,7 +94,7 @@ Le premier rapport génère une checklist matérielle. Codex doit ensuite finali
 
 ## Modèle de configuration firmware
 
-L’hôte et le port backend, les identifiants Wi-Fi, les paramètres OpenWeather et les paramètres GNews sont stockés en NVS via le portail local. La connexion imprimante utilise temporairement une configuration compilée dans `esp/src/printer_config.h` : `PRINTER_HOST` et `PRINTER_ACCESS_CODE` doivent être renseignés localement jusqu’au passage de ces réglages en configuration persistante.
+L’hôte et le port backend, les identifiants Wi-Fi, l’endpoint/code d’accès Printer, les paramètres OpenWeather et les paramètres GNews sont stockés en NVS via le portail local. La connexion Printer utilise le namespace NVS `printer`, clés `host` et `access_code` ; `esp/src/printer_config.h` ne contient plus que les ports/timeouts protocolaires fixes et aucun credential.
 
 L’endpoint backend utilise :
 
@@ -102,13 +102,13 @@ L’endpoint backend utilise :
 - les fallbacks compilés `PULSEMON_API_DEFAULT_HOST` et `PULSEMON_API_DEFAULT_PORT` de `esp/src/pulsemon_api_config.h` ;
 - les valeurs compilées `PULSEMON_HTTP_TIMEOUT_MS` et `PULSEMON_DASHBOARD_POLL_MS`.
 
-Une sauvegarde via le portail recharge immédiatement l’endpoint. L’effacement de la configuration PulseMon supprime l’endpoint NVS et restaure le fallback compilé. La clé API backend optionnelle n’est ni stockée ni envoyée par le firmware courant. Le service imprimante est strictement en lecture seule : il exécute uniquement le bootstrap et la lecture d’état nécessaires à l’affichage et n’expose aucune commande d’impression.
+Une sauvegarde via le portail recharge immédiatement l’endpoint backend et réveille un service Printer actif afin que les nouveaux réglages Printer soient pris en compte sans reboot. L’effacement de la configuration PulseMon supprime les réglages NVS backend et Printer et restaure le fallback backend compilé. La clé API backend optionnelle n’est ni stockée ni envoyée par le firmware courant. Le service imprimante est strictement en lecture seule : il exécute uniquement le bootstrap et la lecture d’état nécessaires à l’affichage et n’expose aucune commande d’impression.
 
 ## Positionnement sécurité
 
-PulseMon cible un usage local et personnel. La sécurité reste proportionnée à ce contexte : les secrets ne doivent pas être logués ni retournés par les endpoints de configuration, les entrées restent validées et les expositions LAN inutiles doivent être évitées. Le serveur HTTP de configuration démarre uniquement avec l’AP de configuration et s’arrête avec lui ; le DNS captif est lié exclusivement à `192.168.4.1`. Un appui maintenu cinq secondes dans le coin supérieur gauche de Main, GPU ou Météo ouvre `PulseMon-Setup` pendant une fenêtre manuelle de dix minutes, sans effacer les identifiants ni couper une liaison station fonctionnelle.
+PulseMon cible un usage local et personnel. La sécurité reste proportionnée à ce contexte : les secrets ne doivent pas être logués ni retournés par les endpoints de configuration, les entrées restent validées et les expositions LAN inutiles doivent être évitées. Le serveur HTTP de configuration démarre uniquement avec l’AP de configuration et s’arrête avec lui ; le DNS captif est lié exclusivement à `192.168.4.1`. Un appui maintenu cinq secondes dans le coin supérieur gauche de Main, GPU ou Météo ouvre `PulseMon-Setup` pendant une fenêtre manuelle de cinq minutes, sans effacer les identifiants ni couper une liaison station fonctionnelle.
 
-OpenWeather et GNews utilisent HTTPS avec validation des certificats via le bundle ESP-IDF. GNews utilise en complément le header `X-Api-Key`. Le code d’accès imprimante est un secret : il ne doit pas être logué ni versionné avec une valeur réelle. Le fichier publié `printer_config.h` conserve des placeholders vides.
+OpenWeather et GNews utilisent HTTPS avec validation des certificats via le bundle ESP-IDF. GNews utilise en complément le header `X-Api-Key`. Le code d’accès imprimante est un secret stocké en NVS : il ne doit être ni journalisé ni retourné par l’API de configuration. `printer_config.h` ne contient plus aucun placeholder de credential.
 
 ## Propriété EEZ et artefact généré conservé
 

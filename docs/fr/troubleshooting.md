@@ -52,7 +52,7 @@ Vérifier :
 
 Le portail et le DNS captif s’arrêtent après une connexion station réussie. Ils sont volontairement indisponibles via l’adresse LAN station normale. Si l’AP est actif mais que la redirection DNS échoue, ouvrir directement `http://192.168.4.1/`.
 
-Avec des identifiants valides et fonctionnels, maintenir le coin supérieur gauche de n’importe quel écran actif pendant cinq secondes pour ouvrir `PulseMon-Setup`. La fenêtre manuelle dure dix minutes et ne coupe pas la liaison station. Si l’AP n’apparaît pas, vérifier que l’appui est continu et commence dans le hotspot de 64 × 64 pixels du coin supérieur gauche.
+Avec des identifiants valides et fonctionnels, maintenir le coin supérieur gauche de n’importe quel écran actif pendant cinq secondes pour ouvrir `PulseMon-Setup`. La fenêtre manuelle dure cinq minutes et ne coupe pas la liaison station. Si l’AP n’apparaît pas, vérifier que l’appui est continu et commence dans le hotspot de 64 × 64 pixels du coin supérieur gauche.
 
 ## Météo indisponible
 

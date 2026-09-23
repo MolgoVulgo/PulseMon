@@ -39,15 +39,25 @@ def test_manual_configuration_window_is_bounded_and_keeps_sta_connected() -> Non
     config = _read("esp/src/wifi_config.h")
 
     assert "pulsemon_wifi_manager_open_config_mode" in header
-    assert "PULSEMON_WIFI_MANUAL_CONFIG_TIMEOUT_MS 600000U" in config
+    assert "PULSEMON_WIFI_MANUAL_CONFIG_TIMEOUT_MS 300000U" in config
     assert "xTimerCreate(" in manager
     assert "xTimerReset(s_manual_config_timer, 0)" in manager
     assert "s_manual_config_active" in manager
+    assert "s_manual_config_deadline_us" in manager
+    assert "esp_timer_get_time()" in manager
+    assert "manual_config_active" in header
+    assert "manual_config_remaining_ms" in header
     assert "mode != WIFI_MODE_APSTA" in manager
     assert "esp_wifi_set_mode(WIFI_MODE_APSTA)" in manager
     assert "manual_config_timeout_cb" in manager
     assert 'esp_wifi_set_mode(WIFI_MODE_STA)' in manager
     assert "!connected || !ap_active || manual_config_active" in manager
+    assert "out->manual_config_active = s_manual_config_active" in manager
+    assert "out->manual_config_remaining_ms" in manager
+    set_ap_active_body = manager.split("static void set_ap_active(bool active)", 1)[1].split("static esp_err_t configure_ap", 1)[0]
+    assert "xTimerStop(s_manual_config_timer" not in set_ap_active_body
+    assert "s_manual_config_active = false" not in set_ap_active_body
+    assert "s_manual_config_deadline_us = 0" not in set_ap_active_body
 
 
 def test_documentation_describes_touch_hold_and_timeout_in_both_languages() -> None:
@@ -58,9 +68,9 @@ def test_documentation_describes_touch_hold_and_timeout_in_both_languages() -> N
 
     assert "top-left corner" in en
     assert "five seconds" in en
-    assert "ten minutes" in en
+    assert "five minutes" in en
     assert "coin supérieur gauche" in fr
     assert "cinq secondes" in fr
-    assert "dix minutes" in fr
+    assert "cinq minutes" in fr
     assert "top-left corner" in troubleshooting_en
     assert "coin supérieur gauche" in troubleshooting_fr

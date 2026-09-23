@@ -30,7 +30,7 @@ Responsibilities:
 - read printer identity and current-job telemetry directly from the configured printer over the private LAN;
 - store the backend host/port, Wi-Fi, weather and news settings in NVS; printer host/access code remain temporary compile-time settings.
 
-The backend endpoint is loaded from NVS namespace `pulsemon_api`. `esp/src/pulsemon_api_config.h` provides the compiled fallback host/port and fixed polling/timeout values. There is no automatic backend discovery. The HTTP portal follows the actual AP lifecycle: it starts on `WIFI_EVENT_AP_START`, stops on `WIFI_EVENT_AP_STOP`, and its handlers reject requests when the AP is inactive. Captive DNS is bound only to the setup AP address `192.168.4.1`. A runtime-only invisible hotspot on Main, GPU and Weather opens the setup AP after a five-second hold in the top-left corner. The manual window lasts ten minutes while a working station connection remains active.
+The backend endpoint is loaded from NVS namespace `pulsemon_api`. `esp/src/pulsemon_api_config.h` provides the compiled fallback host/port and fixed polling/timeout values. There is no automatic backend discovery. The HTTP portal follows the actual AP lifecycle: it starts on `WIFI_EVENT_AP_START`, stops on `WIFI_EVENT_AP_STOP`, and its handlers reject requests when the AP is inactive. Captive DNS is bound only to the setup AP address `192.168.4.1`. A runtime-only invisible hotspot on Main, GPU and Weather opens the setup AP after a five-second hold in the top-left corner. The manual window lasts five minutes while a working station connection remains active.
 
 ## Active firmware navigation
 

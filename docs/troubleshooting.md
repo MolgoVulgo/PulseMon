@@ -52,7 +52,7 @@ Check:
 
 The portal and captive DNS stop after a successful station connection. They are intentionally unavailable on the normal station LAN address. If the AP is active but DNS redirection fails, open `http://192.168.4.1/` directly.
 
-With valid working credentials, hold the top-left corner of any active screen for five seconds to open `PulseMon-Setup`. The manual window lasts ten minutes and does not disconnect the station link. If the AP does not appear, verify that the hold is continuous and starts inside the top-left 64 × 64 pixel hotspot.
+With valid working credentials, hold the top-left corner of any active screen for five seconds to open `PulseMon-Setup`. The manual window lasts five minutes and does not disconnect the station link. If the AP does not appear, verify that the hold is continuous and starts inside the top-left 64 × 64 pixel hotspot.
 
 ## Weather unavailable
 

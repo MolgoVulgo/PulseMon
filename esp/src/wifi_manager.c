@@ -11,6 +11,7 @@
 #include "esp_err.h"
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "nvs_flash.h"
@@ -36,6 +37,7 @@ static bool s_ap_active;
 static bool s_has_credentials;
 static bool s_scan_active;
 static bool s_manual_config_active;
+static int64_t s_manual_config_deadline_us;
 static char s_current_ssid[PULSEMON_WIFI_STATUS_SSID_MAX_LEN + 1];
 static char s_current_ip[16];
 static wifi_ap_record_t s_scan_records[PULSEMON_WIFI_SCAN_MAX_RESULTS];
@@ -78,15 +80,14 @@ static void set_ap_active(bool active)
     state_lock();
     changed = s_ap_active != active;
     s_ap_active = active;
-    if (!active) {
-        s_manual_config_active = false;
-    }
     state_unlock();
 
-    if (!active && s_manual_config_timer != NULL) {
-        xTimerStop(s_manual_config_timer, 0);
-    }
-
+    /*
+     * esp_wifi_set_config(WIFI_IF_AP, ...) can briefly restart the soft-AP
+     * after switching from STA to APSTA.  Preserve the manual-window timer
+     * across that transient AP_STOP/AP_START cycle.  The timeout callback is
+     * the owner of manual-window expiration and clears the state explicitly.
+     */
     if (changed && s_config_mode_cb != NULL) {
         s_config_mode_cb(active);
     }
@@ -153,6 +154,7 @@ static void manual_config_timeout_cb(TimerHandle_t timer)
     state_lock();
     bool should_disable = s_manual_config_active && s_connected && s_ap_active;
     s_manual_config_active = false;
+    s_manual_config_deadline_us = 0;
     state_unlock();
 
     if (!should_disable) {
@@ -386,6 +388,7 @@ esp_err_t pulsemon_wifi_manager_open_config_mode(void)
     state_lock();
     bool started = s_started;
     s_manual_config_active = started;
+    s_manual_config_deadline_us = 0;
     state_unlock();
 
     if (!started) {
@@ -396,6 +399,7 @@ esp_err_t pulsemon_wifi_manager_open_config_mode(void)
     if (err != ESP_OK) {
         state_lock();
         s_manual_config_active = false;
+        s_manual_config_deadline_us = 0;
         state_unlock();
         return err;
     }
@@ -404,12 +408,20 @@ esp_err_t pulsemon_wifi_manager_open_config_mode(void)
         state_lock();
         bool connected = s_connected;
         s_manual_config_active = false;
+        s_manual_config_deadline_us = 0;
         state_unlock();
         if (connected) {
             esp_wifi_set_mode(WIFI_MODE_STA);
         }
         return ESP_FAIL;
     }
+
+    state_lock();
+    if (s_manual_config_active) {
+        s_manual_config_deadline_us =
+            esp_timer_get_time() + ((int64_t)PULSEMON_WIFI_MANUAL_CONFIG_TIMEOUT_MS * 1000LL);
+    }
+    state_unlock();
 
     ESP_LOGI(
         TAG,
@@ -551,6 +563,14 @@ void pulsemon_wifi_manager_get_status(pulsemon_wifi_status_t *out)
     out->connected = s_connected;
     out->ap_active = s_ap_active;
     out->has_credentials = s_has_credentials;
+    out->manual_config_active = s_manual_config_active;
+    if (s_manual_config_active && s_manual_config_deadline_us > 0) {
+        int64_t remaining_us = s_manual_config_deadline_us - esp_timer_get_time();
+        if (remaining_us > 0) {
+            uint64_t remaining_ms = ((uint64_t)remaining_us + 999ULL) / 1000ULL;
+            out->manual_config_remaining_ms = remaining_ms > UINT32_MAX ? UINT32_MAX : (uint32_t)remaining_ms;
+        }
+    }
     snprintf(out->ssid, sizeof(out->ssid), "%s", s_current_ssid);
     snprintf(out->ip, sizeof(out->ip), "%s", s_current_ip);
     state_unlock();

@@ -67,7 +67,7 @@ Codex must guide the operator through every item and record concise evidence in 
 - a five-second top-left hold opens `PulseMon-Setup`;
 - station connectivity remains active during the AP window;
 - the portal is not a permanent station-LAN service;
-- the manual AP closes after approximately ten minutes;
+- the manual AP closes after approximately five minutes;
 - the last state is retained and data recovers after backend loss;
 - Wi-Fi recovers without clearing NVS;
 - configuration persists after reboot;

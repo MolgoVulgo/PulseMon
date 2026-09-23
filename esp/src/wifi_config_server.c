@@ -13,6 +13,8 @@
 
 #include "news_service.h"
 #include "news_settings.h"
+#include "printer_service.h"
+#include "printer_settings.h"
 #include "pulsemon_api_client.h"
 #include "pulsemon_api_settings.h"
 #include "pulsemon_meteo_service.h"
@@ -43,9 +45,12 @@ static const char CONFIG_HTML[] =
     "nav a{color:#9ad;margin-right:16px}label{display:block;margin-top:14px;color:#ccc}"
     "button,input,select{width:100%;box-sizing:border-box;padding:12px;margin:8px 0;border-radius:6px;border:1px solid #555;background:#222;color:#eee}"
     "button{background:#0b6bcb;border:0;font-weight:700}.row{margin:14px 0}.msg{min-height:24px;color:#9ad}.hint{color:#999;font-size:14px}"
-    "</style></head><body><nav><a href=\"/\">Config</a><a href=\"/wifi\">WiFi</a></nav><h1>PulseMon</h1><div class=\"msg\" id=\"msg\">Loading...</div>"
+    "</style></head><body><nav><a href=\"/\">Config</a><a href=\"/wifi\">WiFi</a></nav><h1>PulseMon</h1><div class=\"msg\" id=\"portalState\">Checking setup window...</div><div class=\"msg\" id=\"msg\">Loading...</div>"
     "<label>Backend host</label><input id=\"backend_host\" maxlength=\"95\" placeholder=\"Example: 192.168.0.10 or pulsemon.local\">"
     "<label>Backend port</label><input id=\"backend_port\" min=\"1\" max=\"65535\" type=\"number\">"
+    "<label>Printer IP / hostname</label><input id=\"printer_host\" maxlength=\"95\" placeholder=\"Example: 192.168.0.42\">"
+    "<label>Printer access code</label><input id=\"printer_access_code\" maxlength=\"64\" type=\"password\" placeholder=\"Leave empty to keep saved access code\">"
+    "<label><input id=\"clear_printer_config\" type=\"checkbox\" style=\"width:auto\"> Clear saved printer configuration</label>"
     "<label>OpenWeather key</label><input id=\"openweather_key\" maxlength=\"96\" type=\"password\" placeholder=\"Leave empty to keep saved key\">"
     "<label><input id=\"clear_openweather_key\" type=\"checkbox\" style=\"width:auto\"> Clear saved OpenWeather key</label>"
     "<label>GNews key</label><input id=\"gnews_key\" maxlength=\"128\" type=\"password\" placeholder=\"Leave empty to keep saved key\">"
@@ -67,12 +72,16 @@ static const char CONFIG_HTML[] =
     "<label>Language</label><select id=\"language\"><option value=\"fr\">fr</option><option value=\"en\">en</option><option value=\"de\">de</option><option value=\"es\">es</option><option value=\"it\">it</option></select>"
     "<button onclick=\"saveConfig()\">Save configuration</button><button onclick=\"clearConfig()\">Reset PulseMon config</button><p class=\"hint\" id=\"keyState\"></p>"
     "<script>"
-    "const msg=document.getElementById('msg'),backendHost=document.getElementById('backend_host'),backendPort=document.getElementById('backend_port'),key=document.getElementById('openweather_key'),clearKey=document.getElementById('clear_openweather_key'),newsKey=document.getElementById('gnews_key'),clearNewsKey=document.getElementById('clear_gnews_key'),newsMax=document.getElementById('news_max_items'),newsSpeed=document.getElementById('news_slide_speed'),gmt=document.getElementById('gmt_offset_min'),city=document.getElementById('openweather_city_id'),lang=document.getElementById('language'),keyState=document.getElementById('keyState');"
+    "const msg=document.getElementById('msg'),portalState=document.getElementById('portalState'),backendHost=document.getElementById('backend_host'),backendPort=document.getElementById('backend_port'),printerHost=document.getElementById('printer_host'),printerCode=document.getElementById('printer_access_code'),clearPrinter=document.getElementById('clear_printer_config'),key=document.getElementById('openweather_key'),clearKey=document.getElementById('clear_openweather_key'),newsKey=document.getElementById('gnews_key'),clearNewsKey=document.getElementById('clear_gnews_key'),newsMax=document.getElementById('news_max_items'),newsSpeed=document.getElementById('news_slide_speed'),gmt=document.getElementById('gmt_offset_min'),city=document.getElementById('openweather_city_id'),lang=document.getElementById('language'),keyState=document.getElementById('keyState');"
+    "let portalClosed=false,portalFailures=0;"
     "function setMsg(t){msg.textContent=t}"
-    "async function loadConfig(){try{let r=await fetch('/api/config');let j=await r.json();backendHost.value=j.backend_host||'';backendPort.value=String(j.backend_port||8000);gmt.value=String(j.gmt_offset_min);city.value=j.openweather_city_id?String(j.openweather_city_id):'';lang.value=j.language||'fr';newsMax.value=String(j.news_max_items||5);newsSpeed.value=String(j.news_slide_speed||35);keyState.textContent=(j.openweather_key_set?'OpenWeather key saved':'No OpenWeather key saved')+' | '+(j.gnews_key_set?'GNews key saved':'No GNews key saved');setMsg('Ready')}catch(e){setMsg('Config unavailable')}}"
-    "async function saveConfig(){setMsg('Saving...');let body=new URLSearchParams({backend_host:backendHost.value,backend_port:backendPort.value,gmt_offset_min:gmt.value,openweather_city_id:city.value,language:lang.value,news_max_items:newsMax.value,news_slide_speed:newsSpeed.value});if(key.value)body.set('openweather_key',key.value);if(clearKey.checked)body.set('clear_openweather_key','1');if(newsKey.value)body.set('gnews_key',newsKey.value);if(clearNewsKey.checked)body.set('clear_gnews_key','1');let r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});setMsg(r.ok?'Saved':await r.text());key.value='';newsKey.value='';clearKey.checked=false;clearNewsKey.checked=false;loadConfig()}"
+    "function formatRemaining(ms){let s=Math.max(0,Math.ceil(ms/1000)),m=Math.floor(s/60);return m+':'+String(s%60).padStart(2,'0')}"
+    "function closePortalView(){if(portalClosed)return;portalClosed=true;portalState.textContent='Configuration window closed. Reopen PulseMon-Setup from the display.';msg.textContent='Portal inactive';document.querySelectorAll('button,input,select,a').forEach(e=>{e.disabled=true;e.style.pointerEvents='none';e.style.opacity='.55'})}"
+    "async function pollPortal(){if(portalClosed)return;let c=new AbortController(),t=setTimeout(()=>c.abort(),1500);try{let r=await fetch('/api/wifi/status',{cache:'no-store',signal:c.signal});if(!r.ok)throw new Error();let j=await r.json();portalFailures=0;if(!j.ap_active){closePortalView();return}portalState.textContent=j.manual_config_active?'Setup window: '+formatRemaining(j.manual_config_remaining_ms)+' remaining':(j.connected?'Setup AP active':'Setup AP active (Wi-Fi fallback)')}catch(e){portalFailures++;if(portalFailures>=2){closePortalView();return}portalState.textContent='Checking setup window...'}finally{clearTimeout(t)}setTimeout(pollPortal,2000)}"
+    "async function loadConfig(){try{let r=await fetch('/api/config');let j=await r.json();backendHost.value=j.backend_host||'';backendPort.value=String(j.backend_port||8000);printerHost.value=j.printer_host||'';gmt.value=String(j.gmt_offset_min);city.value=j.openweather_city_id?String(j.openweather_city_id):'';lang.value=j.language||'fr';newsMax.value=String(j.news_max_items||5);newsSpeed.value=String(j.news_slide_speed||35);keyState.textContent=(j.printer_access_code_set?'Printer access code saved':'No Printer access code saved')+' | '+(j.openweather_key_set?'OpenWeather key saved':'No OpenWeather key saved')+' | '+(j.gnews_key_set?'GNews key saved':'No GNews key saved');setMsg('Ready')}catch(e){setMsg('Config unavailable')}}"
+    "async function saveConfig(){setMsg('Saving...');let body=new URLSearchParams({backend_host:backendHost.value,backend_port:backendPort.value,printer_host:printerHost.value,gmt_offset_min:gmt.value,openweather_city_id:city.value,language:lang.value,news_max_items:newsMax.value,news_slide_speed:newsSpeed.value});if(printerCode.value)body.set('printer_access_code',printerCode.value);if(clearPrinter.checked)body.set('clear_printer_config','1');if(key.value)body.set('openweather_key',key.value);if(clearKey.checked)body.set('clear_openweather_key','1');if(newsKey.value)body.set('gnews_key',newsKey.value);if(clearNewsKey.checked)body.set('clear_gnews_key','1');let r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});setMsg(r.ok?'Saved':await r.text());printerCode.value='';key.value='';newsKey.value='';clearPrinter.checked=false;clearKey.checked=false;clearNewsKey.checked=false;loadConfig()}"
     "async function clearConfig(){let r=await fetch('/api/config/clear',{method:'POST'});setMsg(r.ok?'PulseMon config reset':'Reset failed');loadConfig()}"
-    "loadConfig();"
+    "loadConfig();pollPortal();"
     "</script></body></html>";
 
 static const char WIFI_HTML[] =
@@ -82,15 +91,18 @@ static const char WIFI_HTML[] =
     "nav a{color:#9ad;margin-right:16px}"
     "button,input,select{width:100%;box-sizing:border-box;padding:12px;margin:8px 0;border-radius:6px;border:1px solid #555;background:#222;color:#eee}"
     "button{background:#0b6bcb;border:0;font-weight:700}.row{margin:14px 0}.msg{min-height:24px;color:#9ad}"
-    "</style></head><body><nav><a href=\"/\">Config</a><a href=\"/wifi\">WiFi</a></nav><h1>PulseMon WiFi</h1><div class=\"msg\" id=\"msg\">Loading...</div>"
+    "</style></head><body><nav><a href=\"/\">Config</a><a href=\"/wifi\">WiFi</a></nav><h1>PulseMon WiFi</h1><div class=\"msg\" id=\"portalState\">Checking setup window...</div><div class=\"msg\" id=\"msg\">Loading...</div>"
     "<div class=\"row\"><button onclick=\"scan()\">Scan SSID</button><select id=\"net\" onchange=\"pick()\"><option value=\"\">Manual SSID</option></select></div>"
     "<input id=\"ssid\" maxlength=\"32\" placeholder=\"SSID\"><input id=\"password\" type=\"password\" maxlength=\"63\" placeholder=\"Password\">"
     "<button onclick=\"save()\">Save and connect</button><button onclick=\"clearWifi()\">Clear saved WiFi</button>"
     "<script>"
-    "const msg=document.getElementById('msg'),net=document.getElementById('net'),ssid=document.getElementById('ssid'),password=document.getElementById('password');"
+    "const msg=document.getElementById('msg'),portalState=document.getElementById('portalState'),net=document.getElementById('net'),ssid=document.getElementById('ssid'),password=document.getElementById('password');"
+    "let portalClosed=false,portalFailures=0,statusTimer=null;"
     "function setMsg(t){msg.textContent=t}"
     "function pick(){ssid.value=net.value}"
-    "async function status(){try{let r=await fetch('/api/wifi/status');let j=await r.json();setMsg(j.connected?'Connected to '+j.ssid+' '+j.ip:(j.ap_active?'Setup AP active':'Disconnected'))}catch(e){setMsg('Status unavailable')}}"
+    "function formatRemaining(ms){let s=Math.max(0,Math.ceil(ms/1000)),m=Math.floor(s/60);return m+':'+String(s%60).padStart(2,'0')}"
+    "function closePortalView(){if(portalClosed)return;portalClosed=true;portalState.textContent='Configuration window closed. Reopen PulseMon-Setup from the display.';msg.textContent='Portal inactive';document.querySelectorAll('button,input,select,a').forEach(e=>{e.disabled=true;e.style.pointerEvents='none';e.style.opacity='.55'})}"
+    "async function status(){if(portalClosed)return;if(statusTimer){clearTimeout(statusTimer);statusTimer=null}let c=new AbortController(),t=setTimeout(()=>c.abort(),1500);try{let r=await fetch('/api/wifi/status',{cache:'no-store',signal:c.signal});if(!r.ok)throw new Error();let j=await r.json();portalFailures=0;if(!j.ap_active){closePortalView();return}portalState.textContent=j.manual_config_active?'Setup window: '+formatRemaining(j.manual_config_remaining_ms)+' remaining':(j.connected?'Setup AP active':'Setup AP active (Wi-Fi fallback)');setMsg(j.connected?'Connected to '+j.ssid+' '+j.ip:'Disconnected')}catch(e){portalFailures++;if(portalFailures>=2){closePortalView();return}setMsg('Status unavailable')}finally{clearTimeout(t)}if(!portalClosed)statusTimer=setTimeout(status,2000)}"
     "async function scan(){setMsg('Scanning...');let r=await fetch('/api/wifi/scan');if(!r.ok){setMsg('Scan failed');return}let j=await r.json();net.innerHTML='<option value=\"\">Manual SSID</option>';j.networks.forEach(n=>{let o=document.createElement('option');o.value=n.ssid;o.textContent=n.ssid+' ('+n.rssi+' dBm, '+n.auth+')';net.appendChild(o)});setMsg(j.networks.length+' network(s) found')}"
     "async function save(){setMsg('Saving...');let body=new URLSearchParams({ssid:ssid.value,password:password.value});let r=await fetch('/api/wifi',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});setMsg(r.ok?'Saved, connecting...':await r.text());setTimeout(status,2000)}"
     "async function clearWifi(){let r=await fetch('/api/wifi/clear',{method:'POST'});setMsg(r.ok?'Credentials cleared':'Clear failed');setTimeout(status,1000)}"
@@ -261,17 +273,29 @@ static esp_err_t config_get_handler(httpd_req_t *req)
     }
     NEWS_WEB_LOGI("config get key_set=%d", news_settings.gnews_key[0] != '\0');
 
+    printer_settings_t printer_settings;
+    err = printer_settings_load(&printer_settings);
+    if (err != ESP_OK && err != ESP_ERR_INVALID_SIZE) {
+        ESP_LOGW(TAG, "printer settings load failed: %s", esp_err_to_name(err));
+        send_text(req, 500, "printer settings load failed");
+        return ESP_OK;
+    }
+
     char backend_host[(PULSEMON_API_HOST_MAX_LEN * 2) + 1];
+    char printer_host[(PRINTER_HOST_MAX_LEN * 2) + 1];
     char language[16];
     json_escape(backend_host, sizeof(backend_host), api_settings.host);
+    json_escape(printer_host, sizeof(printer_host), printer_settings.host);
     json_escape(language, sizeof(language), settings.language);
 
-    char body[512];
+    char body[768];
     snprintf(body,
              sizeof(body),
-             "{\"backend_host\":\"%s\",\"backend_port\":%u,\"openweather_key_set\":%s,\"gnews_key_set\":%s,\"gmt_offset_min\":%d,\"openweather_city_id\":%lu,\"language\":\"%s\",\"news_max_items\":%u,\"news_slide_speed\":%u}",
+             "{\"backend_host\":\"%s\",\"backend_port\":%u,\"printer_host\":\"%s\",\"printer_access_code_set\":%s,\"openweather_key_set\":%s,\"gnews_key_set\":%s,\"gmt_offset_min\":%d,\"openweather_city_id\":%lu,\"language\":\"%s\",\"news_max_items\":%u,\"news_slide_speed\":%u}",
              backend_host,
              (unsigned)api_settings.port,
+             printer_host,
+             printer_settings.access_code[0] != '\0' ? "true" : "false",
              settings.openweather_key[0] != '\0' ? "true" : "false",
              news_settings.gnews_key[0] != '\0' ? "true" : "false",
              (int)settings.gmt_offset_min,
@@ -289,12 +313,12 @@ static esp_err_t config_save_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    if (req->content_len <= 0 || req->content_len > 1152) {
+    if (req->content_len <= 0 || req->content_len > 1536) {
         send_text(req, 400, "invalid form size");
         return ESP_OK;
     }
 
-    char body[1153];
+    char body[1537];
     int total = 0;
     while (total < req->content_len) {
         int received = httpd_req_recv(req, body + total, req->content_len - total);
@@ -330,6 +354,14 @@ static esp_err_t config_save_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
+    printer_settings_t printer_settings;
+    err = printer_settings_load(&printer_settings);
+    if (err != ESP_OK && err != ESP_ERR_INVALID_SIZE) {
+        ESP_LOGW(TAG, "printer settings load before save failed: %s", esp_err_to_name(err));
+        send_text(req, 500, "printer settings load failed");
+        return ESP_OK;
+    }
+
     if (!form_get(body, "backend_host", api_settings.host, sizeof(api_settings.host))) {
         send_text(req, 400, "backend_host required");
         return ESP_OK;
@@ -348,6 +380,23 @@ static esp_err_t config_save_handler(httpd_req_t *req)
     if (!pulsemon_api_settings_validate(&api_settings)) {
         send_text(req, 400, "invalid backend endpoint");
         return ESP_OK;
+    }
+
+    char clear_printer_config[4];
+    bool clear_printer = form_get(body, "clear_printer_config", clear_printer_config, sizeof(clear_printer_config)) &&
+                         strcmp(clear_printer_config, "1") == 0;
+    if (clear_printer) {
+        printer_settings_defaults(&printer_settings);
+    } else {
+        if (!form_get(body, "printer_host", printer_settings.host, sizeof(printer_settings.host))) {
+            send_text(req, 400, "printer_host required");
+            return ESP_OK;
+        }
+        char printer_access_code[PRINTER_ACCESS_CODE_MAX_LEN + 1];
+        if (form_get(body, "printer_access_code", printer_access_code, sizeof(printer_access_code)) &&
+            printer_access_code[0] != '\0') {
+            snprintf(printer_settings.access_code, sizeof(printer_settings.access_code), "%s", printer_access_code);
+        }
     }
 
     char openweather_key[PULSEMON_OPENWEATHER_KEY_MAX_LEN + 1];
@@ -419,6 +468,10 @@ static esp_err_t config_save_handler(httpd_req_t *req)
         news_settings.slide_speed = (uint16_t)news_slide_speed;
     }
 
+    if (!printer_settings_validate(&printer_settings)) {
+        send_text(req, 400, "invalid printer configuration");
+        return ESP_OK;
+    }
     if (!pulsemon_settings_validate(&settings)) {
         send_text(req, 400, "invalid configuration");
         return ESP_OK;
@@ -433,6 +486,17 @@ static esp_err_t config_save_handler(httpd_req_t *req)
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "backend settings save failed: %s", esp_err_to_name(err));
         send_text(req, 500, "backend settings save failed");
+        return ESP_OK;
+    }
+
+    if (printer_settings.host[0] == '\0' && printer_settings.access_code[0] == '\0') {
+        err = printer_settings_clear();
+    } else {
+        err = printer_settings_save(&printer_settings);
+    }
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "printer settings save failed: %s", esp_err_to_name(err));
+        send_text(req, 500, "printer settings save failed");
         return ESP_OK;
     }
 
@@ -458,6 +522,7 @@ static esp_err_t config_save_handler(httpd_req_t *req)
     NEWS_WEB_LOGI("settings saved key_set=%d", news_settings.gnews_key[0] != '\0');
 
     send_text(req, 200, "saved");
+    printer_service_reload_settings();
     pulsemon_meteo_service_request_update();
     news_service_request_update();
     return ESP_OK;
@@ -473,6 +538,13 @@ static esp_err_t config_clear_handler(httpd_req_t *req)
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "backend settings clear failed: %s", esp_err_to_name(err));
         send_text(req, 500, "backend settings clear failed");
+        return ESP_OK;
+    }
+
+    err = printer_settings_clear();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "printer settings clear failed: %s", esp_err_to_name(err));
+        send_text(req, 500, "printer settings clear failed");
         return ESP_OK;
     }
 
@@ -496,6 +568,7 @@ static esp_err_t config_clear_handler(httpd_req_t *req)
     }
     NEWS_WEB_LOGI("settings cleared");
     send_text(req, 200, "cleared");
+    printer_service_reload_settings();
     pulsemon_meteo_service_request_update();
     return ESP_OK;
 }
@@ -512,13 +585,15 @@ static esp_err_t status_handler(httpd_req_t *req)
     char ssid[72];
     json_escape(ssid, sizeof(ssid), status.connected ? status.ssid : "");
 
-    char body[192];
+    char body[288];
     snprintf(body,
              sizeof(body),
-             "{\"mode\":\"%s\",\"connected\":%s,\"ap_active\":%s,\"ssid\":\"%s\",\"ip\":\"%s\"}",
+             "{\"mode\":\"%s\",\"connected\":%s,\"ap_active\":%s,\"manual_config_active\":%s,\"manual_config_remaining_ms\":%lu,\"ssid\":\"%s\",\"ip\":\"%s\"}",
              status.ap_active ? (status.connected ? "apsta" : "ap") : "sta",
              status.connected ? "true" : "false",
              status.ap_active ? "true" : "false",
+             status.manual_config_active ? "true" : "false",
+             (unsigned long)status.manual_config_remaining_ms,
              ssid,
              status.ip);
     httpd_resp_set_type(req, "application/json");
@@ -631,6 +706,7 @@ esp_err_t pulsemon_wifi_config_server_start(void)
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.lru_purge_enable = true;
     config.stack_size = 6144;
+    config.max_uri_handlers = 10;
     config.uri_match_fn = httpd_uri_match_wildcard;
 
     esp_err_t err = httpd_start(&s_server, &config);
@@ -650,16 +726,28 @@ esp_err_t pulsemon_wifi_config_server_start(void)
     const httpd_uri_t clear_uri = {.uri = "/api/wifi/clear", .method = HTTP_POST, .handler = clear_handler};
     const httpd_uri_t portal_uri = {.uri = "/*", .method = HTTP_GET, .handler = index_handler};
 
-    httpd_register_uri_handler(s_server, &index_uri);
-    httpd_register_uri_handler(s_server, &wifi_page_uri);
-    httpd_register_uri_handler(s_server, &config_get_uri);
-    httpd_register_uri_handler(s_server, &config_save_uri);
-    httpd_register_uri_handler(s_server, &config_clear_uri);
-    httpd_register_uri_handler(s_server, &status_uri);
-    httpd_register_uri_handler(s_server, &scan_uri);
-    httpd_register_uri_handler(s_server, &save_uri);
-    httpd_register_uri_handler(s_server, &clear_uri);
-    httpd_register_uri_handler(s_server, &portal_uri);
+    const httpd_uri_t *uris[] = {
+        &index_uri,
+        &wifi_page_uri,
+        &config_get_uri,
+        &config_save_uri,
+        &config_clear_uri,
+        &status_uri,
+        &scan_uri,
+        &save_uri,
+        &clear_uri,
+        &portal_uri,
+    };
+
+    for (size_t i = 0; i < sizeof(uris) / sizeof(uris[0]); ++i) {
+        err = httpd_register_uri_handler(s_server, uris[i]);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "unable to register uri %s: %s", uris[i]->uri, esp_err_to_name(err));
+            httpd_stop(s_server);
+            s_server = NULL;
+            return err;
+        }
+    }
 
     ESP_LOGI(TAG, "wifi config server started");
     return ESP_OK;

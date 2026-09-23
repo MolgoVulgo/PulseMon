@@ -61,3 +61,27 @@ def test_captive_dns_binds_only_to_the_setup_ap_address() -> None:
     assert '#define PULSEMON_WIFI_AP_IPV4 "192.168.4.1"' in config
     assert "inet_addr(PULSEMON_WIFI_AP_IPV4)" in dns
     assert "INADDR_ANY" not in dns
+
+
+def test_portal_reports_manual_window_and_stops_presenting_stale_form() -> None:
+    server = _read("esp/src/wifi_config_server.c")
+
+    assert 'manual_config_active' in server
+    assert 'manual_config_remaining_ms' in server
+    assert "AbortController" in server
+    assert "cache:'no-store'" in server
+    assert "setTimeout(pollPortal,2000)" in server
+    assert "setTimeout(status,2000)" in server
+    assert "Configuration window closed. Reopen PulseMon-Setup from the display." in server
+    assert "document.querySelectorAll('button,input,select,a')" in server
+
+def test_http_server_has_capacity_for_every_registered_portal_route() -> None:
+    server = _read("esp/src/wifi_config_server.c")
+
+    assert "config.max_uri_handlers = 10;" in server
+    assert "const httpd_uri_t *uris[]" in server
+    assert "httpd_register_uri_handler(s_server, uris[i])" in server
+    assert "unable to register uri %s" in server
+    assert "httpd_stop(s_server);" in server
+    assert "s_server = NULL;" in server
+

@@ -21,6 +21,7 @@
 
 #include "esp_bsp.h"
 #include "printer_config.h"
+#include "printer_settings.h"
 #include "printer_thumbnail.h"
 #include "printer_thumbnail_fetch.h"
 #include "pulsemon_settings.h"
@@ -46,6 +47,7 @@
 #define PRINTER_TIME_VALID_EPOCH_MIN 1609459200LL
 #define PRINTER_FILENAME_CAP 256
 #define PRINTER_THUMBNAIL_RETRY_MS 30000
+#define PRINTER_DISPLAY_TEXT_CAP 64
 
 static const char *TAG = "printer";
 
@@ -77,9 +79,109 @@ static char s_job_filename[PRINTER_FILENAME_CAP];
 static bool s_thumbnail_pending;
 static bool s_thumbnail_clear_pending;
 static bool s_service_requested;
+static bool s_settings_reload_requested = true;
+static bool s_settings_loaded;
+static printer_settings_t s_settings;
 static char s_thumbnail_last_attempt_filename[PRINTER_FILENAME_CAP];
 static int64_t s_thumbnail_last_attempt_us;
+
+typedef struct {
+    bool valid;
+    char name[PRINTER_DISPLAY_TEXT_CAP];
+    char ip[PRINTER_DISPLAY_TEXT_CAP];
+    char filename[PRINTER_DISPLAY_TEXT_CAP];
+    char start_time[PRINTER_DISPLAY_TEXT_CAP];
+    char end_time[PRINTER_DISPLAY_TEXT_CAP];
+    char elapsed[PRINTER_DISPLAY_TEXT_CAP];
+    char remaining[PRINTER_DISPLAY_TEXT_CAP];
+    int32_t progress;
+} printer_display_cache_t;
+
+static printer_display_cache_t *s_display_cache;
 static portMUX_TYPE s_state_mux = portMUX_INITIALIZER_UNLOCKED;
+
+static bool ensure_display_cache(void)
+{
+    if (s_display_cache != NULL) {
+        return true;
+    }
+
+    printer_display_cache_t *cache = heap_caps_malloc(
+        sizeof(*cache), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (cache == NULL) {
+        ESP_LOGW(TAG, "printer display cache PSRAM allocation failed bytes=%u",
+                 (unsigned)sizeof(*cache));
+        return false;
+    }
+    memset(cache, 0, sizeof(*cache));
+    s_display_cache = cache;
+    ESP_LOGI(TAG, "printer display cache allocated in PSRAM bytes=%u",
+             (unsigned)sizeof(*cache));
+    return true;
+}
+
+static void display_cache_clear(void)
+{
+    if (s_display_cache == NULL) {
+        return;
+    }
+    portENTER_CRITICAL(&s_state_mux);
+    memset(s_display_cache, 0, sizeof(*s_display_cache));
+    portEXIT_CRITICAL(&s_state_mux);
+}
+
+static void display_cache_update_name(const char *name)
+{
+    if (s_display_cache == NULL || name == NULL || name[0] == '\0') {
+        return;
+    }
+
+    char cached_name[PRINTER_DISPLAY_TEXT_CAP] = {0};
+    snprintf(cached_name, sizeof(cached_name), "%s", name);
+    portENTER_CRITICAL(&s_state_mux);
+    memcpy(s_display_cache->name, cached_name, sizeof(cached_name));
+    portEXIT_CRITICAL(&s_state_mux);
+}
+
+static void display_cache_update_status(const char *ip,
+                                        const char *filename,
+                                        const char *start_time,
+                                        const char *end_time,
+                                        const char *elapsed,
+                                        const char *remaining,
+                                        int32_t progress)
+{
+    if (s_display_cache == NULL || filename == NULL || filename[0] == '\0') {
+        display_cache_clear();
+        return;
+    }
+
+    printer_display_cache_t next = {0};
+    snprintf(next.ip, sizeof(next.ip), "%s", ip != NULL ? ip : "");
+    snprintf(next.filename, sizeof(next.filename), "%s", filename);
+    snprintf(next.start_time, sizeof(next.start_time), "%s", start_time != NULL ? start_time : "--:--");
+    snprintf(next.end_time, sizeof(next.end_time), "%s", end_time != NULL ? end_time : "--:--");
+    snprintf(next.elapsed, sizeof(next.elapsed), "%s", elapsed != NULL ? elapsed : "00:00:00");
+    snprintf(next.remaining, sizeof(next.remaining), "%s", remaining != NULL ? remaining : "00:00:00");
+    next.progress = progress;
+    next.valid = true;
+
+    portENTER_CRITICAL(&s_state_mux);
+    memcpy(next.name, s_display_cache->name, sizeof(next.name));
+    memcpy(s_display_cache, &next, sizeof(next));
+    portEXIT_CRITICAL(&s_state_mux);
+}
+
+static bool display_cache_copy(printer_display_cache_t *out)
+{
+    if (out == NULL || s_display_cache == NULL) {
+        return false;
+    }
+    portENTER_CRITICAL(&s_state_mux);
+    memcpy(out, s_display_cache, sizeof(*out));
+    portEXIT_CRITICAL(&s_state_mux);
+    return out->valid;
+}
 
 
 static void state_reset_requests(void)
@@ -107,6 +209,22 @@ static void state_set_service_requested(bool requested)
     portENTER_CRITICAL(&s_state_mux);
     s_service_requested = requested;
     portEXIT_CRITICAL(&s_state_mux);
+}
+
+static void state_request_settings_reload(void)
+{
+    portENTER_CRITICAL(&s_state_mux);
+    s_settings_reload_requested = true;
+    portEXIT_CRITICAL(&s_state_mux);
+}
+
+static bool state_take_settings_reload(void)
+{
+    portENTER_CRITICAL(&s_state_mux);
+    bool requested = s_settings_reload_requested;
+    s_settings_reload_requested = false;
+    portEXIT_CRITICAL(&s_state_mux);
+    return requested;
 }
 
 static bool state_attributes_loaded(void)
@@ -320,9 +438,49 @@ bool printer_service_is_available(void)
     return (xEventGroupGetBits(s_events) & PRINTER_EVENT_AVAILABLE) != 0;
 }
 
+bool printer_service_has_cached_display(void)
+{
+    printer_display_cache_t cache = {0};
+    return display_cache_copy(&cache);
+}
+
+bool printer_service_restore_cached_display(void)
+{
+    printer_display_cache_t cache = {0};
+    if (!display_cache_copy(&cache)) {
+        return false;
+    }
+
+    set_var_name_printer(cache.name[0] != '\0' ? cache.name : "--");
+    set_var_printer_ip(cache.ip[0] != '\0' ? cache.ip : "--");
+    set_var_print_file_name(cache.filename);
+    set_var_print_time_start(cache.start_time);
+    set_var_print_time_end(cache.end_time);
+    set_var_print_time_elapsed(cache.elapsed);
+    set_var_print_time_remaining(cache.remaining);
+    set_var_print_bar(cache.progress);
+    return true;
+}
+
+static bool load_runtime_settings(void)
+{
+    printer_settings_t settings;
+    esp_err_t err = printer_settings_load(&settings);
+    if (err != ESP_OK && err != ESP_ERR_INVALID_SIZE) {
+        ESP_LOGW(TAG, "printer settings load failed: %s", esp_err_to_name(err));
+        return false;
+    }
+    if (err == ESP_ERR_INVALID_SIZE) {
+        ESP_LOGW(TAG, "invalid printer settings ignored");
+    }
+    s_settings = settings;
+    s_settings_loaded = true;
+    return true;
+}
+
 static bool printer_configured(void)
 {
-    return PRINTER_HOST[0] != '\0' && PRINTER_ACCESS_CODE[0] != '\0';
+    return s_settings.host[0] != '\0' && s_settings.access_code[0] != '\0';
 }
 
 static bool wifi_connected(void)
@@ -399,22 +557,6 @@ static bool format_clock(time_t epoch, char *out, size_t out_len)
     return true;
 }
 
-static void apply_unavailable_values(void)
-{
-    if (!bsp_display_lock(pdMS_TO_TICKS(100))) {
-        return;
-    }
-    set_var_name_printer("--");
-    set_var_printer_ip("--");
-    set_var_print_file_name("--");
-    set_var_print_time_start("--:--");
-    set_var_print_time_end("--:--");
-    set_var_print_time_elapsed("00:00:00");
-    set_var_print_time_remaining("00:00:00");
-    set_var_print_bar(0);
-    bsp_display_unlock();
-}
-
 static bool apply_status_result(cJSON *result)
 {
     cJSON *machine_status = json_object(result, "machine_status");
@@ -444,8 +586,16 @@ static bool apply_status_result(cJSON *result)
         (void)format_clock(now + (time_t)remaining, end_buf, sizeof(end_buf));
     }
 
+    display_cache_update_status(s_settings.host,
+                                job_present ? filename : NULL,
+                                start_buf,
+                                end_buf,
+                                elapsed_buf,
+                                remaining_buf,
+                                job_present ? progress : 0);
+
     if (bsp_display_lock(pdMS_TO_TICKS(100))) {
-        set_var_printer_ip(PRINTER_HOST);
+        set_var_printer_ip(s_settings.host);
         set_var_print_file_name(job_present ? filename : "--");
         set_var_print_time_start(job_present ? start_buf : "--:--");
         set_var_print_time_end(job_present ? end_buf : "--:--");
@@ -469,9 +619,11 @@ static bool apply_attributes_result(cJSON *result)
         return false;
     }
 
+    display_cache_update_name(name);
+
     if (bsp_display_lock(pdMS_TO_TICKS(100))) {
         set_var_name_printer(name);
-        set_var_printer_ip(PRINTER_HOST);
+        set_var_printer_ip(s_settings.host);
         bsp_display_unlock();
     }
     return true;
@@ -510,9 +662,9 @@ static bool fetch_serial_number(void)
 {
     char url[256];
     snprintf(url, sizeof(url), "http://%s:%u/system/info?X-Token=%s",
-             PRINTER_HOST,
+             s_settings.host,
              (unsigned)PRINTER_HTTP_PORT,
-             PRINTER_ACCESS_CODE);
+             s_settings.access_code);
 
     char body[PRINTER_HTTP_BODY_CAP] = {0};
     http_acc_t acc = {
@@ -919,15 +1071,11 @@ static void mqtt_destroy(void)
     }
     mqtt_rx_reset();
     state_reset_requests();
-    bool had_job = state_reset_job();
-    if (had_job) {
-        (void)printer_thumbnail_clear();
-    }
 }
 
 static bool mqtt_start(void)
 {
-    ESP_LOGI(TAG, "printer MQTT start host=%s port=%u", PRINTER_HOST, (unsigned)PRINTER_MQTT_PORT);
+    ESP_LOGI(TAG, "printer MQTT start host=%s port=%u", s_settings.host, (unsigned)PRINTER_MQTT_PORT);
     uint32_t r1 = esp_random();
     uint32_t r2 = esp_random();
     snprintf(s_client_id, sizeof(s_client_id), "1_PC_%08lx%08lx", (unsigned long)r1, (unsigned long)r2);
@@ -940,7 +1088,7 @@ static bool mqtt_start(void)
              s_serial,
              s_request_prefix);
     snprintf(s_topic_all, sizeof(s_topic_all), "elegoo/%s/#", s_serial);
-    snprintf(s_mqtt_uri, sizeof(s_mqtt_uri), "mqtt://%s:%u", PRINTER_HOST, (unsigned)PRINTER_MQTT_PORT);
+    snprintf(s_mqtt_uri, sizeof(s_mqtt_uri), "mqtt://%s:%u", s_settings.host, (unsigned)PRINTER_MQTT_PORT);
 
     esp_mqtt_client_config_t cfg = {
         .broker = {
@@ -952,7 +1100,7 @@ static bool mqtt_start(void)
             .username = "elegoo",
             .client_id = s_client_id,
             .authentication = {
-                .password = PRINTER_ACCESS_CODE,
+                .password = s_settings.access_code,
             },
         },
         .session = {
@@ -1091,10 +1239,24 @@ static void printer_task(void *arg)
 
     for (;;) {
         while (state_service_requested()) {
+            bool reload_settings = state_take_settings_reload();
+            if (!s_settings_loaded || reload_settings) {
+                if (s_settings_loaded) {
+                    mqtt_destroy();
+                    s_serial[0] = '\0';
+                }
+                if (!load_runtime_settings()) {
+                    printer_set_available(false);
+                    wait_or_notify(PRINTER_RETRY_INTERVAL_MS);
+                    continue;
+                }
+                config_warning_logged = false;
+            }
+
             if (!printer_configured()) {
                 printer_set_available(false);
                 if (!config_warning_logged) {
-                    ESP_LOGW(TAG, "printer disabled: set PRINTER_HOST and PRINTER_ACCESS_CODE in printer_config.h");
+                    ESP_LOGW(TAG, "printer disabled: configure printer host and access code in setup portal");
                     config_warning_logged = true;
                 }
                 wait_or_notify(PRINTER_RETRY_INTERVAL_MS);
@@ -1114,7 +1276,7 @@ static void printer_task(void *arg)
                     wait_or_notify(PRINTER_RETRY_INTERVAL_MS);
                     continue;
                 }
-                ESP_LOGI(TAG, "printer bootstrap ok host=%s", PRINTER_HOST);
+                ESP_LOGI(TAG, "printer bootstrap ok host=%s", s_settings.host);
             }
             if (!state_service_requested()) {
                 break;
@@ -1182,7 +1344,6 @@ static void printer_task(void *arg)
         mqtt_destroy();
         s_serial[0] = '\0';
         last_ping_us = 0;
-        apply_unavailable_values();
 
         portENTER_CRITICAL(&s_state_mux);
         if (s_service_requested) {
@@ -1203,6 +1364,9 @@ static void printer_task(void *arg)
 
 esp_err_t printer_service_start(void)
 {
+    state_request_settings_reload();
+    (void)ensure_display_cache();
+
     if (s_events == NULL) {
         s_events = xEventGroupCreate();
         if (s_events == NULL) {
@@ -1240,6 +1404,20 @@ void printer_service_stop(void)
     printer_set_available(false);
     if (s_events != NULL) {
         xEventGroupSetBits(s_events, PRINTER_EVENT_STOP | PRINTER_EVENT_WAKE);
+    }
+}
+
+
+void printer_service_reload_settings(void)
+{
+    display_cache_clear();
+    bool had_job = state_reset_job();
+    if (had_job) {
+        (void)printer_thumbnail_clear();
+    }
+    state_request_settings_reload();
+    if (s_events != NULL && s_task != NULL && state_service_requested()) {
+        xEventGroupSetBits(s_events, PRINTER_EVENT_WAKE);
     }
 }
 

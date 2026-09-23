@@ -62,22 +62,22 @@ PULSEMON_HTTP_TIMEOUT_MS
 PULSEMON_DASHBOARD_POLL_MS
 ```
 
-The NVS host/port override the compiled defaults. Saving the local portal reloads the active client endpoint without reboot. Clearing PulseMon configuration erases the `pulsemon_api` namespace and restores the compiled fallback. The client caches the active endpoint in RAM and does not read NVS on every poll. Holding the top-left corner of Main, GPU or Weather for five seconds opens a manual setup-AP window for ten minutes. The trigger does not modify NVS or disconnect an existing station connection.
+The NVS host/port override the compiled defaults. Saving the local portal reloads the active client endpoint without reboot. Clearing PulseMon configuration erases the `pulsemon_api` namespace and restores the compiled fallback. The client caches the active endpoint in RAM and does not read NVS on every poll. Holding the top-left corner of Main, GPU or Weather for five seconds opens a manual setup-AP window for five minutes. The trigger does not modify NVS or disconnect an existing station connection.
 
 The firmware does not currently store or send `STATS_API_KEY_HEADER` credentials.
 
-## Temporary printer configuration
+## Printer configuration
 
-Printer connectivity is currently compiled in `esp/src/printer_config.h`. The published defaults are intentionally empty:
+Printer connectivity is runtime configuration stored in NVS:
 
 ```text
-PRINTER_HOST
-PRINTER_ACCESS_CODE
+namespace: printer
+keys: host, access_code
 ```
 
-Both values must be supplied locally for the Printer service to start. `PRINTER_HOST` is the printer LAN address. `PRINTER_ACCESS_CODE` is used for the HTTP bootstrap token and direct MQTT password and must be treated as a secret: do not log it and do not publish a real value in the repository/Drive source. Until both are non-empty, the Printer page remains unavailable.
+`host` is the printer LAN IPv4 address or DNS/mDNS hostname. `access_code` is used as the HTTP bootstrap token and direct MQTT password. Both values must be present for the Printer service to connect. The access code is a secret: the local configuration portal accepts replacement values but `GET /api/config` returns only `printer_access_code_set`, never the secret itself.
 
-The current fixed protocol settings are HTTP port `80`, MQTT port `1883`, HTTP timeout `4000 ms`, MQTT timeout `5000 ms`, status polling `5000 ms`, reconnect retry `5000 ms` and application PING interval `30000 ms`. These printer settings are not stored in NVS or exposed through the configuration portal yet.
+`esp/src/printer_config.h` contains only fixed protocol settings: HTTP port `80`, MQTT port `1883`, HTTP timeout `4000 ms`, MQTT timeout `5000 ms`, status polling `5000 ms`, reconnect retry `5000 ms` and application PING interval `30000 ms`. It contains no printer host or access code. Saving or clearing Printer settings through the portal wakes an active Printer service so it reloads NVS and reconnects without reboot.
 
 ## Firmware NVS namespaces
 
@@ -110,6 +110,13 @@ keys: provider, gnews_key, enabled, refresh_min, category, lang,
       country, max_items, slide_speed, max_age_days, last_ok_ts, last_error
 ```
 
+Printer settings:
+
+```text
+namespace: printer
+keys: host, access_code
+```
+
 Default weather settings are GMT offset `+60 minutes`, language `fr`, no city and no key. Default news settings are enabled GNews, refresh `30 minutes`, category `general`, language/country `fr`, maximum `5` items, slide speed `35` and maximum age `15 days`.
 
 ## Wi-Fi behavior
@@ -117,7 +124,7 @@ Default weather settings are GMT offset `+60 minutes`, language `fr`, no city an
 - With saved credentials, firmware starts in station mode and connects.
 - Without valid credentials, firmware starts AP+station mode and exposes the open `PulseMon-Setup` AP.
 - After repeated station failures, the configuration AP is enabled.
-- A continuous five-second hold in the top-left corner of Main, GPU or Weather also opens the AP for ten minutes.
+- A continuous five-second hold in the top-left corner of Main, GPU or Weather also opens the AP for five minutes.
 - After a successful station connection, the automatic AP is disabled; an active manual window remains open until its timeout.
 - The HTTP configuration server starts only after `WIFI_EVENT_AP_START` and stops after `WIFI_EVENT_AP_STOP`.
 - Captive DNS follows the same AP lifecycle and binds only to `192.168.4.1`, never `INADDR_ANY`.

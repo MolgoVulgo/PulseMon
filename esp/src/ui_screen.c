@@ -47,20 +47,22 @@ static void ui_reset_printer_values(void)
 static void ui_update_printer_availability(void)
 {
     bool available = printer_service_is_available();
-    if (!available && s_printer_was_available) {
+    bool cached = printer_service_has_cached_display();
+    bool displayable = available || cached;
+    if (!displayable && s_printer_was_available) {
         ui_reset_printer_values();
     }
-    s_printer_was_available = available;
+    s_printer_was_available = displayable;
 
     if (objects.imp_gone != NULL) {
-        if (available) {
+        if (displayable) {
             lv_obj_add_flag(objects.imp_gone, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_clear_flag(objects.imp_gone, LV_OBJ_FLAG_HIDDEN);
         }
     }
     if (objects.image_gode != NULL) {
-        if (available) {
+        if (displayable) {
             lv_obj_clear_flag(objects.image_gode, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_add_flag(objects.image_gode, LV_OBJ_FLAG_HIDDEN);
@@ -79,25 +81,15 @@ static void ui_apply_screen_transition(enum ScreensEnum previous, enum ScreensEn
 
     if (previous == SCREEN_ID_PRINTER) {
         printer_service_stop();
-        ui_reset_printer_values();
-        s_printer_was_available = false;
-        if (objects.imp_gone != NULL) {
-            lv_obj_clear_flag(objects.imp_gone, LV_OBJ_FLAG_HIDDEN);
-        }
-        if (objects.image_gode != NULL) {
-            lv_obj_add_flag(objects.image_gode, LV_OBJ_FLAG_HIDDEN);
-        }
     }
 
     if (next == SCREEN_ID_PRINTER) {
-        ui_reset_printer_values();
-        s_printer_was_available = false;
-        if (objects.imp_gone != NULL) {
-            lv_obj_clear_flag(objects.imp_gone, LV_OBJ_FLAG_HIDDEN);
+        bool restored = printer_service_restore_cached_display();
+        if (!restored) {
+            ui_reset_printer_values();
         }
-        if (objects.image_gode != NULL) {
-            lv_obj_add_flag(objects.image_gode, LV_OBJ_FLAG_HIDDEN);
-        }
+        s_printer_was_available = restored;
+        ui_update_printer_availability();
         (void)printer_service_start();
     }
 }

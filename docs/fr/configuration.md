@@ -62,22 +62,22 @@ PULSEMON_HTTP_TIMEOUT_MS
 PULSEMON_DASHBOARD_POLL_MS
 ```
 
-L’hôte/port NVS remplacent les valeurs compilées. Une sauvegarde du portail local recharge immédiatement l’endpoint actif sans redémarrage. L’effacement de la configuration PulseMon supprime le namespace `pulsemon_api` et restaure le fallback compilé. Le client conserve l’endpoint actif en RAM et ne relit pas la NVS à chaque polling. Un appui de cinq secondes dans le coin supérieur gauche de Main, GPU ou Météo ouvre une fenêtre manuelle de l’AP pendant dix minutes. Le déclencheur ne modifie pas la NVS et ne coupe pas une connexion station existante.
+L’hôte/port NVS remplacent les valeurs compilées. Une sauvegarde du portail local recharge immédiatement l’endpoint actif sans redémarrage. L’effacement de la configuration PulseMon supprime le namespace `pulsemon_api` et restaure le fallback compilé. Le client conserve l’endpoint actif en RAM et ne relit pas la NVS à chaque polling. Un appui de cinq secondes dans le coin supérieur gauche de Main, GPU ou Météo ouvre une fenêtre manuelle de l’AP pendant cinq minutes. Le déclencheur ne modifie pas la NVS et ne coupe pas une connexion station existante.
 
 Le firmware ne stocke ni n’envoie actuellement d’identifiant `STATS_API_KEY_HEADER`.
 
-## Configuration imprimante temporaire
+## Configuration imprimante
 
-La connexion imprimante est actuellement compilée dans `esp/src/printer_config.h`. Les valeurs publiées sont volontairement vides :
+La connexion Printer est une configuration runtime stockée en NVS :
 
 ```text
-PRINTER_HOST
-PRINTER_ACCESS_CODE
+namespace : printer
+clés : host, access_code
 ```
 
-Les deux valeurs doivent être renseignées localement pour démarrer le service Printer. `PRINTER_HOST` est l’adresse LAN de l’imprimante. `PRINTER_ACCESS_CODE` sert de token au bootstrap HTTP et de mot de passe MQTT direct ; il doit être traité comme un secret : ne pas le loguer et ne pas publier une valeur réelle dans la source dépôt/Drive. Tant que les deux valeurs sont vides, la page Printer reste indisponible.
+`host` est l’adresse IPv4 LAN ou le hostname DNS/mDNS de l’imprimante. `access_code` sert de token au bootstrap HTTP et de mot de passe MQTT direct. Les deux valeurs doivent être présentes pour que le service Printer se connecte. Le code d’accès est un secret : le portail local permet de le remplacer, mais `GET /api/config` retourne uniquement `printer_access_code_set`, jamais le secret lui-même.
 
-Les paramètres protocolaires fixes courants sont : port HTTP `80`, port MQTT `1883`, timeout HTTP `4000 ms`, timeout MQTT `5000 ms`, polling statut `5000 ms`, retry connexion `5000 ms` et PING applicatif `30000 ms`. Ces réglages imprimante ne sont pas encore stockés en NVS ni exposés dans le portail de configuration.
+`esp/src/printer_config.h` ne contient plus que les paramètres protocolaires fixes : port HTTP `80`, port MQTT `1883`, timeout HTTP `4000 ms`, timeout MQTT `5000 ms`, polling statut `5000 ms`, retry connexion `5000 ms` et PING applicatif `30000 ms`. Il ne contient ni host ni code d’accès. Une sauvegarde ou un effacement des réglages Printer via le portail réveille un service Printer actif afin qu’il recharge la NVS et se reconnecte sans reboot.
 
 ## Namespaces NVS firmware
 
@@ -110,6 +110,13 @@ clés : provider, gnews_key, enabled, refresh_min, category, lang,
        country, max_items, slide_speed, max_age_days, last_ok_ts, last_error
 ```
 
+Paramètres Printer :
+
+```text
+namespace : printer
+clés : host, access_code
+```
+
 Les valeurs météo par défaut sont un décalage GMT de `+60 minutes`, la langue `fr`, sans ville ni clé. Les valeurs news par défaut sont GNews activé, rafraîchissement `30 minutes`, catégorie `general`, langue/pays `fr`, maximum `5` items, vitesse `35` et âge maximal `15 jours`.
 
 ## Comportement Wi-Fi
@@ -117,7 +124,7 @@ Les valeurs météo par défaut sont un décalage GMT de `+60 minutes`, la langu
 - Avec des identifiants stockés, le firmware démarre en mode station et se connecte.
 - Sans identifiants valides, il démarre en mode AP+station et expose l’AP ouvert `PulseMon-Setup`.
 - Après plusieurs échecs station, l’AP de configuration est activé.
-- Un appui maintenu cinq secondes dans le coin supérieur gauche de Main, GPU ou Météo force aussi l’ouverture de l’AP pendant dix minutes.
+- Un appui maintenu cinq secondes dans le coin supérieur gauche de Main, GPU ou Météo force aussi l’ouverture de l’AP pendant cinq minutes.
 - Après connexion station réussie, l’AP automatique est désactivé ; une fenêtre manuelle active reste ouverte jusqu’à son timeout.
 - Le serveur HTTP de configuration démarre uniquement après `WIFI_EVENT_AP_START` et s’arrête après `WIFI_EVENT_AP_STOP`.
 - Le DNS captif suit le même cycle AP et se lie uniquement à `192.168.4.1`, jamais à `INADDR_ANY`.

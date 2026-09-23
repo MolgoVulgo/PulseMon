@@ -30,7 +30,7 @@ Responsabilités :
 - lire directement sur le LAN privé l’identité imprimante et la télémétrie du job courant ;
 - stocker l’hôte/port backend, les réglages Wi-Fi, météo et actualités en NVS ; l’hôte et le code imprimante restent temporairement compilés en dur.
 
-L’endpoint backend est chargé depuis le namespace NVS `pulsemon_api`. `esp/src/pulsemon_api_config.h` fournit l’hôte/port de fallback compilés ainsi que les valeurs fixes de polling et timeout. Il n’existe pas de découverte automatique du backend. Le portail HTTP suit le cycle réel de l’AP : démarrage sur `WIFI_EVENT_AP_START`, arrêt sur `WIFI_EVENT_AP_STOP`, avec refus des requêtes lorsque l’AP est inactif. Le DNS captif est lié uniquement à l’adresse `192.168.4.1` de l’AP de configuration. Un hotspot invisible ajouté au runtime sur Main, GPU et Météo ouvre l’AP après un appui de cinq secondes dans le coin supérieur gauche. La fenêtre manuelle dure dix minutes tout en conservant une connexion station fonctionnelle.
+L’endpoint backend est chargé depuis le namespace NVS `pulsemon_api`. `esp/src/pulsemon_api_config.h` fournit l’hôte/port de fallback compilés ainsi que les valeurs fixes de polling et timeout. Il n’existe pas de découverte automatique du backend. Le portail HTTP suit le cycle réel de l’AP : démarrage sur `WIFI_EVENT_AP_START`, arrêt sur `WIFI_EVENT_AP_STOP`, avec refus des requêtes lorsque l’AP est inactif. Le DNS captif est lié uniquement à l’adresse `192.168.4.1` de l’AP de configuration. Un hotspot invisible ajouté au runtime sur Main, GPU et Météo ouvre l’AP après un appui de cinq secondes dans le coin supérieur gauche. La fenêtre manuelle dure cinq minutes tout en conservant une connexion station fonctionnelle.
 
 ## Navigation firmware active
 
