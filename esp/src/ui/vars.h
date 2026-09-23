@@ -62,7 +62,8 @@ enum FlowGlobalVariables {
     FLOW_GLOBAL_VARIABLE_PRINT_TIME_END = 46,
     FLOW_GLOBAL_VARIABLE_PRINT_TIME_ELAPSED = 47,
     FLOW_GLOBAL_VARIABLE_PRINT_TIME_REMAINING = 48,
-    FLOW_GLOBAL_VARIABLE_PRINT_BAR = 49
+    FLOW_GLOBAL_VARIABLE_PRINT_BAR = 49,
+    FLOW_GLOBAL_VARIABLE_PRINT_LAYER = 50
 };
 
 // Native global variables
@@ -167,6 +168,8 @@ extern const char *get_var_print_time_remaining();
 extern void set_var_print_time_remaining(const char *value);
 extern int32_t get_var_print_bar();
 extern void set_var_print_bar(int32_t value);
+extern const char *get_var_print_layer();
+extern void set_var_print_layer(const char *value);
 
 #ifdef __cplusplus
 }

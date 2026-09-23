@@ -9,6 +9,7 @@
 extern "C" {
 #endif
 
+esp_err_t printer_service_init(void);
 esp_err_t printer_service_start(void);
 void printer_service_stop(void);
 void printer_service_request_update(void);

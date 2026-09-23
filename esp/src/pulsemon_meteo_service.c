@@ -795,7 +795,7 @@ esp_err_t pulsemon_meteo_service_start(void)
     start_sntp();
 
     if (s_meteo_task == NULL) {
-        BaseType_t ok = xTaskCreate(meteo_task, "MeteoTask", 7168, NULL, tskIDLE_PRIORITY + 2, &s_meteo_task);
+        BaseType_t ok = xTaskCreate(meteo_task, "MeteoTask", 8192, NULL, tskIDLE_PRIORITY + 2, &s_meteo_task);
         if (ok != pdPASS) {
             s_meteo_task = NULL;
             return ESP_ERR_NO_MEM;

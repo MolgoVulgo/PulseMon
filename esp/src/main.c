@@ -33,14 +33,16 @@ static const char *TAG = "pulsemon";
 #endif
 
 #define PULSEMON_START_POLLER_DELAY_US 500000LL
-#define PULSEMON_START_METEO_DELAY_US 1000000LL
-#define PULSEMON_START_NEWS_DELAY_US 3000000LL
+#define PULSEMON_START_METEO_DELAY_US 1500000LL
+#define PULSEMON_START_NEWS_DELAY_US 6000000LL
+#define PULSEMON_START_PRINTER_DELAY_US 10000000LL
 
 typedef enum {
     PULSEMON_NETWORK_START_IDLE = 0,
     PULSEMON_NETWORK_START_POLLER,
     PULSEMON_NETWORK_START_METEO,
     PULSEMON_NETWORK_START_NEWS,
+    PULSEMON_NETWORK_START_PRINTER,
 } pulsemon_network_start_step_t;
 
 static esp_timer_handle_t s_network_start_timer;
@@ -88,6 +90,17 @@ static void pulsemon_network_start_timer_cb(void *arg)
         pulsemon_diag_heap("startup", "stagger_news");
         ESP_LOGI(TAG, "network stagger: news");
         news_service_request_update();
+        s_network_start_step = PULSEMON_NETWORK_START_PRINTER;
+        if (esp_timer_start_once(s_network_start_timer, PULSEMON_START_PRINTER_DELAY_US) != ESP_OK) {
+            ESP_LOGE(TAG, "network stagger: failed to schedule printer probe; periodic refresh will retry");
+            s_network_start_step = PULSEMON_NETWORK_START_IDLE;
+        }
+        break;
+
+    case PULSEMON_NETWORK_START_PRINTER:
+        pulsemon_diag_heap("startup", "stagger_printer");
+        ESP_LOGI(TAG, "network stagger: printer presence");
+        printer_service_request_update();
         s_network_start_step = PULSEMON_NETWORK_START_IDLE;
         break;
 
@@ -116,12 +129,12 @@ static esp_err_t pulsemon_network_start_timer_init(void)
 static void pulsemon_on_wifi_connected(void)
 {
     pulsemon_diag_heap("startup", "wifi_connected");
-    printer_service_request_update();
 
     if (s_network_start_timer == NULL) {
         ESP_LOGE(TAG, "network stagger unavailable; starting backend and meteo, news deferred to periodic refresh");
         pulsemon_poller_start();
         pulsemon_meteo_service_request_update();
+        printer_service_request_update();
         return;
     }
 
@@ -137,6 +150,7 @@ static void pulsemon_on_wifi_connected(void)
         s_network_start_step = PULSEMON_NETWORK_START_IDLE;
         pulsemon_poller_start();
         pulsemon_meteo_service_request_update();
+        printer_service_request_update();
     }
 }
 
@@ -216,6 +230,7 @@ void app_main(void)
     set_var_print_time_end("--:--");
     set_var_print_time_elapsed("00:00:00");
     set_var_print_time_remaining("00:00:00");
+    set_var_print_layer("--/--");
     set_var_print_bar(0);
     set_var_ui_meteo_houre("--:--");
     set_var_ui_meteo_date("--");
@@ -237,6 +252,11 @@ void app_main(void)
     set_var_ui_start_bar(0);
     set_var_ui_start_bar_texte("Demarrage");
     set_var_host_meta("waiting backend");
+
+    esp_err_t printer_ret = printer_service_init();
+    if (printer_ret != ESP_OK) {
+        ESP_LOGE(TAG, "printer service init failed: %s", esp_err_to_name(printer_ret));
+    }
 
     ui_init();
     ui_screen_set_start_progress(10, "UI");

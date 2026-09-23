@@ -36,6 +36,8 @@ const char *get_var_print_time_elapsed(void);
 void set_var_print_time_elapsed(const char *value);
 const char *get_var_print_time_remaining(void);
 void set_var_print_time_remaining(const char *value);
+const char *get_var_print_layer(void);
+void set_var_print_layer(const char *value);
 int32_t get_var_print_bar(void);
 void set_var_print_bar(int32_t value);
 

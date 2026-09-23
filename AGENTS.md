@@ -74,6 +74,29 @@ The generated output retains an unreachable legacy FAN screen and compatibility 
 
 `diagnostics/` remains separate from `patch/`. Diagnostic folders are outputs/evidence tied to a patch number and must never be selected as an archive to apply. Human-readable diagnostic reports for PulseMon are written in French only; do not duplicate the same diagnostic section in English. Machine-readable JSON may keep stable field names.
 
+## Local execution and sandbox constraints
+
+Treat a sandbox restriction as an environment limitation, not as a project failure. If a command fails because the sandbox blocks DNS, outbound network access, `/dev/tty*`, USB/serial access, an interactive TTY, `termios`, or another required host resource, do not repeat the identical command in the same sandbox. Change execution method once, run the authorized command outside the sandbox when host access is required, or report the exact limitation. Never loop on a known sandbox failure.
+
+`./sync-drive.sh` must be run outside the sandbox unless sandbox DNS and outbound network access have been explicitly verified to work in the current environment. The script invokes `rclone` and requires real DNS/network access to Google Drive. DNS resolution errors or blocked outbound connections from the sandbox are environment failures; do not modify `sync-drive.sh`, `sync-drive.filter`, the rclone remote, or project code to work around them. If the platform sandbox is later fixed, verify DNS/network access first before allowing the script to run there.
+
+When selecting or applying a patch archive, never reuse a fixed stale path such as `/tmp/patch_0001.zip`. Create a unique temporary directory with `mktemp -d`, place the selected archive inside it, then verify the archive identity, checksum when available, and `unzip -l` contents before application. A file left in `/tmp` by another session is never evidence that it is the patch selected for the current task.
+
+For host-device discovery, use tolerant commands that return an empty result cleanly. Do not use an unguarded zsh glob such as `/dev/ttyACM*` that aborts when there is no match. Prefer `pio device list`, Python `glob`, or a guarded shell listing.
+
+## Firmware serial validation
+
+For an automated bounded serial capture in a non-interactive Codex execution, use PySerial directly instead of trying `pio device monitor` first. `pio device monitor` requires terminal semantics and may fail with `termios` when stdout/stdin are not attached to a real TTY; do not retry it through repeated wrappers or pseudo-terminal attempts after that failure is known. Use `pio device monitor` only when an actual interactive TTY is intentionally available.
+
+When firmware flash and serial validation are explicitly authorized:
+
+- build and flash with the selected PlatformIO environment;
+- let PlatformIO auto-detect the serial port when unambiguous, otherwise identify it with a tolerant device listing;
+- for unattended capture, open the resolved port with PySerial at the project baud rate (currently 115200), perform the required RTS/DTR reset, capture for the bounded duration requested by the validation (typically 180-190 seconds), and write the complete output to the requested diagnostics log;
+- check PySerial availability once before capture; do not install it automatically if missing;
+- if the serial device is hidden by the sandbox, run the already-authorized hardware operation outside the sandbox rather than repeating the same failing command inside it;
+- preserve the exact command/method, port, duration and result in the diagnostic report.
+
 ## Validation rules
 
 Backend:

@@ -1589,6 +1589,14 @@ void create_screen_printer() {
             lv_obj_set_style_bg_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text_static(obj, "Imprimante Indisponible");
         }
+        {
+            lv_obj_t *obj = lv_label_create(parent_obj);
+            objects.obj44 = obj;
+            lv_obj_set_pos(obj, 319, 55);
+            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+            add_style_defaut1(obj);
+            lv_label_set_text(obj, "");
+        }
     }
     
     tick_screen_printer();
@@ -1655,6 +1663,15 @@ void tick_screen_printer() {
         if (strcmp(new_val, cur_val) != 0) {
             tick_value_change_obj = objects.obj43;
             lv_label_set_text(objects.obj43, new_val);
+            tick_value_change_obj = NULL;
+        }
+    }
+    {
+        const char *new_val = get_var_print_layer();
+        const char *cur_val = lv_label_get_text(objects.obj44);
+        if (strcmp(new_val, cur_val) != 0) {
+            tick_value_change_obj = objects.obj44;
+            lv_label_set_text(objects.obj44, new_val);
             tick_value_change_obj = NULL;
         }
     }

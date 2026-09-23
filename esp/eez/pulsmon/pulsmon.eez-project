@@ -518,6 +518,15 @@
         "defaultValue": "0",
         "persistent": false,
         "native": false
+      },
+      {
+        "objID": "0333a255-4c1b-46fa-ef32-d28bc9152679",
+        "name": "print_layer",
+        "type": "string",
+        "size": null,
+        "defaultValue": "\"\"",
+        "persistent": false,
+        "native": false
       }
     ],
     "structures": [],
@@ -6671,6 +6680,51 @@
               "textType": "literal",
               "longMode": "WRAP",
               "recolor": false,
+              "useStaticText": true
+            },
+            {
+              "objID": "e6a21892-540f-4acc-ff9f-53b0f4eeca00",
+              "type": "LVGLLabelWidget",
+              "left": 319,
+              "top": 55,
+              "width": 72,
+              "height": 17,
+              "customInputs": [],
+              "customOutputs": [],
+              "style": {
+                "objID": "d7f593a8-ffa2-4894-cfb1-ffcf93cbae8b",
+                "useStyle": "default",
+                "conditionalStyles": [],
+                "childStyles": []
+              },
+              "timeline": [],
+              "eventHandlers": [],
+              "leftUnit": "px",
+              "topUnit": "px",
+              "widthUnit": "content",
+              "heightUnit": "content",
+              "children": [],
+              "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlagType": "literal",
+              "clickableFlagType": "literal",
+              "flagScrollbarMode": "",
+              "flagScrollDirection": "",
+              "scrollSnapX": "",
+              "scrollSnapY": "",
+              "checkedStateType": "literal",
+              "disabledStateType": "literal",
+              "states": "",
+              "useStyle": "defaut1",
+              "localStyles": {
+                "objID": "b583b765-14aa-43c7-ba75-29a8f4b6a723"
+              },
+              "group": "",
+              "groupIndex": 0,
+              "text": "print_layer",
+              "textType": "expression",
+              "longMode": "WRAP",
+              "recolor": false,
+              "previewValue": "9999/9999",
               "useStaticText": true
             }
           ],

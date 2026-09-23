@@ -134,6 +134,7 @@ typedef struct _objects_t {
     lv_obj_t *obj41;
     lv_obj_t *obj42;
     lv_obj_t *obj43;
+    lv_obj_t *obj44;
 } objects_t;
 
 extern objects_t objects;

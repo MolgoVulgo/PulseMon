@@ -41,6 +41,7 @@ static void ui_reset_printer_values(void)
     set_var_print_time_end("--:--");
     set_var_print_time_elapsed("00:00:00");
     set_var_print_time_remaining("00:00:00");
+    set_var_print_layer("--/--");
     set_var_print_bar(0);
 }
 

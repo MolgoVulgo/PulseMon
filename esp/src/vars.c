@@ -31,6 +31,7 @@ static char g_print_time_start[VAR_BUF_LEN];
 static char g_print_time_end[VAR_BUF_LEN];
 static char g_print_time_elapsed[VAR_BUF_LEN];
 static char g_print_time_remaining[VAR_BUF_LEN];
+static char g_print_layer[VAR_BUF_LEN];
 static int32_t g_print_bar;
 static char g_host_meta[HOST_META_BUF_LEN];
 static int32_t g_gpu_vram_used;
@@ -314,6 +315,16 @@ const char *get_var_print_time_remaining(void)
 void set_var_print_time_remaining(const char *value)
 {
     set_text(g_print_time_remaining, sizeof(g_print_time_remaining), value);
+}
+
+const char *get_var_print_layer(void)
+{
+    return g_print_layer;
+}
+
+void set_var_print_layer(const char *value)
+{
+    set_text(g_print_layer, sizeof(g_print_layer), value);
 }
 
 int32_t get_var_print_bar(void)
