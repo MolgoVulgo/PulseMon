@@ -20,6 +20,21 @@ The firmware uses PlatformIO, ESP-IDF and LVGL 8.4 on the custom `jc3248w535c` b
 7. backend poller after station connection;
 8. read-only printer service, started on demand only while the Printer screen is active.
 
+After the station receives an IP address, network work is started by a non-blocking one-shot timer rather than directly in the Wi-Fi event callback. The current sequence is: backend poller after 0.5 s, Weather 1.0 s later (1.5 s cumulative), then GNews 3.0 s later (4.5 s cumulative). Weather and GNews still share an HTTPS gate, so a slower Weather transaction makes GNews wait instead of creating a concurrent TLS handshake.
+
+## Memory and TLS policy
+
+The validated ESP32-S3 memory policy is shared by release and dev builds:
+
+- PSRAM is available to normal `malloc()` and allocations larger than 4096 bytes prefer external memory;
+- 32 KiB of internal memory is reserved for INTERNAL/DMA-only allocations;
+- MbedTLS uses the default allocator with dynamic TLS buffers;
+- the Weather 32 KiB response body and GNews 16 KiB response body are allocated explicitly in PSRAM;
+- Weather and GNews are serialized by `pulsemon_https_gate` across the complete HTTPS operation;
+- the full LVGL draw buffer is in PSRAM while the two DMA transfer buffers use `hres * vres / 20`, about 30 KiB total at 320 × 480 RGB565.
+
+The tuned task stacks are 6144 bytes for the backend poller, 7168 bytes for `MeteoTask`, 8192 bytes for `NewsTask` and 3072 bytes for `MeteoClock`. Heap, DMA and stack high-water diagnostics are compiled only in the dev environment through `PULSEMON_DEBUG`; the release build keeps the runtime protections but does not emit those diagnostic measurements or register the allocation-failure callback.
+
 ## Active screens and navigation
 
 ```text

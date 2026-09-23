@@ -13,6 +13,7 @@
 #include "esp_crt_bundle.h"
 #include "esp_err.h"
 #include "esp_http_client.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_sntp.h"
@@ -21,6 +22,8 @@
 #include "freertos/task.h"
 
 #include "pulsemon_settings.h"
+#include "pulsemon_diag.h"
+#include "pulsemon_https_gate.h"
 #include "pulsemon_weather_icons.h"
 #include "ui_backend.h"
 #include "vars.h"
@@ -221,15 +224,21 @@ static bool fetch_url(const char *url, char *body, size_t body_len)
         .buffer_size_tx = 512,
         .crt_bundle_attach = esp_crt_bundle_attach,
     };
+    pulsemon_diag_heap("meteo", "before_http_init");
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
     if (client == NULL) {
         METEO_LOGW("http init failed");
+        pulsemon_diag_heap("meteo", "http_init_failed");
         return false;
     }
+    pulsemon_diag_heap("meteo", "after_http_init");
 
+    pulsemon_diag_heap("meteo", "before_tls_perform");
     esp_err_t err = esp_http_client_perform(client);
     int status = esp_http_client_get_status_code(client);
+    pulsemon_diag_heap("meteo", err == ESP_OK ? "after_http_perform" : "after_http_perform_failed");
     esp_http_client_cleanup(client);
+    pulsemon_diag_heap("meteo", "after_http_cleanup");
     if (err != ESP_OK) {
         METEO_LOGW("http request failed: %s", esp_err_to_name(err));
         return false;
@@ -658,59 +667,79 @@ static void fetch_weather_once(void)
         return;
     }
 
-    char *body = (char *)calloc(1, PULSEMON_METEO_BODY_CAP);
-    if (body == NULL) {
-        METEO_LOGW("weather body alloc failed");
+    if (!pulsemon_https_gate_acquire("meteo", portMAX_DELAY)) {
+        METEO_LOGW("https gate unavailable");
         return;
     }
 
+    pulsemon_diag_heap("meteo", "before_body_alloc");
+    char *body = (char *)heap_caps_calloc(1, PULSEMON_METEO_BODY_CAP, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (body == NULL) {
+        METEO_LOGW("weather body alloc failed");
+        pulsemon_diag_heap("meteo", "body_alloc_failed");
+        pulsemon_https_gate_release("meteo");
+        return;
+    }
+    pulsemon_diag_heap("meteo", "after_body_alloc");
+
     meteo_snapshot_t snapshot = {0};
+    bool current_ok = false;
+    bool forecast_ok = false;
     char url[320];
+
     snprintf(url,
              sizeof(url),
              "https://api.openweathermap.org/data/2.5/weather?id=%lu&appid=%s&units=metric&lang=%s",
              (unsigned long)settings.openweather_city_id,
              settings.openweather_key,
              settings.language);
-    if (!fetch_url(url, body, PULSEMON_METEO_BODY_CAP) || !parse_current_json(body, &snapshot)) {
+    current_ok = fetch_url(url, body, PULSEMON_METEO_BODY_CAP) && parse_current_json(body, &snapshot);
+    if (!current_ok) {
         METEO_LOGW("current weather update failed");
+    } else {
+        if (snapshot.has_coords) {
+            memset(body, 0, PULSEMON_METEO_BODY_CAP);
+            snprintf(url,
+                     sizeof(url),
+                     "https://api.openweathermap.org/data/3.0/onecall?lat=%.6f&lon=%.6f&exclude=current,minutely,hourly,alerts&appid=%s&units=metric&lang=%s",
+                     snapshot.lat,
+                     snapshot.lon,
+                     settings.openweather_key,
+                     settings.language);
+            forecast_ok = fetch_url(url, body, PULSEMON_METEO_BODY_CAP) &&
+                          parse_onecall_daily_json(body, settings.gmt_offset_min, &snapshot);
+        }
+        if (!forecast_ok) {
+            memset(body, 0, PULSEMON_METEO_BODY_CAP);
+            snprintf(url,
+                     sizeof(url),
+                     "https://api.openweathermap.org/data/2.5/forecast?id=%lu&appid=%s&units=metric&lang=%s",
+                     (unsigned long)settings.openweather_city_id,
+                     settings.openweather_key,
+                     settings.language);
+            forecast_ok = fetch_url(url, body, PULSEMON_METEO_BODY_CAP) &&
+                          parse_forecast_json(body, settings.gmt_offset_min, &snapshot);
+        }
+        if (!forecast_ok) {
+            METEO_LOGW("forecast update failed");
+        }
+    }
+
+    pulsemon_diag_heap("meteo", "before_body_free");
+    heap_caps_free(body);
+    pulsemon_diag_heap("meteo", "after_body_free");
+    pulsemon_https_gate_release("meteo");
+
+    if (!current_ok) {
         if (s_has_last_snapshot) {
             apply_weather_ui(&s_last_snapshot, &settings);
         }
-        free(body);
         return;
-    }
-
-    bool forecast_ok = false;
-    if (snapshot.has_coords) {
-        memset(body, 0, PULSEMON_METEO_BODY_CAP);
-        snprintf(url,
-                 sizeof(url),
-                 "https://api.openweathermap.org/data/3.0/onecall?lat=%.6f&lon=%.6f&exclude=current,minutely,hourly,alerts&appid=%s&units=metric&lang=%s",
-                 snapshot.lat,
-                 snapshot.lon,
-                 settings.openweather_key,
-                 settings.language);
-        forecast_ok = fetch_url(url, body, PULSEMON_METEO_BODY_CAP) && parse_onecall_daily_json(body, settings.gmt_offset_min, &snapshot);
-    }
-    if (!forecast_ok) {
-        memset(body, 0, PULSEMON_METEO_BODY_CAP);
-        snprintf(url,
-                 sizeof(url),
-                 "https://api.openweathermap.org/data/2.5/forecast?id=%lu&appid=%s&units=metric&lang=%s",
-                 (unsigned long)settings.openweather_city_id,
-                 settings.openweather_key,
-                 settings.language);
-        forecast_ok = fetch_url(url, body, PULSEMON_METEO_BODY_CAP) && parse_forecast_json(body, settings.gmt_offset_min, &snapshot);
-    }
-    if (!forecast_ok) {
-        METEO_LOGW("forecast update failed");
     }
 
     s_last_snapshot = snapshot;
     s_has_last_snapshot = true;
     apply_weather_ui(&snapshot, &settings);
-    free(body);
 }
 
 static void meteo_task(void *arg)
@@ -719,17 +748,23 @@ static void meteo_task(void *arg)
     while (1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         fetch_weather_once();
+        pulsemon_diag_stack("meteo", "cycle_done");
     }
 }
 
 static void clock_task(void *arg)
 {
     (void)arg;
+    uint32_t diag_ticks = 0;
     while (1) {
         pulsemon_settings_t settings;
         esp_err_t err = pulsemon_settings_load(&settings);
         if (err == ESP_OK || err == ESP_ERR_INVALID_SIZE) {
             apply_clock_ui(&settings);
+        }
+        diag_ticks++;
+        if ((diag_ticks % 60U) == 0U) {
+            pulsemon_diag_stack("meteo_clock", "periodic");
         }
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
@@ -760,7 +795,7 @@ esp_err_t pulsemon_meteo_service_start(void)
     start_sntp();
 
     if (s_meteo_task == NULL) {
-        BaseType_t ok = xTaskCreate(meteo_task, "MeteoTask", 8192, NULL, tskIDLE_PRIORITY + 2, &s_meteo_task);
+        BaseType_t ok = xTaskCreate(meteo_task, "MeteoTask", 7168, NULL, tskIDLE_PRIORITY + 2, &s_meteo_task);
         if (ok != pdPASS) {
             s_meteo_task = NULL;
             return ESP_ERR_NO_MEM;
@@ -792,7 +827,7 @@ esp_err_t pulsemon_meteo_service_start(void)
         return err;
     }
     s_started = true;
-    pulsemon_meteo_service_request_update();
+    METEO_LOGI("service started; initial fetch deferred to Wi-Fi stagger");
     return ESP_OK;
 }
 

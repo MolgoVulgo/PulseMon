@@ -76,6 +76,12 @@ Check:
 - refresh interval and backoff;
 - article age and validation rules.
 
+## HTTPS or TLS memory failure on ESP32
+
+For firmware memory diagnosis, use the `pulsmon-esp32s3-display-dev` environment. Its `PULSEMON_DEBUG` instrumentation reports INTERNAL, DMA and SPIRAM free/minimum heap values plus task stack high-water marks. The release build intentionally omits those diagnostic measurements.
+
+If the serial log contains `esp-aes: Failed to allocate memory`, `pulsemon_diag: alloc_fail` or `ESP_ERR_HTTP_FETCH_HEADER`, preserve the full boot-to-failure capture. Also check that `pulsemon_https_gate` is still serializing Weather and GNews, that the 32 KiB internal reserve is present at boot, and that no stack overflow/canary/watchpoint follows a memory change. Do not work around such a failure by allowing concurrent Weather/GNews TLS sessions.
+
 ## Legacy generated screen appears in source searches
 
 The generated EEZ output still contains an unreachable legacy FAN screen and compatibility bindings. Active navigation only resolves Main, GPU and Weather. Do not edit generated files or compatibility bindings to remove the screen manually; perform the design change in EEZ Studio and regenerate.

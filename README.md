@@ -94,7 +94,7 @@ The first report generates a hardware checklist. Codex must then finalize the sa
 
 ## Firmware configuration model
 
-The backend host and port, Wi-Fi credentials, Printer endpoint/access code, OpenWeather settings and GNews settings are stored in NVS through the local configuration portal. Printer connectivity uses NVS namespace `printer` with keys `host` and `access_code`; `esp/src/printer_config.h` now contains only fixed protocol ports/timeouts and no credentials.
+The backend host and port, Wi-Fi credentials, Printer endpoint/access code, OpenWeather settings and GNews settings are stored in NVS through the local configuration portal. Printer connectivity uses NVS namespace `printer` with keys `host` and `access_code`; `esp/src/printer_config.h` contains only fixed protocol ports/timeouts and no credentials.
 
 The backend endpoint uses:
 
@@ -106,7 +106,7 @@ A portal save reloads the backend endpoint immediately and wakes an active Print
 
 ## Security posture
 
-PulseMon targets a local and personal deployment. Security remains proportionate to that context: secrets must not be logged or returned by configuration endpoints, inputs must remain validated and unnecessary LAN exposure should be avoided. The configuration HTTP server starts only with the setup AP and stops when the AP stops; captive DNS is bound to `192.168.4.1` only. Holding the top-left corner of Main, GPU or Weather for five seconds opens `PulseMon-Setup` for a five-minute manual configuration window without clearing credentials or disconnecting a working station link.
+PulseMon targets a local and personal deployment. Security remains proportionate to that context: secrets must not be logged or returned by configuration endpoints, inputs must remain validated and unnecessary LAN exposure should be avoided. The configuration HTTP server starts only with the setup AP and stops when the AP stops; captive DNS is bound to `192.168.4.1` only. Holding the top-left corner of any active screen for five seconds opens `PulseMon-Setup` for a five-minute manual configuration window without clearing credentials or disconnecting a working station link.
 
 OpenWeather and GNews use HTTPS with certificate validation through the ESP-IDF certificate bundle. GNews additionally uses the `X-Api-Key` header. The printer access code is a secret stored in NVS: it must not be logged or returned by the configuration API. `printer_config.h` contains no credential placeholders.
 

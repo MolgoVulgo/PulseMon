@@ -20,6 +20,21 @@ Le firmware utilise PlatformIO, ESP-IDF et LVGL 8.4 avec la définition de carte
 7. poller backend après connexion station ;
 8. service imprimante en lecture seule, démarré à la demande uniquement pendant l’affichage de l’écran Printer.
 
+Après l’obtention d’une adresse IP station, les travaux réseau démarrent via un timer one-shot non bloquant et non directement dans le callback d’événement Wi-Fi. La séquence courante est : poller backend après 0,5 s, Météo 1,0 s plus tard (1,5 s cumulé), puis GNews 3,0 s plus tard (4,5 s cumulé). Météo et GNews partagent toujours un verrou HTTPS : si Météo dure plus longtemps, GNews attend au lieu d’ouvrir un handshake TLS concurrent.
+
+## Politique mémoire et TLS
+
+La politique mémoire ESP32-S3 validée est commune aux builds release et dev :
+
+- la PSRAM est accessible au `malloc()` normal et les allocations supérieures à 4096 octets préfèrent la mémoire externe ;
+- 32 Kio de mémoire interne sont réservés aux allocations nécessitant INTERNAL/DMA ;
+- MbedTLS utilise l’allocateur par défaut avec buffers TLS dynamiques ;
+- le body Météo de 32 Kio et le body GNews de 16 Kio sont alloués explicitement en PSRAM ;
+- Météo et GNews sont sérialisés par `pulsemon_https_gate` sur l’opération HTTPS complète ;
+- le draw buffer LVGL complet est en PSRAM tandis que les deux buffers de transfert DMA utilisent `hres * vres / 20`, soit environ 30 Kio au total en RGB565 320 × 480.
+
+Les stacks ajustées sont de 6144 octets pour le poller backend, 7168 octets pour `MeteoTask`, 8192 octets pour `NewsTask` et 3072 octets pour `MeteoClock`. Les diagnostics de heap, DMA et high-water de stack sont compilés uniquement dans l’environnement dev via `PULSEMON_DEBUG` ; le build release conserve les protections runtime mais n’émet pas ces mesures et n’enregistre pas le callback d’échec d’allocation.
+
 ## Écrans actifs et navigation
 
 ```text

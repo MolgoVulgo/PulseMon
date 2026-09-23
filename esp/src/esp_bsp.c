@@ -356,7 +356,7 @@ static lv_disp_t *bsp_display_lcd_init(const bsp_display_cfg_t *cfg)
         .sw_rotate = cfg->rotate,
         .hres = hres,
         .vres = vres,
-        .trans_size = hres * vres / 10,
+        .trans_size = hres * vres / 20,
         .draw_wait_cb = bsp_display_sync_cb,
         .flags = {
             .buff_dma = false,

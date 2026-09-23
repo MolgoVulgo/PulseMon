@@ -12,6 +12,7 @@
 #include "pulsemon_api_client.h"
 #include "pulsemon_api_config.h"
 #include "pulsemon_api_settings.h"
+#include "pulsemon_diag.h"
 #include "ui_screen.h"
 #include "vars.h"
 
@@ -326,6 +327,11 @@ static void poller_task(void *arg)
         }
 #endif
 
+        if (tick_seq == 1U || (tick_seq % 30U) == 0U) {
+            pulsemon_diag_heap("poller", "periodic");
+            pulsemon_diag_stack("poller", "periodic");
+        }
+
         vTaskDelay(pdMS_TO_TICKS(PULSEMON_DASHBOARD_POLL_MS));
     }
 }
@@ -336,7 +342,7 @@ void pulsemon_poller_start(void)
         return;
     }
 
-    BaseType_t res = xTaskCreate(poller_task, "pulsemon_poller", 8192, NULL, 4, &s_poller_task);
+    BaseType_t res = xTaskCreate(poller_task, "pulsemon_poller", 6144, NULL, 4, &s_poller_task);
     if (res != pdPASS) {
         s_poller_task = NULL;
         ESP_LOGE(TAG, "failed to create poller task");

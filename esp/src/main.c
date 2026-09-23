@@ -2,6 +2,7 @@
 #include "freertos/task.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "rom/ets_sys.h"
 
 #include <stdint.h>
@@ -12,6 +13,8 @@
 #include "pulsemon_meteo_service.h"
 #include "news_service.h"
 #include "pulsemon_poller.h"
+#include "pulsemon_diag.h"
+#include "pulsemon_https_gate.h"
 #include "printer_service.h"
 #include "pulsemon_weather_icons.h"
 #include "ui_screen.h"
@@ -29,6 +32,20 @@ static const char *TAG = "pulsemon";
 #define PULSEMON_DEBUG 0
 #endif
 
+#define PULSEMON_START_POLLER_DELAY_US 500000LL
+#define PULSEMON_START_METEO_DELAY_US 1000000LL
+#define PULSEMON_START_NEWS_DELAY_US 3000000LL
+
+typedef enum {
+    PULSEMON_NETWORK_START_IDLE = 0,
+    PULSEMON_NETWORK_START_POLLER,
+    PULSEMON_NETWORK_START_METEO,
+    PULSEMON_NETWORK_START_NEWS,
+} pulsemon_network_start_step_t;
+
+static esp_timer_handle_t s_network_start_timer;
+static pulsemon_network_start_step_t s_network_start_step;
+
 static void startup_progress(int32_t pct, const char *text)
 {
     if (bsp_display_lock(pdMS_TO_TICKS(1000))) {
@@ -39,12 +56,88 @@ static void startup_progress(int32_t pct, const char *text)
     }
 }
 
+static void pulsemon_network_start_timer_cb(void *arg)
+{
+    (void)arg;
+
+    switch (s_network_start_step) {
+    case PULSEMON_NETWORK_START_POLLER:
+        pulsemon_diag_heap("startup", "stagger_poller");
+        ESP_LOGI(TAG, "network stagger: backend poller");
+        pulsemon_poller_start();
+        s_network_start_step = PULSEMON_NETWORK_START_METEO;
+        if (esp_timer_start_once(s_network_start_timer, PULSEMON_START_METEO_DELAY_US) != ESP_OK) {
+            ESP_LOGE(TAG, "network stagger: failed to schedule meteo");
+            pulsemon_meteo_service_request_update();
+            s_network_start_step = PULSEMON_NETWORK_START_IDLE;
+        }
+        break;
+
+    case PULSEMON_NETWORK_START_METEO:
+        pulsemon_diag_heap("startup", "stagger_meteo");
+        ESP_LOGI(TAG, "network stagger: meteo");
+        pulsemon_meteo_service_request_update();
+        s_network_start_step = PULSEMON_NETWORK_START_NEWS;
+        if (esp_timer_start_once(s_network_start_timer, PULSEMON_START_NEWS_DELAY_US) != ESP_OK) {
+            ESP_LOGE(TAG, "network stagger: failed to schedule news; periodic refresh will retry");
+            s_network_start_step = PULSEMON_NETWORK_START_IDLE;
+        }
+        break;
+
+    case PULSEMON_NETWORK_START_NEWS:
+        pulsemon_diag_heap("startup", "stagger_news");
+        ESP_LOGI(TAG, "network stagger: news");
+        news_service_request_update();
+        s_network_start_step = PULSEMON_NETWORK_START_IDLE;
+        break;
+
+    case PULSEMON_NETWORK_START_IDLE:
+    default:
+        break;
+    }
+}
+
+static esp_err_t pulsemon_network_start_timer_init(void)
+{
+    if (s_network_start_timer != NULL) {
+        return ESP_OK;
+    }
+
+    const esp_timer_create_args_t timer_args = {
+        .callback = pulsemon_network_start_timer_cb,
+        .arg = NULL,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "network_stagger",
+        .skip_unhandled_events = true,
+    };
+    return esp_timer_create(&timer_args, &s_network_start_timer);
+}
+
 static void pulsemon_on_wifi_connected(void)
 {
-    pulsemon_poller_start();
-    pulsemon_meteo_service_request_update();
-    news_service_request_update();
+    pulsemon_diag_heap("startup", "wifi_connected");
     printer_service_request_update();
+
+    if (s_network_start_timer == NULL) {
+        ESP_LOGE(TAG, "network stagger unavailable; starting backend and meteo, news deferred to periodic refresh");
+        pulsemon_poller_start();
+        pulsemon_meteo_service_request_update();
+        return;
+    }
+
+    esp_err_t stop_err = esp_timer_stop(s_network_start_timer);
+    if (stop_err != ESP_OK && stop_err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(TAG, "network stagger stop failed: %s", esp_err_to_name(stop_err));
+    }
+
+    s_network_start_step = PULSEMON_NETWORK_START_POLLER;
+    esp_err_t start_err = esp_timer_start_once(s_network_start_timer, PULSEMON_START_POLLER_DELAY_US);
+    if (start_err != ESP_OK) {
+        ESP_LOGE(TAG, "network stagger start failed: %s", esp_err_to_name(start_err));
+        s_network_start_step = PULSEMON_NETWORK_START_IDLE;
+        pulsemon_poller_start();
+        pulsemon_meteo_service_request_update();
+    }
 }
 
 static void pulsemon_on_config_mode_changed(bool active)
@@ -178,6 +271,22 @@ void app_main(void)
 #endif
 
     startup_progress(40, "Reseau: init");
+    esp_err_t diag_ret = pulsemon_diag_init();
+    if (diag_ret != ESP_OK) {
+        ESP_LOGW(TAG, "memory diagnostics init failed: %s", esp_err_to_name(diag_ret));
+    }
+    pulsemon_diag_heap("startup", "before_network_init");
+
+    esp_err_t https_gate_ret = pulsemon_https_gate_init();
+    if (https_gate_ret != ESP_OK) {
+        ESP_LOGE(TAG, "https gate init failed: %s", esp_err_to_name(https_gate_ret));
+    }
+
+    esp_err_t stagger_ret = pulsemon_network_start_timer_init();
+    if (stagger_ret != ESP_OK) {
+        ESP_LOGE(TAG, "network stagger timer init failed: %s", esp_err_to_name(stagger_ret));
+    }
+
     esp_err_t wifi_ret = pulsemon_wifi_manager_init(pulsemon_on_wifi_connected, pulsemon_on_config_mode_changed);
     if (wifi_ret != ESP_OK) {
         ESP_LOGE(TAG, "wifi manager init failed: %s", esp_err_to_name(wifi_ret));

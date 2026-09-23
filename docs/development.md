@@ -38,7 +38,9 @@ cd esp
 pio run -e pulsmon-esp32s3-display-dev
 ```
 
-Build, flash and monitor operations require an explicit request during controlled patch work.
+Build, flash and monitor operations require an explicit request during controlled patch work. The dev environment defines `PULSEMON_DEBUG=1` and emits PulseMon heap/DMA/stack diagnostics used for firmware validation; the release environment does not enable those diagnostics. Both environments use the same checked-in TLS/PSRAM memory policy from the project sdkconfig files.
+
+For memory-related firmware stabilization, validate the dev image first with a bounded serial capture after a full reset. Treat `alloc_fail`, `esp-aes`, `ESP_ERR_HTTP_FETCH_HEADER`, stack overflow/canary/watchpoint, Guru Meditation, panic or abort as failures. Only after the dev run is clean should the release environment be built.
 
 ## Reproducible P8 validation
 

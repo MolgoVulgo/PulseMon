@@ -76,6 +76,12 @@ Vérifier :
 - intervalle de rafraîchissement et backoff ;
 - règles d’âge et validation des articles.
 
+## Échec mémoire HTTPS ou TLS sur ESP32
+
+Pour diagnostiquer la mémoire firmware, utiliser l’environnement `pulsmon-esp32s3-display-dev`. Son instrumentation `PULSEMON_DEBUG` journalise les valeurs libres/minimales INTERNAL, DMA et SPIRAM ainsi que les high-water marks de stack. Le build release omet volontairement ces mesures de diagnostic.
+
+Si le log série contient `esp-aes: Failed to allocate memory`, `pulsemon_diag: alloc_fail` ou `ESP_ERR_HTTP_FETCH_HEADER`, conserver la capture complète du boot jusqu’à l’échec. Vérifier aussi que `pulsemon_https_gate` sérialise toujours Météo et GNews, que la réserve interne de 32 Kio apparaît au boot et qu’aucun stack overflow/canary/watchpoint ne suit une modification mémoire. Ne pas contourner ce type d’échec en autorisant des sessions TLS Météo/GNews concurrentes.
+
 ## Ancien écran généré visible dans les recherches source
 
 La sortie EEZ générée contient encore un ancien écran FAN inaccessible et des bindings de compatibilité. La navigation active ne résout que Main, GPU et Météo. Ne pas modifier les fichiers générés ni les bindings de compatibilité pour retirer manuellement cet écran ; effectuer le changement de design dans EEZ Studio puis régénérer.

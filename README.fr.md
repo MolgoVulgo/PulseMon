@@ -106,7 +106,7 @@ Une sauvegarde via le portail recharge immédiatement l’endpoint backend et r�
 
 ## Positionnement sécurité
 
-PulseMon cible un usage local et personnel. La sécurité reste proportionnée à ce contexte : les secrets ne doivent pas être logués ni retournés par les endpoints de configuration, les entrées restent validées et les expositions LAN inutiles doivent être évitées. Le serveur HTTP de configuration démarre uniquement avec l’AP de configuration et s’arrête avec lui ; le DNS captif est lié exclusivement à `192.168.4.1`. Un appui maintenu cinq secondes dans le coin supérieur gauche de Main, GPU ou Météo ouvre `PulseMon-Setup` pendant une fenêtre manuelle de cinq minutes, sans effacer les identifiants ni couper une liaison station fonctionnelle.
+PulseMon cible un usage local et personnel. La sécurité reste proportionnée à ce contexte : les secrets ne doivent pas être logués ni retournés par les endpoints de configuration, les entrées restent validées et les expositions LAN inutiles doivent être évitées. Le serveur HTTP de configuration démarre uniquement avec l’AP de configuration et s’arrête avec lui ; le DNS captif est lié exclusivement à `192.168.4.1`. Un appui maintenu cinq secondes dans le coin supérieur gauche de n’importe quel écran actif ouvre `PulseMon-Setup` pendant une fenêtre manuelle de cinq minutes, sans effacer les identifiants ni couper une liaison station fonctionnelle.
 
 OpenWeather et GNews utilisent HTTPS avec validation des certificats via le bundle ESP-IDF. GNews utilise en complément le header `X-Api-Key`. Le code d’accès imprimante est un secret stocké en NVS : il ne doit être ni journalisé ni retourné par l’API de configuration. `printer_config.h` ne contient plus aucun placeholder de credential.
 

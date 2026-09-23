@@ -27,6 +27,14 @@ La clé API est placée dans le paramètre `appid` requis par OpenWeather. Les c
 
 Le rafraîchissement météo est planifié toutes les 30 minutes. Le service conserve le dernier snapshot météo valide en cas d’échec de requête, de validation TLS ou de parsing.
 
+## Coordination HTTPS et mémoire
+
+Météo et GNews partagent `pulsemon_https_gate`, un mutex firmware qui empêche deux sessions HTTPS/TLS externes simultanées. Météo conserve le verrou pendant toute sa mise à jour current + forecast, y compris le chemin de fallback des prévisions. GNews attend le même verrou avant sa requête.
+
+Après l’obtention de l’IP Wi-Fi, les requêtes de démarrage sont échelonnées par timers one-shot : polling backend après 0,5 s, Météo après 1,5 s cumulé et GNews après 4,5 s cumulé. Le callback du timer ne fait que planifier le travail ; les requêtes réseau s’exécutent dans les tâches des services.
+
+Météo alloue explicitement son body de 32 Kio en PSRAM et GNews fait de même pour son body de 16 Kio. MbedTLS utilise des buffers dynamiques avec la politique d’allocation normale, tandis que 32 Kio de mémoire interne sont réservés aux besoins INTERNAL/DMA. Cette organisation préserve la marge de mémoire interne/DMA pendant les handshakes TLS sans laisser Météo et GNews se la disputer en parallèle.
+
 ## Icônes météo
 
 Les icônes binaires sont chargées depuis la carte SD via `/sdcard/icon_150.bin` et `/sdcard/icon_50.bin`.

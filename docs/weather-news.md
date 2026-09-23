@@ -27,6 +27,14 @@ The API key is placed in the `appid` query parameter required by OpenWeather. TL
 
 Weather refresh is scheduled every 30 minutes. The service keeps the last valid weather snapshot when a request, TLS validation or parsing step fails.
 
+## HTTPS coordination and memory
+
+Weather and GNews share `pulsemon_https_gate`, a firmware mutex that prevents simultaneous external HTTPS/TLS sessions. Weather holds the gate across its complete current-plus-forecast update, including the forecast fallback path. GNews waits for the same gate before its request.
+
+After Wi-Fi obtains an IP address, startup requests are staggered by one-shot timers: backend polling starts after 0.5 s, Weather after 1.5 s cumulative and GNews after 4.5 s cumulative. The timer callback only schedules service work; network requests run in their service tasks.
+
+Weather allocates its 32 KiB body explicitly from PSRAM and GNews does the same for its 16 KiB body. MbedTLS uses dynamic buffers with the normal allocator policy, while 32 KiB of internal memory is reserved for INTERNAL/DMA-only needs. This arrangement is intended to preserve internal/DMA headroom during TLS handshakes without allowing Weather and GNews to compete for it concurrently.
+
 ## Weather icons
 
 Binary icons are loaded from the SD card using `/sdcard/icon_150.bin` and `/sdcard/icon_50.bin`.

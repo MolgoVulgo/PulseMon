@@ -21,6 +21,8 @@
 #include "freertos/task.h"
 
 #include "news_settings.h"
+#include "pulsemon_diag.h"
+#include "pulsemon_https_gate.h"
 #include "ui/screens.h"
 #include "vars.h"
 
@@ -32,22 +34,12 @@
 static const char *TAG = "pulsemon_news";
 #define NEWS_LOGI(fmt, ...) ESP_LOGI(TAG, fmt, ##__VA_ARGS__)
 #define NEWS_LOGW(fmt, ...) ESP_LOGW(TAG, fmt, ##__VA_ARGS__)
-
-static void news_log_heap(const char *stage)
-{
-    NEWS_LOGI("heap stage=%s free_8bit=%u largest_8bit=%u internal=%u largest_internal=%u spiram=%u",
-              stage,
-              (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
-              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
-              (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
-              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
-              (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
-}
 #else
 #define NEWS_LOGI(fmt, ...) ((void)0)
 #define NEWS_LOGW(fmt, ...) ((void)0)
-#define news_log_heap(stage) ((void)0)
 #endif
+
+#define news_log_heap(stage) pulsemon_diag_heap("news", stage)
 
 #define NEWS_HTTP_TIMEOUT_MS 8000
 #define NEWS_BODY_CAP 16384
@@ -533,11 +525,18 @@ static void fetch_news_once(void)
         return;
     }
 
+    if (!pulsemon_https_gate_acquire("news", portMAX_DELAY)) {
+        NEWS_LOGW("https gate unavailable");
+        apply_cache_if_available(now, &settings);
+        return;
+    }
+
     news_log_heap("before_body_alloc");
-    char *body = (char *)calloc(1, NEWS_BODY_CAP);
+    char *body = (char *)heap_caps_calloc(1, NEWS_BODY_CAP, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (body == NULL) {
         NEWS_LOGW("body alloc failed bytes=%u", (unsigned)NEWS_BODY_CAP);
         news_log_heap("body_alloc_failed");
+        pulsemon_https_gate_release("news");
         apply_cache_if_available(now, &settings);
         return;
     }
@@ -551,11 +550,12 @@ static void fetch_news_once(void)
         s_next_allowed_fetch = now + ((time_t)settings.refresh_min * 60);
         char line[NEWS_LINE_MAX_LEN];
         build_news_line(&s_cache, line, sizeof(line));
-        apply_info_line(line, settings.slide_speed);
         NEWS_LOGI("cache updated count=%u next_fetch_in=%dm", (unsigned)s_cache.count, (int)settings.refresh_min);
         news_log_heap("before_body_free_success");
-        free(body);
+        heap_caps_free(body);
         news_log_heap("after_body_free_success");
+        pulsemon_https_gate_release("news");
+        apply_info_line(line, settings.slide_speed);
         return;
     }
 
@@ -566,11 +566,12 @@ static void fetch_news_once(void)
     } else {
         s_next_allowed_fetch = now + NEWS_RETRY_BACKOFF_SECONDS;
     }
-    apply_cache_if_available(now, &settings);
     NEWS_LOGW("update failed status=%d next_retry_in=%llds", status, (long long)(s_next_allowed_fetch - now));
     news_log_heap("before_body_free_failed");
-    free(body);
+    heap_caps_free(body);
     news_log_heap("after_body_free_failed");
+    pulsemon_https_gate_release("news");
+    apply_cache_if_available(now, &settings);
 }
 
 static void news_task(void *arg)
@@ -579,6 +580,7 @@ static void news_task(void *arg)
     while (1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         fetch_news_once();
+        pulsemon_diag_stack("news", "cycle_done");
     }
 }
 
@@ -616,8 +618,7 @@ esp_err_t news_service_start(void)
         return err;
     }
     s_started = true;
-    news_service_request_update();
-    NEWS_LOGI("service started");
+    NEWS_LOGI("service started; initial fetch deferred to Wi-Fi stagger");
     return ESP_OK;
 }
 

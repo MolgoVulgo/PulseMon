@@ -9,10 +9,12 @@
 #include "freertos/portmacro.h"
 #include "esp_timer.h"
 #include "esp_http_client.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 
 #include "pulsemon_api_config.h"
 #include "pulsemon_api_settings.h"
+#include "pulsemon_diag.h"
 
 static const char *TAG = "pulsemon_api";
 static const size_t DASHBOARD_BODY_CAP = 8192;
@@ -216,9 +218,10 @@ bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_l
     }
     memset(out, 0, sizeof(*out));
 
-    char *body = (char *)calloc(1, DASHBOARD_BODY_CAP);
+    char *body = (char *)heap_caps_calloc(1, DASHBOARD_BODY_CAP, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (body == NULL) {
-        set_err(err, err_len, "oom_body");
+        pulsemon_diag_heap("backend", "body_alloc_failed");
+        set_err(err, err_len, "oom_body_psram");
         return false;
     }
 
@@ -231,7 +234,7 @@ bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_l
     char url[160];
     if (!build_endpoint_url("/dashboard", url, sizeof(url))) {
         set_err(err, err_len, "endpoint_url_invalid");
-        free(body);
+        heap_caps_free(body);
         return false;
     }
 
@@ -248,7 +251,7 @@ bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_l
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
     if (client == NULL) {
         set_err(err, err_len, "http_init_failed");
-        free(body);
+        heap_caps_free(body);
         return false;
     }
 
@@ -263,7 +266,7 @@ bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_l
         ESP_LOGW(TAG, "dashboard request failed: %s", esp_err_to_name(rc));
         set_err(err, err_len, "http_perform_failed");
         esp_http_client_cleanup(client);
-        free(body);
+        heap_caps_free(body);
         return false;
     }
 
@@ -271,7 +274,7 @@ bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_l
     esp_http_client_cleanup(client);
     if (status != 200) {
         set_err(err, err_len, "http_status_not_200");
-        free(body);
+        heap_caps_free(body);
         return false;
     }
 
@@ -287,7 +290,7 @@ bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_l
         if (root) {
             cJSON_Delete(root);
         }
-        free(body);
+        heap_caps_free(body);
         return false;
     }
 
@@ -331,7 +334,7 @@ bool pulsemon_fetch_dashboard(pulsemon_dashboard_t *out, char *err, size_t err_l
     }
 
     cJSON_Delete(root);
-    free(body);
+    heap_caps_free(body);
 
 #if PULSEMON_LATENCY_DEBUG
     int64_t total_ms = (esp_timer_get_time() - t_total_start_us) / 1000;
@@ -356,9 +359,10 @@ bool pulsemon_fetch_gpu_dashboard(pulsemon_gpu_dashboard_t *out, char *err, size
     }
     memset(out, 0, sizeof(*out));
 
-    char *body = (char *)calloc(1, DASHBOARD_BODY_CAP);
+    char *body = (char *)heap_caps_calloc(1, DASHBOARD_BODY_CAP, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (body == NULL) {
-        set_err(err, err_len, "oom_body");
+        pulsemon_diag_heap("backend", "body_alloc_failed");
+        set_err(err, err_len, "oom_body_psram");
         return false;
     }
 
@@ -371,7 +375,7 @@ bool pulsemon_fetch_gpu_dashboard(pulsemon_gpu_dashboard_t *out, char *err, size
     char url[192];
     if (!build_endpoint_url("/gpu/dashboard", url, sizeof(url))) {
         set_err(err, err_len, "endpoint_url_invalid");
-        free(body);
+        heap_caps_free(body);
         return false;
     }
 
@@ -388,7 +392,7 @@ bool pulsemon_fetch_gpu_dashboard(pulsemon_gpu_dashboard_t *out, char *err, size
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
     if (client == NULL) {
         set_err(err, err_len, "http_init_failed");
-        free(body);
+        heap_caps_free(body);
         return false;
     }
 
@@ -396,7 +400,7 @@ bool pulsemon_fetch_gpu_dashboard(pulsemon_gpu_dashboard_t *out, char *err, size
     if (rc != ESP_OK) {
         set_err(err, err_len, "http_perform_failed");
         esp_http_client_cleanup(client);
-        free(body);
+        heap_caps_free(body);
         return false;
     }
 
@@ -404,7 +408,7 @@ bool pulsemon_fetch_gpu_dashboard(pulsemon_gpu_dashboard_t *out, char *err, size
     esp_http_client_cleanup(client);
     if (status != 200) {
         set_err(err, err_len, "http_status_not_200");
-        free(body);
+        heap_caps_free(body);
         return false;
     }
 
@@ -414,7 +418,7 @@ bool pulsemon_fetch_gpu_dashboard(pulsemon_gpu_dashboard_t *out, char *err, size
         if (root) {
             cJSON_Delete(root);
         }
-        free(body);
+        heap_caps_free(body);
         return false;
     }
 
@@ -433,6 +437,6 @@ bool pulsemon_fetch_gpu_dashboard(pulsemon_gpu_dashboard_t *out, char *err, size
     }
 
     cJSON_Delete(root);
-    free(body);
+    heap_caps_free(body);
     return true;
 }
