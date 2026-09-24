@@ -128,7 +128,7 @@
                 {
                   "type": "tabset",
                   "id": "#73d5cff5-53e4-42be-9752-94c396d57332",
-                  "weight": 1,
+                  "weight": 1.057915057915058,
                   "enableClose": false,
                   "children": [
                     {
@@ -160,7 +160,7 @@
                 {
                   "type": "tabset",
                   "id": "#567029e2-f6cd-465e-a2e6-24279f3a010d",
-                  "weight": 1,
+                  "weight": 0.9420849420849421,
                   "enableClose": false,
                   "children": [
                     {
@@ -200,7 +200,7 @@
               "children": [
                 {
                   "type": "tab",
-                  "id": "#a781d711-fbc8-4a94-8cdf-7e8fa88d4cf6",
+                  "id": "#d2963027-f9bc-428b-9af3-ce32a82bd1fe",
                   "name": "printer",
                   "component": "editor",
                   "config": {
@@ -208,34 +208,9 @@
                     "permanent": false
                   },
                   "icon": "svg:page"
-                },
-                {
-                  "type": "tab",
-                  "id": "#fbd4cc6a-4bd3-420b-84ef-919ac082f26a",
-                  "name": "ui_16",
-                  "component": "editor",
-                  "config": {
-                    "objectPath": "[pulsmon.eez-project]:/fonts/2",
-                    "params": {
-                      "forceOpenEditor": true
-                    },
-                    "permanent": false
-                  },
-                  "icon": "material:font_download"
-                },
-                {
-                  "type": "tab",
-                  "id": "#457f4539-33ab-46e9-9aec-0f32e83a1700",
-                  "name": "Settings",
-                  "component": "editor",
-                  "config": {
-                    "objectPath": "[pulsmon.eez-project]:/settings",
-                    "subObjectPath": "[pulsmon.eez-project]:/settings",
-                    "permanent": false
-                  },
-                  "icon": "material:settings"
                 }
-              ]
+              ],
+              "active": true
             },
             {
               "type": "row",
@@ -255,8 +230,7 @@
                       "enableClose": false,
                       "icon": "svg:properties"
                     }
-                  ],
-                  "active": true
+                  ]
                 },
                 {
                   "type": "tabset",
@@ -1143,22 +1117,16 @@
       "selectionBack": {
         "0": {
           "0": {},
-          "1": {
+          "1": {},
+          "2": {},
+          "3": {
             "$selected": true
           },
-          "2": {
-            "$selected": true
-          },
-          "3": {},
           "4": {},
           "5": {},
           "6": {},
-          "7": {
-            "$selected": true
-          },
-          "8": {
-            "$selected": true
-          },
+          "7": {},
+          "8": {},
           "9": {},
           "10": {}
         }
@@ -1201,12 +1169,18 @@
     "[pulsmon.eez-project]:/userPages/4[flow-state]": {
       "selectionFront": {},
       "selectionBack": {
-        "0": {}
+        "0": {
+          "4": {
+            "$selected": true
+          },
+          "5": {},
+          "6": {}
+        }
       },
       "transform": {
         "translate": {
           "x": -403.33203125,
-          "y": -159.08203125
+          "y": -279.08203125
         },
         "scale": 2
       },

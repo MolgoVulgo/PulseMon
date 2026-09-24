@@ -38,6 +38,7 @@
 #define PRINTER_EVENT_THUMBNAIL BIT5
 #define PRINTER_EVENT_STOP BIT6
 #define PRINTER_EVENT_WAKE BIT7
+#define PRINTER_EVENT_FILE_DETAIL BIT8
 
 #define PRINTER_HTTP_BODY_CAP 2048
 #define PRINTER_MQTT_RX_MAX (256U * 1024U)
@@ -49,6 +50,7 @@
 #define PRINTER_TIME_VALID_EPOCH_MIN 1609459200LL
 #define PRINTER_FILENAME_CAP 256
 #define PRINTER_THUMBNAIL_RETRY_MS 30000
+#define PRINTER_FILE_DETAIL_RETRY_MS 30000
 #define PRINTER_DISPLAY_TEXT_CAP 64
 
 static const char *TAG = "printer";
@@ -76,6 +78,9 @@ static int s_pending_attributes_id = -1;
 static int s_pending_status_id = -1;
 static int s_pending_thumbnail_id = -1;
 static char s_pending_thumbnail_filename[PRINTER_FILENAME_CAP];
+static int s_pending_file_detail_id = -1;
+static char s_pending_file_detail_filename[PRINTER_FILENAME_CAP];
+static bool s_file_detail_request_ok;
 static printer_thumbnail_fetch_result_t s_thumbnail_request_result = THUMBNAIL_FETCH_RETRY;
 static bool s_attributes_loaded;
 static char s_job_filename[PRINTER_FILENAME_CAP];
@@ -88,6 +93,14 @@ static bool s_presence_timer_started;
 static bool s_settings_reload_requested = true;
 static bool s_settings_loaded;
 static printer_settings_t s_settings;
+static bool s_elapsed_valid;
+static uint32_t s_elapsed_base_seconds;
+static int64_t s_elapsed_base_us;
+static uint32_t s_job_current_layer = UINT32_MAX;
+static uint32_t s_job_total_layers;
+static bool s_file_detail_needed;
+static char s_file_detail_last_attempt_filename[PRINTER_FILENAME_CAP];
+static int64_t s_file_detail_last_attempt_us;
 static char s_thumbnail_last_attempt_filename[PRINTER_FILENAME_CAP];
 static int64_t s_thumbnail_last_attempt_us;
 
@@ -106,6 +119,9 @@ typedef struct {
 
 static printer_display_cache_t *s_display_cache;
 static portMUX_TYPE s_state_mux = portMUX_INITIALIZER_UNLOCKED;
+
+static void format_duration(uint32_t seconds, char *out, size_t out_len);
+static bool state_get_elapsed_seconds(uint32_t *seconds);
 
 static bool ensure_display_cache(void)
 {
@@ -181,6 +197,21 @@ static void display_cache_update_status(const char *ip,
     portEXIT_CRITICAL(&s_state_mux);
 }
 
+static void display_cache_update_layer(const char *layer)
+{
+    if (s_display_cache == NULL || layer == NULL || layer[0] == '\0') {
+        return;
+    }
+
+    char cached_layer[PRINTER_DISPLAY_TEXT_CAP] = {0};
+    snprintf(cached_layer, sizeof(cached_layer), "%s", layer);
+    portENTER_CRITICAL(&s_state_mux);
+    if (s_display_cache->valid) {
+        memcpy(s_display_cache->layer, cached_layer, sizeof(cached_layer));
+    }
+    portEXIT_CRITICAL(&s_state_mux);
+}
+
 static bool display_cache_copy(printer_display_cache_t *out)
 {
     if (out == NULL || s_display_cache == NULL) {
@@ -200,6 +231,9 @@ static void state_reset_requests(void)
     s_pending_status_id = -1;
     s_pending_thumbnail_id = -1;
     s_pending_thumbnail_filename[0] = '\0';
+    s_pending_file_detail_id = -1;
+    s_pending_file_detail_filename[0] = '\0';
+    s_file_detail_request_ok = false;
     s_thumbnail_request_result = THUMBNAIL_FETCH_RETRY;
     s_attributes_loaded = false;
     portEXIT_CRITICAL(&s_state_mux);
@@ -295,6 +329,63 @@ static void state_set_pending_status(int request_id)
 }
 
 
+static void state_set_pending_file_detail(int request_id, const char *filename)
+{
+    portENTER_CRITICAL(&s_state_mux);
+    s_pending_file_detail_id = request_id;
+    snprintf(s_pending_file_detail_filename,
+             sizeof(s_pending_file_detail_filename),
+             "%s",
+             filename != NULL ? filename : "");
+    s_file_detail_request_ok = false;
+    portEXIT_CRITICAL(&s_state_mux);
+}
+
+static int state_get_pending_file_detail(char *filename, size_t filename_len)
+{
+    portENTER_CRITICAL(&s_state_mux);
+    int request_id = s_pending_file_detail_id;
+    if (filename != NULL && filename_len > 0) {
+        snprintf(filename, filename_len, "%s", s_pending_file_detail_filename);
+    }
+    portEXIT_CRITICAL(&s_state_mux);
+    return request_id;
+}
+
+static void state_complete_file_detail(bool ok, uint32_t total_layers)
+{
+    portENTER_CRITICAL(&s_state_mux);
+    bool same_job = s_pending_file_detail_filename[0] != '\0' &&
+                    strncmp(s_job_filename,
+                            s_pending_file_detail_filename,
+                            sizeof(s_job_filename)) == 0;
+    s_file_detail_request_ok = ok && same_job && total_layers > 0;
+    if (s_file_detail_request_ok) {
+        s_job_total_layers = total_layers;
+        s_file_detail_needed = false;
+    }
+    s_pending_file_detail_id = -1;
+    s_pending_file_detail_filename[0] = '\0';
+    portEXIT_CRITICAL(&s_state_mux);
+}
+
+static void state_cancel_file_detail_request(void)
+{
+    portENTER_CRITICAL(&s_state_mux);
+    s_pending_file_detail_id = -1;
+    s_pending_file_detail_filename[0] = '\0';
+    s_file_detail_request_ok = false;
+    portEXIT_CRITICAL(&s_state_mux);
+}
+
+static bool state_file_detail_request_ok(void)
+{
+    portENTER_CRITICAL(&s_state_mux);
+    bool ok = s_file_detail_request_ok;
+    portEXIT_CRITICAL(&s_state_mux);
+    return ok;
+}
+
 static void state_set_pending_thumbnail(int request_id, const char *filename)
 {
     portENTER_CRITICAL(&s_state_mux);
@@ -377,6 +468,14 @@ static void state_update_job_filename(const char *filename)
         memcpy(s_job_filename, next, sizeof(s_job_filename));
         s_thumbnail_clear_pending = true;
         s_thumbnail_pending = next[0] != '\0';
+        s_job_current_layer = UINT32_MAX;
+        s_job_total_layers = 0;
+        s_file_detail_needed = next[0] != '\0';
+        s_pending_file_detail_id = -1;
+        s_pending_file_detail_filename[0] = '\0';
+        s_file_detail_request_ok = false;
+        s_file_detail_last_attempt_filename[0] = '\0';
+        s_file_detail_last_attempt_us = 0;
     }
     portEXIT_CRITICAL(&s_state_mux);
 
@@ -386,6 +485,73 @@ static void state_update_job_filename(const char *filename)
                  next[0] != '\0' ? next : "<none>",
                  next[0] != '\0' ? 1 : 0);
     }
+}
+
+static void state_update_layer_status(uint32_t current_layer, uint32_t total_layers)
+{
+    portENTER_CRITICAL(&s_state_mux);
+    if (s_job_filename[0] != '\0') {
+        if (current_layer != UINT32_MAX) {
+            s_job_current_layer = current_layer;
+        }
+        if (total_layers > 0) {
+            s_job_total_layers = total_layers;
+            s_file_detail_needed = false;
+        } else if (s_job_total_layers == 0) {
+            s_file_detail_needed = true;
+        }
+    }
+    portEXIT_CRITICAL(&s_state_mux);
+}
+
+static void state_format_layer(char *out, size_t out_len)
+{
+    if (out == NULL || out_len == 0) {
+        return;
+    }
+
+    portENTER_CRITICAL(&s_state_mux);
+    uint32_t current_layer = s_job_current_layer;
+    uint32_t total_layers = s_job_total_layers;
+    bool has_job = s_job_filename[0] != '\0';
+    portEXIT_CRITICAL(&s_state_mux);
+
+    if (!has_job || current_layer == UINT32_MAX) {
+        snprintf(out, out_len, "--/--");
+    } else if (total_layers > 0) {
+        snprintf(out, out_len, "%lu/%lu",
+                 (unsigned long)current_layer,
+                 (unsigned long)total_layers);
+    } else {
+        snprintf(out, out_len, "%lu/--", (unsigned long)current_layer);
+    }
+}
+
+static bool state_claim_file_detail_attempt(char *filename, size_t filename_len)
+{
+    if (filename == NULL || filename_len == 0) {
+        return false;
+    }
+
+    int64_t now_us = esp_timer_get_time();
+    portENTER_CRITICAL(&s_state_mux);
+    bool ready = s_job_filename[0] != '\0' && s_file_detail_needed && s_job_total_layers == 0;
+    bool same_attempt = strncmp(s_file_detail_last_attempt_filename,
+                                s_job_filename,
+                                sizeof(s_job_filename)) == 0;
+    bool throttled = same_attempt && s_file_detail_last_attempt_us != 0 &&
+                     now_us - s_file_detail_last_attempt_us <
+                         (int64_t)PRINTER_FILE_DETAIL_RETRY_MS * 1000LL;
+    if (ready && !throttled) {
+        snprintf(filename, filename_len, "%s", s_job_filename);
+        snprintf(s_file_detail_last_attempt_filename,
+                 sizeof(s_file_detail_last_attempt_filename),
+                 "%s",
+                 s_job_filename);
+        s_file_detail_last_attempt_us = now_us;
+    }
+    portEXIT_CRITICAL(&s_state_mux);
+    return ready && !throttled;
 }
 
 static void state_get_thumbnail_work(char *filename, size_t filename_len, bool *pending, bool *clear_pending)
@@ -447,8 +613,52 @@ static bool state_reset_job(void)
     s_thumbnail_clear_pending = false;
     s_thumbnail_last_attempt_filename[0] = '\0';
     s_thumbnail_last_attempt_us = 0;
+    s_elapsed_valid = false;
+    s_elapsed_base_seconds = 0;
+    s_elapsed_base_us = 0;
+    s_job_current_layer = UINT32_MAX;
+    s_job_total_layers = 0;
+    s_file_detail_needed = false;
+    s_pending_file_detail_id = -1;
+    s_pending_file_detail_filename[0] = '\0';
+    s_file_detail_request_ok = false;
+    s_file_detail_last_attempt_filename[0] = '\0';
+    s_file_detail_last_attempt_us = 0;
     portEXIT_CRITICAL(&s_state_mux);
     return had_job;
+}
+
+static void state_set_elapsed_correction(bool valid, uint32_t seconds)
+{
+    int64_t now_us = esp_timer_get_time();
+    portENTER_CRITICAL(&s_state_mux);
+    s_elapsed_valid = valid;
+    s_elapsed_base_seconds = valid ? seconds : 0;
+    s_elapsed_base_us = valid ? now_us : 0;
+    portEXIT_CRITICAL(&s_state_mux);
+}
+
+static bool state_get_elapsed_seconds(uint32_t *seconds)
+{
+    if (seconds == NULL) {
+        return false;
+    }
+
+    portENTER_CRITICAL(&s_state_mux);
+    bool valid = s_elapsed_valid;
+    uint32_t base_seconds = s_elapsed_base_seconds;
+    int64_t base_us = s_elapsed_base_us;
+    portEXIT_CRITICAL(&s_state_mux);
+
+    if (!valid || base_us <= 0) {
+        return false;
+    }
+
+    int64_t now_us = esp_timer_get_time();
+    uint64_t delta_seconds = now_us > base_us ? (uint64_t)(now_us - base_us) / 1000000ULL : 0ULL;
+    uint64_t current = (uint64_t)base_seconds + delta_seconds;
+    *seconds = current > UINT32_MAX ? UINT32_MAX : (uint32_t)current;
+    return true;
 }
 
 static void printer_set_available(bool available)
@@ -494,7 +704,14 @@ bool printer_service_restore_cached_display(void)
     set_var_print_file_name(cache.filename);
     set_var_print_time_start(cache.start_time);
     set_var_print_time_end(cache.end_time);
-    set_var_print_time_elapsed(cache.elapsed);
+    char elapsed_buf[32] = {0};
+    const char *elapsed_value = cache.elapsed;
+    uint32_t elapsed_seconds = 0;
+    if (state_get_elapsed_seconds(&elapsed_seconds)) {
+        format_duration(elapsed_seconds, elapsed_buf, sizeof(elapsed_buf));
+        elapsed_value = elapsed_buf;
+    }
+    set_var_print_time_elapsed(elapsed_value);
     set_var_print_time_remaining(cache.remaining);
     set_var_print_layer(cache.layer[0] != '\0' ? cache.layer : "--/--");
     set_var_print_bar(cache.progress);
@@ -618,6 +835,38 @@ static bool has_gcode_suffix(const char *filename)
     return true;
 }
 
+static bool extension_matches_ci(const char *text, const char *extension)
+{
+    size_t i = 0;
+    for (; extension[i] != '\0'; ++i) {
+        if (text[i] == '\0' || tolower((unsigned char)text[i]) != extension[i]) {
+            return false;
+        }
+    }
+    return text[i] == '\0' || !isalnum((unsigned char)text[i]);
+}
+
+static size_t find_source_extension_pos(const char *filename)
+{
+    static const char *extensions[] = {".stl", ".obj", ".3mf"};
+    if (filename == NULL) {
+        return SIZE_MAX;
+    }
+
+    size_t filename_len = strlen(filename);
+    for (size_t pos = 0; pos < filename_len; ++pos) {
+        if (filename[pos] != '.') {
+            continue;
+        }
+        for (size_t i = 0; i < sizeof(extensions) / sizeof(extensions[0]); ++i) {
+            if (extension_matches_ci(filename + pos, extensions[i])) {
+                return pos;
+            }
+        }
+    }
+    return SIZE_MAX;
+}
+
 static void format_display_filename(const char *filename, char *out, size_t out_len)
 {
     if (out == NULL || out_len == 0) {
@@ -629,7 +878,10 @@ static void format_display_filename(const char *filename, char *out, size_t out_
     }
 
     size_t source_len = strlen(filename);
-    if (has_gcode_suffix(filename)) {
+    size_t source_extension_pos = find_source_extension_pos(filename);
+    if (source_extension_pos != SIZE_MAX && source_extension_pos > 0) {
+        source_len = source_extension_pos;
+    } else if (has_gcode_suffix(filename)) {
         source_len -= sizeof(".gcode") - 1U;
     }
     size_t copy_len = source_len < out_len - 1U ? source_len : out_len - 1U;
@@ -647,6 +899,7 @@ static bool apply_status_result(cJSON *result)
 
     int progress = json_int(machine_status, "progress", 0);
     const char *filename = json_string(print_status, "filename");
+    uint32_t current_layer = json_u32(print_status, "current_layer", UINT32_MAX);
     const char *layer_progress = json_string(print_status, "layerProgress");
     if (layer_progress == NULL || layer_progress[0] == '\0') {
         layer_progress = json_string(machine_status, "layerProgress");
@@ -668,9 +921,13 @@ static bool apply_status_result(cJSON *result)
 
     bool job_present = filename != NULL && filename[0] != '\0';
     state_update_job_filename(job_present ? filename : NULL);
+    state_set_elapsed_correction(job_present, elapsed);
+    state_update_layer_status(job_present ? current_layer : UINT32_MAX, 0);
     if (job_present) {
         format_display_filename(filename, display_filename, sizeof(display_filename));
-        if (layer_progress != NULL && layer_progress[0] != '\0') {
+        if (current_layer != UINT32_MAX) {
+            state_format_layer(layer_buf, sizeof(layer_buf));
+        } else if (layer_progress != NULL && layer_progress[0] != '\0') {
             snprintf(layer_buf, sizeof(layer_buf), "%s", layer_progress);
         }
         time_t now = 0;
@@ -810,7 +1067,37 @@ static bool fetch_serial_number(void)
 }
 
 static bool publish_thumbnail_request(int request_id, const char *filename);
+static bool publish_file_detail_request(int request_id, const char *filename);
+static bool request_file_detail(const char *filename);
 static printer_thumbnail_fetch_result_t request_thumbnail(const char *filename);
+
+static void refresh_layer_display_from_state(void)
+{
+    char layer_buf[PRINTER_DISPLAY_TEXT_CAP] = "--/--";
+    state_format_layer(layer_buf, sizeof(layer_buf));
+    display_cache_update_layer(layer_buf);
+
+    if (state_screen_active() && bsp_display_lock(pdMS_TO_TICKS(100))) {
+        set_var_print_layer(layer_buf);
+        bsp_display_unlock();
+    }
+}
+
+static void refresh_printer_file_detail(void)
+{
+    char filename[PRINTER_FILENAME_CAP] = {0};
+    if (!state_claim_file_detail_attempt(filename, sizeof(filename))) {
+        return;
+    }
+
+    ESP_LOGI(TAG, "printer file detail MQTT request file=%s method=1046", filename);
+    if (!request_file_detail(filename)) {
+        ESP_LOGW(TAG,
+                 "printer file detail MQTT unavailable file=%s retry_ms=%u",
+                 filename,
+                 (unsigned)PRINTER_FILE_DETAIL_RETRY_MS);
+    }
+}
 
 static void refresh_printer_thumbnail(bool allow_fetch)
 {
@@ -966,6 +1253,51 @@ static void process_mqtt_message(const char *topic, const char *payload)
         return;
     }
 
+    char pending_file_detail_filename[PRINTER_FILENAME_CAP] = {0};
+    int pending_file_detail_id = state_get_pending_file_detail(pending_file_detail_filename,
+                                                                sizeof(pending_file_detail_filename));
+    if (request_id == pending_file_detail_id) {
+        uint32_t total_layers = 0;
+        bool ok = false;
+        if (error_code != 0) {
+            ESP_LOGW(TAG,
+                     "file detail method=1046 request id=%d error_code=%d file=%s",
+                     request_id,
+                     error_code,
+                     pending_file_detail_filename[0] != '\0' ? pending_file_detail_filename : "<unknown>");
+        } else if (!state_thumbnail_filename_is_current(pending_file_detail_filename)) {
+            ESP_LOGI(TAG,
+                     "file detail method=1046 stale response ignored file=%s",
+                     pending_file_detail_filename[0] != '\0' ? pending_file_detail_filename : "<unknown>");
+        } else {
+            total_layers = json_u32(result, "layer", 0);
+            if (total_layers == 0) {
+                total_layers = json_u32(result, "TotalLayers", 0);
+            }
+            if (total_layers == 0) {
+                total_layers = json_u32(result, "total_layer", 0);
+            }
+            ok = total_layers > 0;
+            if (ok) {
+                ESP_LOGI(TAG,
+                         "printer file detail method=1046 file=%s total_layers=%lu",
+                         pending_file_detail_filename,
+                         (unsigned long)total_layers);
+            } else {
+                ESP_LOGW(TAG,
+                         "file detail method=1046 response has no valid layer file=%s",
+                         pending_file_detail_filename[0] != '\0' ? pending_file_detail_filename : "<unknown>");
+            }
+        }
+        state_complete_file_detail(ok, total_layers);
+        if (ok) {
+            refresh_layer_display_from_state();
+        }
+        xEventGroupSetBits(s_events, PRINTER_EVENT_FILE_DETAIL);
+        cJSON_Delete(root);
+        return;
+    }
+
     if (error_code != 0) {
         ESP_LOGW(TAG, "request id=%d error_code=%d", request_id, error_code);
         cJSON_Delete(root);
@@ -1032,6 +1364,39 @@ static bool publish_thumbnail_request(int request_id, const char *filename)
         !cJSON_AddItemToObject(root, "params", params) ||
         !cJSON_AddStringToObject(params, "storage_media", "local") ||
         !cJSON_AddStringToObject(params, "file_name", filename)) {
+        if (root != NULL) {
+            cJSON_Delete(root);
+        } else if (params != NULL) {
+            cJSON_Delete(params);
+        }
+        return false;
+    }
+
+    char *payload = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (payload == NULL) {
+        return false;
+    }
+
+    int msg_id = esp_mqtt_client_publish(s_mqtt, s_topic_request, payload, 0, 0, 0);
+    cJSON_free(payload);
+    return msg_id >= 0;
+}
+
+static bool publish_file_detail_request(int request_id, const char *filename)
+{
+    if (filename == NULL || filename[0] == '\0') {
+        return false;
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON *params = cJSON_CreateObject();
+    if (root == NULL || params == NULL ||
+        !cJSON_AddNumberToObject(root, "id", request_id) ||
+        !cJSON_AddNumberToObject(root, "method", 1046) ||
+        !cJSON_AddItemToObject(root, "params", params) ||
+        !cJSON_AddStringToObject(params, "storage_media", "local") ||
+        !cJSON_AddStringToObject(params, "filename", filename)) {
         if (root != NULL) {
             cJSON_Delete(root);
         } else if (params != NULL) {
@@ -1121,7 +1486,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "printer MQTT connected");
         xEventGroupSetBits(s_events, PRINTER_EVENT_CONNECTED);
-        xEventGroupClearBits(s_events, PRINTER_EVENT_REGISTERED | PRINTER_EVENT_ATTRIBUTES | PRINTER_EVENT_STATUS | PRINTER_EVENT_THUMBNAIL);
+        xEventGroupClearBits(s_events, PRINTER_EVENT_REGISTERED | PRINTER_EVENT_ATTRIBUTES | PRINTER_EVENT_STATUS | PRINTER_EVENT_THUMBNAIL |
+                             PRINTER_EVENT_FILE_DETAIL);
         state_set_attributes_loaded(false);
         s_subscribe_msg_id = esp_mqtt_client_subscribe(s_mqtt, s_topic_all, 0);
         break;
@@ -1137,7 +1503,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         }
         xEventGroupClearBits(s_events,
                              PRINTER_EVENT_CONNECTED | PRINTER_EVENT_REGISTERED |
-                                 PRINTER_EVENT_ATTRIBUTES | PRINTER_EVENT_STATUS | PRINTER_EVENT_THUMBNAIL);
+                                 PRINTER_EVENT_ATTRIBUTES | PRINTER_EVENT_STATUS | PRINTER_EVENT_THUMBNAIL |
+                             PRINTER_EVENT_FILE_DETAIL);
         state_set_attributes_loaded(false);
         break;
     case MQTT_EVENT_DATA:
@@ -1158,7 +1525,8 @@ static void mqtt_destroy(void)
     if (s_events != NULL) {
         xEventGroupClearBits(s_events,
                              PRINTER_EVENT_CONNECTED | PRINTER_EVENT_REGISTERED |
-                                 PRINTER_EVENT_ATTRIBUTES | PRINTER_EVENT_STATUS | PRINTER_EVENT_THUMBNAIL);
+                                 PRINTER_EVENT_ATTRIBUTES | PRINTER_EVENT_STATUS | PRINTER_EVENT_THUMBNAIL |
+                             PRINTER_EVENT_FILE_DETAIL);
     }
     if (s_mqtt != NULL) {
         (void)esp_mqtt_client_stop(s_mqtt);
@@ -1240,7 +1608,7 @@ static bool wait_for_session(void)
                                            PRINTER_EVENT_REGISTERED | PRINTER_EVENT_STOP,
                                            pdFALSE,
                                            pdFALSE,
-                                           pdMS_TO_TICKS(PRINTER_MQTT_TIMEOUT_MS * 2));
+                                           pdMS_TO_TICKS(PRINTER_MQTT_REGISTER_TIMEOUT_MS));
     if ((bits & PRINTER_EVENT_STOP) != 0 || !state_task_should_run()) {
         return false;
     }
@@ -1287,6 +1655,34 @@ static bool request_status(void)
     return (bits & PRINTER_EVENT_STATUS) != 0;
 }
 
+static bool request_file_detail(const char *filename)
+{
+    xEventGroupClearBits(s_events, PRINTER_EVENT_FILE_DETAIL);
+    int request_id = next_request_id();
+    state_set_pending_file_detail(request_id, filename);
+    if (!publish_file_detail_request(request_id, filename)) {
+        state_cancel_file_detail_request();
+        ESP_LOGW(TAG, "file detail method=1046 publish failed file=%s", filename);
+        return false;
+    }
+
+    EventBits_t bits = xEventGroupWaitBits(s_events,
+                                           PRINTER_EVENT_FILE_DETAIL | PRINTER_EVENT_STOP,
+                                           pdTRUE,
+                                           pdFALSE,
+                                           pdMS_TO_TICKS(PRINTER_MQTT_TIMEOUT_MS));
+    if ((bits & PRINTER_EVENT_STOP) != 0 || !state_task_should_run()) {
+        state_cancel_file_detail_request();
+        return false;
+    }
+    if ((bits & PRINTER_EVENT_FILE_DETAIL) == 0) {
+        state_cancel_file_detail_request();
+        ESP_LOGW(TAG, "file detail method=1046 timeout file=%s", filename);
+        return false;
+    }
+    return state_file_detail_request_ok();
+}
+
 static printer_thumbnail_fetch_result_t request_thumbnail(const char *filename)
 {
     xEventGroupClearBits(s_events, PRINTER_EVENT_THUMBNAIL);
@@ -1325,6 +1721,61 @@ static void wait_or_notify(uint32_t delay_ms)
                               pdMS_TO_TICKS(delay_ms));
 }
 
+static void update_elapsed_display(void)
+{
+    if (!state_screen_active()) {
+        return;
+    }
+
+    uint32_t elapsed_seconds = 0;
+    if (!state_get_elapsed_seconds(&elapsed_seconds)) {
+        return;
+    }
+
+    char elapsed_buf[32];
+    format_duration(elapsed_seconds, elapsed_buf, sizeof(elapsed_buf));
+    if (bsp_display_lock(pdMS_TO_TICKS(100))) {
+        set_var_print_time_elapsed(elapsed_buf);
+        bsp_display_unlock();
+    }
+}
+
+static void wait_poll_interval_with_elapsed(void)
+{
+    int64_t deadline_us = esp_timer_get_time() + (int64_t)PRINTER_POLL_INTERVAL_MS * 1000LL;
+
+    for (;;) {
+        if (!state_task_should_run()) {
+            return;
+        }
+
+        int64_t remaining_us = deadline_us - esp_timer_get_time();
+        if (remaining_us <= 0) {
+            return;
+        }
+
+        uint32_t wait_ms = (uint32_t)((remaining_us + 999LL) / 1000LL);
+        if (wait_ms > 1000U) {
+            wait_ms = 1000U;
+        }
+
+        if (s_events == NULL) {
+            vTaskDelay(pdMS_TO_TICKS(wait_ms));
+        } else {
+            EventBits_t bits = xEventGroupWaitBits(s_events,
+                                                   PRINTER_EVENT_STOP | PRINTER_EVENT_WAKE,
+                                                   pdTRUE,
+                                                   pdFALSE,
+                                                   pdMS_TO_TICKS(wait_ms));
+            if ((bits & (PRINTER_EVENT_STOP | PRINTER_EVENT_WAKE)) != 0) {
+                return;
+            }
+        }
+
+        update_elapsed_display();
+    }
+}
+
 static void printer_task(void *arg);
 
 static esp_err_t ensure_printer_task(void)
@@ -1348,7 +1799,7 @@ static esp_err_t ensure_printer_task(void)
 
     BaseType_t ok = xTaskCreate(printer_task,
                                 "printer_service",
-                                10240,
+                                PRINTER_TASK_STACK_SIZE,
                                 NULL,
                                 tskIDLE_PRIORITY + 2,
                                 &s_task);
@@ -1535,13 +1986,14 @@ static void printer_task(void *arg)
             }
 
             screen_active = state_screen_active();
+            refresh_printer_file_detail();
             refresh_printer_thumbnail(screen_active);
             if (!screen_active) {
                 state_finish_background_cycle();
                 break;
             }
 
-            wait_or_notify(PRINTER_POLL_INTERVAL_MS);
+            wait_poll_interval_with_elapsed();
         }
 
         mqtt_destroy();

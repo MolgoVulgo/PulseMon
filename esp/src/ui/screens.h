@@ -127,6 +127,8 @@ typedef struct _objects_t {
     lv_obj_t *obj36;
     lv_obj_t *obj37;
     lv_obj_t *image_gode;
+    lv_obj_t *label_printer;
+    lv_obj_t *label_printer_1;
     lv_obj_t *imp_gone;
     lv_obj_t *obj38;
     lv_obj_t *obj39;
