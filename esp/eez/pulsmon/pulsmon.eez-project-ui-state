@@ -2,7 +2,7 @@
   "navigation": {
     "selectedUserPageObject": "[pulsmon.eez-project]:/userPages/4",
     "selectedActionObject": "[pulsmon.eez-project]:/actions/0",
-    "selectedGlobalVariableObject": "[pulsmon.eez-project]:/variables/globalVariables/48",
+    "selectedGlobalVariableObject": "[pulsmon.eez-project]:/variables/globalVariables/50",
     "selectedStyleObject": "[pulsmon.eez-project]:/lvglStyles/styles/0",
     "selectedFontObject": "[pulsmon.eez-project]:/fonts/2",
     "subnavigationSelectedItems": {
@@ -235,8 +235,7 @@
                   },
                   "icon": "material:settings"
                 }
-              ],
-              "active": true
+              ]
             },
             {
               "type": "row",
@@ -256,7 +255,8 @@
                       "enableClose": false,
                       "icon": "svg:properties"
                     }
-                  ]
+                  ],
+                  "active": true
                 },
                 {
                   "type": "tabset",

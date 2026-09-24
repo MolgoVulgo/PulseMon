@@ -5,6 +5,8 @@
 
 #include "ui/screens.h"
 
+#define PULSEMON_UI_SCREEN_TRANSITION_MS 160U
+
 #ifdef __cplusplus
 extern "C" {
 #endif

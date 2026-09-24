@@ -331,7 +331,7 @@ void ui_screen_load(enum ScreensEnum screen_id, lv_scr_load_anim_t anim)
     }
 
     ui_screen_note_transition_start(screen_id);
-    lv_scr_load_anim(target, anim, 220, 0, false);
+    lv_scr_load_anim(target, anim, PULSEMON_UI_SCREEN_TRANSITION_MS, 0, false);
     s_active_screen = screen_id;
     ui_apply_screen_transition(previous, screen_id);
     tick_screen_by_id(screen_id);

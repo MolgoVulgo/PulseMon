@@ -26,7 +26,7 @@ static void action_swipe_to(enum ScreensEnum target, lv_scr_load_anim_t anim)
         return;
     }
     ui_screen_note_transition_start(target);
-    lv_scr_load_anim(target_obj, anim, 220, 0, false);
+    lv_scr_load_anim(target_obj, anim, PULSEMON_UI_SCREEN_TRANSITION_MS, 0, false);
     ui_screen_set_active(target);
     tick_screen_by_id(target);
 }

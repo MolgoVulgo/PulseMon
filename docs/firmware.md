@@ -44,6 +44,8 @@ Main --left--> GPU --left--> Weather --left--> Printer
 Main <--right-- GPU <--right-- Weather <--right-- Printer
 ```
 
+Animated swipe transitions use a shared 160 ms duration. The startup fade remains 200 ms. The shorter navigation duration is intentional: DEV measurements on the previous 220 ms setting showed 70 real transitions averaging about 250 ms, while display flush work accounted for only part of that elapsed time.
+
 Printer navigation is unconditional and independent from printer availability. A lightweight periodic monitor checks the configured printer every 60 seconds while the screen is inactive. Each successful HTTP presence probe creates a short-lived MQTT worker, reads the current state, then destroys the MQTT client and worker. Entering Printer switches to live mode: the worker keeps its MQTT session and refreshes status every 5 seconds. Leaving Printer immediately ends that live session and returns to periodic monitoring. If an active print has already produced a valid display snapshot, that snapshot is retained in PSRAM while the screen is inactive and is restored immediately on the next Printer entry before live polling resumes. The EEZ-generated `imp_gone` label remains hidden while a cached active-job snapshot is available; otherwise it is visible until a valid method-1002 status makes the printer available. No file under `esp/src/ui/` is modified by the runtime integration.
 
 ## Backend polling

@@ -44,6 +44,8 @@ Main --gauche--> GPU --gauche--> Météo --gauche--> Printer
 Main <--droite-- GPU <--droite-- Météo <--droite-- Printer
 ```
 
+Les transitions animées par swipe utilisent une durée commune de 160 ms. Le fondu de démarrage reste à 200 ms. Cette durée de navigation plus courte est volontaire : les mesures DEV avec le précédent réglage à 220 ms ont observé 70 transitions réelles autour de 250 ms en moyenne, le travail de flush écran ne représentant qu’une partie de cette durée.
+
 La navigation vers Printer est inconditionnelle et indépendante de la disponibilité de l’imprimante. Un moniteur périodique léger vérifie l’imprimante configurée toutes les 60 secondes lorsque l’écran est inactif. Chaque probe HTTP réussi crée un worker MQTT temporaire, lit l’état courant puis détruit le client MQTT et le worker. L’entrée sur Printer bascule en mode live : le worker conserve sa session MQTT et rafraîchit le statut toutes les 5 secondes. La sortie de Printer termine immédiatement cette session live puis revient au monitoring périodique. Si une impression active a déjà produit un snapshot d’affichage valide, ce snapshot est conservé en PSRAM pendant que l’écran est inactif puis restauré immédiatement au prochain retour sur Printer avant la reprise du polling live. Le label EEZ généré `imp_gone` reste masqué tant qu’un snapshot d’impression active est disponible en cache ; sinon il reste visible jusqu’à la réception d’un statut `1002` valide. Aucun fichier sous `esp/src/ui/` n’est modifié par l’intégration runtime.
 
 ## Polling backend
