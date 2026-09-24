@@ -342,7 +342,7 @@ void pulsemon_poller_start(void)
         return;
     }
 
-    BaseType_t res = xTaskCreate(poller_task, "pulsemon_poller", 8192, NULL, 4, &s_poller_task);
+    BaseType_t res = xTaskCreate(poller_task, "pulsemon_poller", 6144, NULL, 4, &s_poller_task);
     if (res != pdPASS) {
         s_poller_task = NULL;
         ESP_LOGE(TAG, "failed to create poller task");

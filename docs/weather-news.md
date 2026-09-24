@@ -37,7 +37,7 @@ Weather allocates its 32 KiB body explicitly from PSRAM and GNews does the same 
 
 ## Weather icons
 
-Binary icons are loaded from the SD card using `/sdcard/icon_150.bin` and `/sdcard/icon_50.bin`.
+Binary icons are loaded from the SD card using `/sdcard/icon_150.bin` and `/sdcard/icon_50.bin`. The 1-bit SDMMC mount enables the ESP32-S3 internal pull-ups on the SD lines. A failed mount is rate-limited before another attempt, and Weather probes icon storage before taking the LVGL display lock so an unavailable SD card cannot stall all seven icon updates. Weather text and temperatures continue to update even when icon storage is unavailable; a later weather refresh retries the mount.
 
 ## GNews
 

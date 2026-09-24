@@ -19,6 +19,11 @@
 #include "lv_port.h"
 #include "lvgl.h"
 #include "lcd_capture.h"
+#include "pulsemon_diag.h"
+
+#ifndef PULSEMON_DEBUG
+#define PULSEMON_DEBUG 0
+#endif
 
 #ifdef ESP_LVGL_PORT_TOUCH_COMPONENT
 #include "esp_lcd_touch.h"
@@ -71,6 +76,10 @@ typedef struct {
 *******************************************************************************/
 static lvgl_port_ctx_t lvgl_port_ctx;
 static int lvgl_port_timer_period_ms = 5;
+#if PULSEMON_DEBUG
+static lvgl_port_perf_stats_t s_flush_interval_stats;
+static lvgl_port_perf_stats_t s_flush_window_stats;
+#endif
 
 /*******************************************************************************
 * Function definitions
@@ -360,6 +369,25 @@ void lvgl_port_unlock(void)
     xSemaphoreGiveRecursive(lvgl_port_ctx.lvgl_mux);
 }
 
+void lvgl_port_perf_window_reset(void)
+{
+#if PULSEMON_DEBUG
+    memset(&s_flush_window_stats, 0, sizeof(s_flush_window_stats));
+#endif
+}
+
+void lvgl_port_perf_window_snapshot(lvgl_port_perf_stats_t *stats)
+{
+    if (stats == NULL) {
+        return;
+    }
+#if PULSEMON_DEBUG
+    *stats = s_flush_window_stats;
+#else
+    memset(stats, 0, sizeof(*stats));
+#endif
+}
+
 void lvgl_port_flush_ready(lv_disp_t *disp)
 {
     assert(disp);
@@ -374,6 +402,9 @@ void lvgl_port_flush_ready(lv_disp_t *disp)
 static void lvgl_port_task(void *arg)
 {
     uint32_t task_delay_ms = lvgl_port_ctx.task_max_sleep_ms;
+#if PULSEMON_DEBUG
+    int64_t last_diag_us = 0;
+#endif
 
     ESP_LOGI(TAG, "Starting LVGL task");
     lvgl_port_ctx.running = true;
@@ -382,6 +413,25 @@ static void lvgl_port_task(void *arg)
             task_delay_ms = lv_timer_handler();
             lvgl_port_unlock();
         }
+#if PULSEMON_DEBUG
+        int64_t now_us = esp_timer_get_time();
+        if (last_diag_us == 0 || now_us - last_diag_us >= 60000000LL) {
+            pulsemon_diag_heap("lvgl", "periodic");
+            pulsemon_diag_stack("lvgl", "periodic");
+            if (s_flush_interval_stats.flush_count > 0) {
+                uint64_t avg_us = s_flush_interval_stats.total_us / s_flush_interval_stats.flush_count;
+                ESP_LOGI(TAG,
+                         "pulsemon_perf owner=lvgl stage=flush_60s count=%llu pixels=%llu total_us=%llu avg_us=%llu max_us=%u",
+                         (unsigned long long)s_flush_interval_stats.flush_count,
+                         (unsigned long long)s_flush_interval_stats.pixels,
+                         (unsigned long long)s_flush_interval_stats.total_us,
+                         (unsigned long long)avg_us,
+                         (unsigned int)s_flush_interval_stats.max_us);
+                memset(&s_flush_interval_stats, 0, sizeof(s_flush_interval_stats));
+            }
+            last_diag_us = now_us;
+        }
+#endif
         if ((task_delay_ms > lvgl_port_ctx.task_max_sleep_ms) || (1 == task_delay_ms)) {
             task_delay_ms = lvgl_port_ctx.task_max_sleep_ms;
         } else if (task_delay_ms < 1) {
@@ -438,6 +488,10 @@ static void lvgl_port_flush_callback(lv_disp_drv_t *drv, const lv_area_t *area, 
     const int y_end = area->y2;
     const int width = x_end - x_start + 1;
     const int height = y_end - y_start + 1;
+#if PULSEMON_DEBUG
+    int64_t perf_start_us = esp_timer_get_time();
+    uint64_t perf_pixels = (uint64_t)width * (uint64_t)height;
+#endif
 
     lv_color_t *from = color_map;
     lv_color_t *to = NULL;
@@ -571,6 +625,20 @@ static void lvgl_port_flush_callback(lv_disp_drv_t *drv, const lv_area_t *area, 
         lcd_capture_on_flush_chunk(x_start, y_start, width, height, color_map);
         esp_lcd_panel_draw_bitmap(disp_ctx->panel_handle, x_start, y_start, x_end + 1, y_end + 1, color_map);
     }
+#if PULSEMON_DEBUG
+    int64_t perf_elapsed_us = esp_timer_get_time() - perf_start_us;
+    uint32_t perf_us = perf_elapsed_us > UINT32_MAX ? UINT32_MAX : (uint32_t)perf_elapsed_us;
+    lvgl_port_perf_stats_t *perf_sets[] = {&s_flush_interval_stats, &s_flush_window_stats};
+    for (size_t i = 0; i < sizeof(perf_sets) / sizeof(perf_sets[0]); ++i) {
+        lvgl_port_perf_stats_t *stats = perf_sets[i];
+        stats->flush_count++;
+        stats->pixels += perf_pixels;
+        stats->total_us += perf_us;
+        if (perf_us > stats->max_us) {
+            stats->max_us = perf_us;
+        }
+    }
+#endif
     lv_disp_flush_ready(drv);
 }
 

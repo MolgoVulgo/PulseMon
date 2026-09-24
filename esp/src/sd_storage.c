@@ -10,6 +10,7 @@
 #include "driver/spi_master.h"
 #include "driver/sdspi_host.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "esp_vfs_fat.h"
 #include "sdmmc_cmd.h"
 
@@ -17,7 +18,11 @@
 
 static const char *TAG = "sd_storage";
 
+#define SD_MOUNT_RETRY_COOLDOWN_US (5LL * 1000LL * 1000LL)
+
 static bool s_mounted = false;
+static esp_err_t s_last_mount_error = ESP_OK;
+static int64_t s_last_mount_attempt_us = 0;
 static sdmmc_card_t *s_card = NULL;
 #if !PULSEMON_SD_USE_SDMMC
 static bool s_bus_initialized = false;
@@ -89,6 +94,15 @@ esp_err_t sd_storage_ensure_mounted(void)
         return ESP_OK;
     }
 
+    int64_t now_us = esp_timer_get_time();
+    if (s_last_mount_error != ESP_OK &&
+        s_last_mount_attempt_us > 0 &&
+        now_us >= s_last_mount_attempt_us &&
+        (now_us - s_last_mount_attempt_us) < SD_MOUNT_RETRY_COOLDOWN_US) {
+        return s_last_mount_error;
+    }
+    s_last_mount_attempt_us = now_us;
+
     if (!sd_pins_valid()) {
 #if PULSEMON_SD_USE_SDMMC
         ESP_LOGE(TAG, "sdmmc pins not configured (CLK=%d CMD=%d D0=%d)",
@@ -102,7 +116,8 @@ esp_err_t sd_storage_ensure_mounted(void)
                  PULSEMON_SD_PIN_SCLK,
                  PULSEMON_SD_PIN_CS);
 #endif
-        return ESP_ERR_INVALID_STATE;
+        s_last_mount_error = ESP_ERR_INVALID_STATE;
+        return s_last_mount_error;
     }
 
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
@@ -115,6 +130,7 @@ esp_err_t sd_storage_ensure_mounted(void)
     sdmmc_host_t host = SDMMC_HOST_DEFAULT();
     sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
     slot_config.width = 1;
+    slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
     slot_config.clk = PULSEMON_SDMMC_PIN_CLK;
     slot_config.cmd = PULSEMON_SDMMC_PIN_CMD;
     slot_config.d0 = PULSEMON_SDMMC_PIN_D0;
@@ -126,6 +142,8 @@ esp_err_t sd_storage_ensure_mounted(void)
         } else {
             ESP_LOGE(TAG, "sdmmc mount failed: %s", esp_err_to_name(ret));
         }
+        s_card = NULL;
+        s_last_mount_error = ret;
         return ret;
     }
 #else
@@ -144,6 +162,7 @@ esp_err_t sd_storage_ensure_mounted(void)
     esp_err_t ret = spi_bus_initialize(host.slot, &bus_cfg, SDSPI_DEFAULT_DMA);
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
         ESP_LOGE(TAG, "spi_bus_initialize failed: %s", esp_err_to_name(ret));
+        s_last_mount_error = ret;
         return ret;
     }
     if (ret == ESP_OK) {
@@ -165,11 +184,14 @@ esp_err_t sd_storage_ensure_mounted(void)
             spi_bus_free(host.slot);
             s_bus_initialized = false;
         }
+        s_card = NULL;
+        s_last_mount_error = ret;
         return ret;
     }
 #endif
 
     s_mounted = true;
+    s_last_mount_error = ESP_OK;
     ESP_LOGI(TAG, "sd mounted on %s", PULSEMON_SD_MOUNT_POINT);
     sdmmc_card_print_info(stdout, s_card);
     return ESP_OK;
@@ -178,12 +200,16 @@ esp_err_t sd_storage_ensure_mounted(void)
 void sd_storage_deinit(void)
 {
     if (!s_mounted) {
+        s_last_mount_error = ESP_OK;
+        s_last_mount_attempt_us = 0;
         return;
     }
 
     esp_vfs_fat_sdcard_unmount(PULSEMON_SD_MOUNT_POINT, s_card);
     s_card = NULL;
     s_mounted = false;
+    s_last_mount_error = ESP_OK;
+    s_last_mount_attempt_us = 0;
 #if !PULSEMON_SD_USE_SDMMC
     if (s_bus_initialized) {
         spi_bus_free(PULSEMON_SD_SPI_HOST);

@@ -25,6 +25,7 @@
 #include "printer_settings.h"
 #include "printer_thumbnail.h"
 #include "printer_thumbnail_fetch.h"
+#include "pulsemon_diag.h"
 #include "pulsemon_settings.h"
 #include "vars.h"
 #include "wifi_manager.h"
@@ -1393,8 +1394,10 @@ static void printer_task(void *arg)
     (void)arg;
     int64_t last_ping_us = 0;
     bool config_warning_logged = false;
+    bool first_status_diag_logged = false;
 
     ESP_LOGI(TAG, "printer worker active");
+    pulsemon_diag_heap("printer", "worker_start");
 
     for (;;) {
         while (state_task_should_run()) {
@@ -1455,17 +1458,18 @@ static void printer_task(void *arg)
                     continue;
                 }
                 ESP_LOGI(TAG, "printer presence probe ok host=%s", s_settings.host);
+                printer_set_available(true);
 
                 if (!state_task_should_run()) {
                     break;
                 }
 
                 if (!mqtt_start()) {
-                    printer_set_available(false);
                     if (!state_screen_active()) {
                         state_finish_background_cycle();
                         break;
                     }
+                    printer_set_available(false);
                     wait_or_notify(PRINTER_RETRY_INTERVAL_MS);
                     continue;
                 }
@@ -1476,11 +1480,11 @@ static void printer_task(void *arg)
                     }
                     ESP_LOGW(TAG, "printer MQTT session unavailable");
                     mqtt_destroy();
-                    printer_set_available(false);
                     if (!state_screen_active()) {
                         state_finish_background_cycle();
                         break;
                     }
+                    printer_set_available(false);
                     wait_or_notify(PRINTER_RETRY_INTERVAL_MS);
                     continue;
                 }
@@ -1515,13 +1519,19 @@ static void printer_task(void *arg)
                 }
                 ESP_LOGW(TAG, "printer status unavailable");
                 mqtt_destroy();
-                printer_set_available(false);
                 if (!state_screen_active()) {
                     state_finish_background_cycle();
                     break;
                 }
+                printer_set_available(false);
                 wait_or_notify(PRINTER_RETRY_INTERVAL_MS);
                 continue;
+            }
+
+            if (!first_status_diag_logged) {
+                pulsemon_diag_heap("printer", "first_status");
+                pulsemon_diag_stack("printer", "first_status");
+                first_status_diag_logged = true;
             }
 
             screen_active = state_screen_active();
@@ -1551,6 +1561,8 @@ static void printer_task(void *arg)
             continue;
         }
 
+        pulsemon_diag_heap("printer", "worker_stop");
+        pulsemon_diag_stack("printer", "worker_stop");
         ESP_LOGI(TAG, "printer worker stopped");
         vTaskDelete(NULL);
         return;

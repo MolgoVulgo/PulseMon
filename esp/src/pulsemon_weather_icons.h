@@ -7,6 +7,7 @@
 #include "lvgl.h"
 
 esp_err_t pulsemon_weather_icons_init(void);
+esp_err_t pulsemon_weather_icons_prepare(void);
 esp_err_t pulsemon_weather_icons_log_index(const char *bin_name);
 esp_err_t pulsemon_weather_icons_set_main(uint16_t code, uint8_t variant);
 esp_err_t pulsemon_weather_icons_set_object(lv_obj_t *target, const char *bin_name, uint16_t code, uint8_t variant);

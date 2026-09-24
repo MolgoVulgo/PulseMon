@@ -24,6 +24,13 @@ extern "C" {
 
 typedef bool (*lvgl_port_wait_cb)(void *handle);
 
+typedef struct {
+    uint64_t flush_count;
+    uint64_t pixels;
+    uint64_t total_us;
+    uint32_t max_us;
+} lvgl_port_perf_stats_t;
+
 /**
  * @brief Init configuration structure
  */
@@ -158,6 +165,14 @@ bool lvgl_port_lock(uint32_t timeout_ms);
  *
  */
 void lvgl_port_unlock(void);
+
+/**
+ * @brief Reset/snapshot the DEV-only flush performance window.
+ *
+ * In release builds these helpers return zeroed counters.
+ */
+void lvgl_port_perf_window_reset(void);
+void lvgl_port_perf_window_snapshot(lvgl_port_perf_stats_t *stats);
 
 #ifdef __cplusplus
 }

@@ -563,6 +563,13 @@ static void apply_weather_ui(const meteo_snapshot_t *snapshot, const pulsemon_se
     if (snapshot == NULL || settings == NULL) {
         return;
     }
+
+    esp_err_t icons_err = pulsemon_weather_icons_prepare();
+    bool icons_ready = icons_err == ESP_OK;
+    if (!icons_ready) {
+        METEO_LOGW("weather icons unavailable: %s", esp_err_to_name(icons_err));
+    }
+
     if (!bsp_display_lock(pdMS_TO_TICKS(100))) {
         METEO_LOGW("ui lock failed");
         return;
@@ -573,7 +580,7 @@ static void apply_weather_ui(const meteo_snapshot_t *snapshot, const pulsemon_se
         snprintf(temp_buf, sizeof(temp_buf), "%.1f°C", (double)snapshot->current_temp_c);
         set_var_ui_meteo_temp(temp_buf);
         set_var_ui_meteo_condition(snapshot->condition[0] != '\0' ? snapshot->condition : "--");
-        if (snapshot->current_condition_id != 0) {
+        if (icons_ready && snapshot->current_condition_id != 0) {
             pulsemon_weather_icons_set_main((uint16_t)snapshot->current_condition_id, snapshot->current_icon_variant);
         }
     }
@@ -589,7 +596,7 @@ static void apply_weather_ui(const meteo_snapshot_t *snapshot, const pulsemon_se
             if (!isnanf(snapshot->days[i].min_c) && !isnanf(snapshot->days[i].max_c)) {
                 snprintf(temp_buf, sizeof(temp_buf), "%.0f°/%.0f°", (double)snapshot->days[i].min_c, (double)snapshot->days[i].max_c);
             }
-            if (snapshot->days[i].condition_id != 0) {
+            if (icons_ready && snapshot->days[i].condition_id != 0) {
                 lv_obj_t *icon = ui_weather_forecast_icon((size_t)i);
                 if (icon != NULL) {
                     pulsemon_weather_icons_set_object(
@@ -795,7 +802,7 @@ esp_err_t pulsemon_meteo_service_start(void)
     start_sntp();
 
     if (s_meteo_task == NULL) {
-        BaseType_t ok = xTaskCreate(meteo_task, "MeteoTask", 8192, NULL, tskIDLE_PRIORITY + 2, &s_meteo_task);
+        BaseType_t ok = xTaskCreate(meteo_task, "MeteoTask", 7168, NULL, tskIDLE_PRIORITY + 2, &s_meteo_task);
         if (ok != pdPASS) {
             s_meteo_task = NULL;
             return ESP_ERR_NO_MEM;

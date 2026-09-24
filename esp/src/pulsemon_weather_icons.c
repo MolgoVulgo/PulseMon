@@ -256,9 +256,14 @@ static esp_err_t find_icon_offset(FILE *fp, uint16_t *io_code, uint8_t variant, 
     return err;
 }
 
+esp_err_t pulsemon_weather_icons_prepare(void)
+{
+    return sd_storage_ensure_mounted();
+}
+
 esp_err_t pulsemon_weather_icons_init(void)
 {
-    esp_err_t err = sd_storage_ensure_mounted();
+    esp_err_t err = pulsemon_weather_icons_prepare();
     if (err != ESP_OK) {
         WEATHER_ICON_LOGW("sd unavailable for weather icons: %s", esp_err_to_name(err));
         return err;
@@ -277,7 +282,7 @@ esp_err_t pulsemon_weather_icons_log_index(const char *bin_name)
     (void)bin_name;
     return ESP_OK;
 #else
-    esp_err_t err = sd_storage_ensure_mounted();
+    esp_err_t err = pulsemon_weather_icons_prepare();
     if (err != ESP_OK) {
         return err;
     }
@@ -300,7 +305,7 @@ esp_err_t pulsemon_weather_icons_set_object(lv_obj_t *target, const char *bin_na
     if (target == NULL || code == 0) {
         return ESP_ERR_INVALID_ARG;
     }
-    esp_err_t err = sd_storage_ensure_mounted();
+    esp_err_t err = pulsemon_weather_icons_prepare();
     if (err != ESP_OK) {
         return err;
     }

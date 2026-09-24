@@ -7,6 +7,7 @@
 #include "esp_bsp.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
+#include "pulsemon_diag.h"
 
 #define PRINTER_THUMBNAIL_CACHE_SLOTS 1
 #define PRINTER_THUMBNAIL_LOCK_MS 250
@@ -60,6 +61,7 @@ void printer_thumbnail_init(lv_obj_t *frame)
     }
 
     lv_img_cache_set_size(PRINTER_THUMBNAIL_CACHE_SLOTS);
+    pulsemon_diag_heap("printer_thumbnail", "cache_init");
 
     s_image = lv_img_create(s_frame);
     if (s_image == NULL) {
@@ -137,6 +139,7 @@ esp_err_t printer_thumbnail_set_png(uint8_t *png_data, size_t png_len, uint16_t 
     s_desc[next_desc].data_size = (uint32_t)png_len;
     s_desc[next_desc].data = png_data;
 
+    pulsemon_diag_heap("printer_thumbnail", "before_set_src");
     lv_img_set_src(s_image, &s_desc[next_desc]);
     lv_obj_set_size(s_image, width, height);
     lv_img_set_pivot(s_image, width / 2U, height / 2U);
@@ -155,6 +158,8 @@ esp_err_t printer_thumbnail_set_png(uint8_t *png_data, size_t png_len, uint16_t 
     s_owned_png[next_desc] = png_data;
     s_active_desc = next_desc;
     s_has_image = true;
+
+    pulsemon_diag_heap("printer_thumbnail", "after_set_src");
 
     ESP_LOGI(TAG,
              "thumbnail set complete desc=%u frame=%dx%d content=%dx%d image=%ux%u zoom=%u",
@@ -193,6 +198,8 @@ esp_err_t printer_thumbnail_clear(void)
         memset(&s_desc[s_active_desc], 0, sizeof(s_desc[s_active_desc]));
         s_has_image = false;
     }
+
+    pulsemon_diag_heap("printer_thumbnail", "after_clear");
 
     ESP_LOGI(TAG,
              "thumbnail cleared image=%p had_cached_image=%d",

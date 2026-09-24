@@ -25,6 +25,7 @@ static void action_swipe_to(enum ScreensEnum target, lv_scr_load_anim_t anim)
     if (target_obj == NULL) {
         return;
     }
+    ui_screen_note_transition_start(target);
     lv_scr_load_anim(target_obj, anim, 220, 0, false);
     ui_screen_set_active(target);
     tick_screen_by_id(target);

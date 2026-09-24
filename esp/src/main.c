@@ -263,7 +263,7 @@ void app_main(void)
     ui_screen_start();
     ui_screen_set_start_progress(20, "Mire prete");
 
-#if PULSEMON_SCREENSHOT_DEBUG
+#if PULSEMON_SCREENSHOT_DEBUG && PULSEMON_SCREENSHOT_AUTOSTART
     const lcd_capture_cfg_t capture_cfg = {
         .width = EXAMPLE_LCD_QSPI_H_RES,
         .height = EXAMPLE_LCD_QSPI_V_RES,

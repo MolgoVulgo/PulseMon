@@ -37,7 +37,7 @@ Météo alloue explicitement son body de 32 Kio en PSRAM et GNews fait de même 
 
 ## Icônes météo
 
-Les icônes binaires sont chargées depuis la carte SD via `/sdcard/icon_150.bin` et `/sdcard/icon_50.bin`.
+Les icônes binaires sont chargées depuis la carte SD via `/sdcard/icon_150.bin` et `/sdcard/icon_50.bin`. Le montage SDMMC 1 bit active les pull-ups internes de l’ESP32-S3 sur les lignes SD. Après un échec, une nouvelle tentative de montage est temporisée ; Météo vérifie aussi le stockage des icônes avant de prendre le verrou d’affichage LVGL, afin qu’une carte SD indisponible ne bloque pas les sept mises à jour d’icônes. Les textes et températures continuent à être actualisés même si le stockage des icônes est indisponible ; un rafraîchissement météo ultérieur retente le montage.
 
 ## GNews
 

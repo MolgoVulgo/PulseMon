@@ -62,7 +62,8 @@ Check:
 - valid language and GMT offset;
 - Wi-Fi and DNS;
 - HTTPS/DNS access to `api.openweathermap.org`;
-- SD-card icon files if only icons are missing.
+- SD-card icon files if only icons are missing;
+- `sdmmc mount failed: ESP_ERR_TIMEOUT` in the serial log if the current icon remains on its placeholder and forecast icons stay empty. In that case verify that the SD card is present and readable and that `/sdcard/icon_150.bin` and `/sdcard/icon_50.bin` exist.
 
 OpenWeather TLS validation uses the ESP-IDF certificate bundle; a TLS or certificate error is reported as a failed refresh and the last valid snapshot is retained.
 

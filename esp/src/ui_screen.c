@@ -3,6 +3,14 @@
 #include <stdbool.h>
 #include <lvgl.h>
 
+#include "esp_log.h"
+#include "esp_timer.h"
+#include "lv_port.h"
+
+#ifndef PULSEMON_DEBUG
+#define PULSEMON_DEBUG 0
+#endif
+
 #include "ui/ui.h"
 #include "ui/screens.h"
 #include "ui_graphs.h"
@@ -10,11 +18,20 @@
 #include "printer_thumbnail.h"
 #include "vars.h"
 
+#if PULSEMON_DEBUG
+static const char *TAG = "UI_SCREEN";
+#endif
 static lv_timer_t *s_ui_tick_timer;
 static lv_timer_t *s_graph_timer;
 static bool s_started;
 static bool s_printer_was_available;
 static enum ScreensEnum s_active_screen = SCREEN_ID_MAIN;
+#if PULSEMON_DEBUG
+static bool s_transition_diag_pending;
+static enum ScreensEnum s_transition_diag_from = SCREEN_ID_MAIN;
+static enum ScreensEnum s_transition_diag_to = SCREEN_ID_MAIN;
+static int64_t s_transition_diag_start_us;
+#endif
 
 static lv_obj_t *screen_object_from_id(enum ScreensEnum screen_id)
 {
@@ -31,6 +48,51 @@ static lv_obj_t *screen_object_from_id(enum ScreensEnum screen_id)
         return NULL;
     }
 }
+
+#if PULSEMON_DEBUG
+static const char *screen_name(enum ScreensEnum screen_id)
+{
+    switch (screen_id) {
+    case SCREEN_ID_MAIN:
+        return "main";
+    case SCREEN_ID_GPU:
+        return "gpu";
+    case SCREEN_ID_METEO:
+        return "meteo";
+    case SCREEN_ID_PRINTER:
+        return "printer";
+    default:
+        return "unknown";
+    }
+}
+
+static void ui_transition_loaded_cb(lv_event_t *event)
+{
+    if (!s_transition_diag_pending || lv_event_get_code(event) != LV_EVENT_SCREEN_LOADED) {
+        return;
+    }
+    lv_obj_t *expected = screen_object_from_id(s_transition_diag_to);
+    if (expected == NULL || lv_event_get_target(event) != expected) {
+        return;
+    }
+
+    lvgl_port_perf_stats_t stats = {0};
+    lvgl_port_perf_window_snapshot(&stats);
+    int64_t elapsed_us = esp_timer_get_time() - s_transition_diag_start_us;
+    uint64_t avg_us = stats.flush_count > 0 ? stats.total_us / stats.flush_count : 0;
+    ESP_LOGI(TAG,
+             "pulsemon_perf owner=ui stage=transition from=%s to=%s elapsed_us=%lld flushes=%llu flush_total_us=%llu flush_avg_us=%llu flush_max_us=%u pixels=%llu",
+             screen_name(s_transition_diag_from),
+             screen_name(s_transition_diag_to),
+             (long long)elapsed_us,
+             (unsigned long long)stats.flush_count,
+             (unsigned long long)stats.total_us,
+             (unsigned long long)avg_us,
+             (unsigned int)stats.max_us,
+             (unsigned long long)stats.pixels);
+    s_transition_diag_pending = false;
+}
+#endif
 
 static void ui_reset_printer_values(void)
 {
@@ -144,6 +206,20 @@ static void ui_prepare_screen_roots(void)
     if (objects.obj23 != NULL) {
         lv_obj_clear_flag(objects.obj23, LV_OBJ_FLAG_SCROLLABLE);
     }
+#if PULSEMON_DEBUG
+    if (objects.main != NULL) {
+        lv_obj_add_event_cb(objects.main, ui_transition_loaded_cb, LV_EVENT_SCREEN_LOADED, NULL);
+    }
+    if (objects.gpu != NULL) {
+        lv_obj_add_event_cb(objects.gpu, ui_transition_loaded_cb, LV_EVENT_SCREEN_LOADED, NULL);
+    }
+    if (objects.meteo != NULL) {
+        lv_obj_add_event_cb(objects.meteo, ui_transition_loaded_cb, LV_EVENT_SCREEN_LOADED, NULL);
+    }
+    if (objects.printer != NULL) {
+        lv_obj_add_event_cb(objects.printer, ui_transition_loaded_cb, LV_EVENT_SCREEN_LOADED, NULL);
+    }
+#endif
 }
 
 void ui_screen_start(void)
@@ -207,6 +283,23 @@ void ui_screen_show_main_and_release_start(void)
     tick_screen_by_id(SCREEN_ID_MAIN);
 }
 
+void ui_screen_note_transition_start(enum ScreensEnum screen_id)
+{
+#if PULSEMON_DEBUG
+    if (screen_id < _SCREEN_ID_FIRST || screen_id > _SCREEN_ID_LAST ||
+        screen_id == s_active_screen || screen_object_from_id(screen_id) == NULL) {
+        return;
+    }
+    s_transition_diag_from = s_active_screen;
+    s_transition_diag_to = screen_id;
+    s_transition_diag_start_us = esp_timer_get_time();
+    s_transition_diag_pending = true;
+    lvgl_port_perf_window_reset();
+#else
+    (void)screen_id;
+#endif
+}
+
 void ui_screen_set_active(enum ScreensEnum screen_id)
 {
     if (screen_object_from_id(screen_id) == NULL) {
@@ -237,6 +330,7 @@ void ui_screen_load(enum ScreensEnum screen_id, lv_scr_load_anim_t anim)
         return;
     }
 
+    ui_screen_note_transition_start(screen_id);
     lv_scr_load_anim(target, anim, 220, 0, false);
     s_active_screen = screen_id;
     ui_apply_screen_transition(previous, screen_id);
