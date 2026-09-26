@@ -3,32 +3,9 @@
 #include "ui_screen.h"
 #include "ui/screens.h"
 
-static lv_obj_t *screen_from_id(enum ScreensEnum target)
-{
-    switch (target) {
-        case SCREEN_ID_MAIN:
-            return objects.main;
-        case SCREEN_ID_GPU:
-            return objects.gpu;
-        case SCREEN_ID_METEO:
-            return objects.meteo;
-        case SCREEN_ID_PRINTER:
-            return objects.printer;
-        default:
-            return NULL;
-    }
-}
-
 static void action_swipe_to(enum ScreensEnum target, lv_scr_load_anim_t anim)
 {
-    lv_obj_t *target_obj = screen_from_id(target);
-    if (target_obj == NULL) {
-        return;
-    }
-    ui_screen_note_transition_start(target);
-    lv_scr_load_anim(target_obj, anim, PULSEMON_UI_SCREEN_TRANSITION_MS, 0, false);
-    ui_screen_set_active(target);
-    tick_screen_by_id(target);
+    ui_screen_load(target, anim);
 }
 
 void action_ui_swipe(lv_event_t *e)

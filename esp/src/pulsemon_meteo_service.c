@@ -16,9 +16,9 @@
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_netif.h"
-#include "esp_sntp.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
 #include "freertos/task.h"
 
 #include "pulsemon_settings.h"
@@ -46,6 +46,7 @@ static const char *TAG = "pulsemon_meteo";
 #define PULSEMON_METEO_BODY_CAP 32768
 #define PULSEMON_METEO_FORECAST_DAYS 6
 #define PULSEMON_METEO_VALID_EPOCH_MIN 1609459200L
+#define PULSEMON_METEO_EVENT_UPDATE_DONE BIT0
 
 typedef struct {
     bool valid;
@@ -81,6 +82,7 @@ typedef struct {
 static TaskHandle_t s_meteo_task;
 static TaskHandle_t s_clock_task;
 static esp_timer_handle_t s_meteo_timer;
+static EventGroupHandle_t s_update_events;
 static bool s_started;
 static meteo_snapshot_t s_last_snapshot;
 static bool s_has_last_snapshot;
@@ -755,6 +757,9 @@ static void meteo_task(void *arg)
     while (1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         fetch_weather_once();
+        if (s_update_events != NULL) {
+            xEventGroupSetBits(s_update_events, PULSEMON_METEO_EVENT_UPDATE_DONE);
+        }
         pulsemon_diag_stack("meteo", "cycle_done");
     }
 }
@@ -783,23 +788,18 @@ static void meteo_timer_cb(void *arg)
     pulsemon_meteo_service_request_update();
 }
 
-static void start_sntp(void)
-{
-    if (esp_sntp_enabled()) {
-        return;
-    }
-    esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
-    esp_sntp_setservername(0, "pool.ntp.org");
-    esp_sntp_init();
-    METEO_LOGI("sntp started");
-}
-
 esp_err_t pulsemon_meteo_service_start(void)
 {
     if (s_started) {
         return ESP_OK;
     }
-    start_sntp();
+
+    if (s_update_events == NULL) {
+        s_update_events = xEventGroupCreate();
+        if (s_update_events == NULL) {
+            return ESP_ERR_NO_MEM;
+        }
+    }
 
     if (s_meteo_task == NULL) {
         BaseType_t ok = xTaskCreate(meteo_task, "MeteoTask", 7168, NULL, tskIDLE_PRIORITY + 2, &s_meteo_task);
@@ -834,7 +834,7 @@ esp_err_t pulsemon_meteo_service_start(void)
         return err;
     }
     s_started = true;
-    METEO_LOGI("service started; initial fetch deferred to Wi-Fi stagger");
+    METEO_LOGI("service started; initial fetch controlled by startup sequence");
     return ESP_OK;
 }
 
@@ -843,4 +843,21 @@ void pulsemon_meteo_service_request_update(void)
     if (s_meteo_task != NULL) {
         xTaskNotifyGive(s_meteo_task);
     }
+}
+
+
+bool pulsemon_meteo_service_request_update_and_wait(uint32_t timeout_ms)
+{
+    if (s_meteo_task == NULL || s_update_events == NULL) {
+        return false;
+    }
+
+    xEventGroupClearBits(s_update_events, PULSEMON_METEO_EVENT_UPDATE_DONE);
+    xTaskNotifyGive(s_meteo_task);
+    EventBits_t bits = xEventGroupWaitBits(s_update_events,
+                                           PULSEMON_METEO_EVENT_UPDATE_DONE,
+                                           pdTRUE,
+                                           pdFALSE,
+                                           pdMS_TO_TICKS(timeout_ms));
+    return (bits & PULSEMON_METEO_EVENT_UPDATE_DONE) != 0;
 }

@@ -25,6 +25,7 @@ static lv_timer_t *s_ui_tick_timer;
 static lv_timer_t *s_graph_timer;
 static bool s_started;
 static bool s_printer_was_available;
+static bool s_pc_screens_enabled = true;
 static enum ScreensEnum s_active_screen = SCREEN_ID_MAIN;
 #if PULSEMON_DEBUG
 static bool s_transition_diag_pending;
@@ -32,6 +33,17 @@ static enum ScreensEnum s_transition_diag_from = SCREEN_ID_MAIN;
 static enum ScreensEnum s_transition_diag_to = SCREEN_ID_MAIN;
 static int64_t s_transition_diag_start_us;
 #endif
+
+
+static bool screen_is_pc_monitor(enum ScreensEnum screen_id)
+{
+    return screen_id == SCREEN_ID_MAIN || screen_id == SCREEN_ID_GPU;
+}
+
+static bool screen_is_allowed(enum ScreensEnum screen_id)
+{
+    return s_pc_screens_enabled || !screen_is_pc_monitor(screen_id);
+}
 
 static lv_obj_t *screen_object_from_id(enum ScreensEnum screen_id)
 {
@@ -262,25 +274,35 @@ void ui_screen_set_start_progress(int32_t pct, const char *text)
     }
 }
 
-void ui_screen_show_main_and_release_start(void)
+void ui_screen_show_and_release_start(enum ScreensEnum screen_id)
 {
-    if (objects.main == NULL) {
+    if (!screen_is_allowed(screen_id)) {
+        return;
+    }
+
+    lv_obj_t *target = screen_object_from_id(screen_id);
+    if (target == NULL) {
         return;
     }
 
     lv_obj_t *start = objects.start;
     bool release_start = start != NULL && lv_scr_act() == start;
-    lv_scr_load_anim(objects.main, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, release_start);
+    lv_scr_load_anim(target, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, release_start);
     enum ScreensEnum previous = s_active_screen;
-    s_active_screen = SCREEN_ID_MAIN;
-    ui_apply_screen_transition(previous, SCREEN_ID_MAIN);
+    s_active_screen = screen_id;
+    ui_apply_screen_transition(previous, screen_id);
     if (release_start) {
         objects.start = NULL;
         objects.ui_start_bar = NULL;
         objects.ui_start_bar_texte = NULL;
         objects.obj0 = NULL;
     }
-    tick_screen_by_id(SCREEN_ID_MAIN);
+    tick_screen_by_id(screen_id);
+}
+
+void ui_screen_show_main_and_release_start(void)
+{
+    ui_screen_show_and_release_start(SCREEN_ID_MAIN);
 }
 
 void ui_screen_note_transition_start(enum ScreensEnum screen_id)
@@ -302,7 +324,7 @@ void ui_screen_note_transition_start(enum ScreensEnum screen_id)
 
 void ui_screen_set_active(enum ScreensEnum screen_id)
 {
-    if (screen_object_from_id(screen_id) == NULL) {
+    if (!screen_is_allowed(screen_id) || screen_object_from_id(screen_id) == NULL) {
         return;
     }
 
@@ -313,7 +335,8 @@ void ui_screen_set_active(enum ScreensEnum screen_id)
 
 void ui_screen_load(enum ScreensEnum screen_id, lv_scr_load_anim_t anim)
 {
-    if (screen_id < _SCREEN_ID_FIRST || screen_id > _SCREEN_ID_LAST) {
+    if (screen_id < _SCREEN_ID_FIRST || screen_id > _SCREEN_ID_LAST ||
+        !screen_is_allowed(screen_id)) {
         return;
     }
 
@@ -340,4 +363,14 @@ void ui_screen_load(enum ScreensEnum screen_id, lv_scr_load_anim_t anim)
 enum ScreensEnum ui_screen_get_active(void)
 {
     return s_active_screen;
+}
+
+void ui_screen_set_pc_screens_enabled(bool enabled)
+{
+    s_pc_screens_enabled = enabled;
+}
+
+bool ui_screen_pc_screens_enabled(void)
+{
+    return s_pc_screens_enabled;
 }

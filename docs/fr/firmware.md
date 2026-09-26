@@ -16,13 +16,15 @@ Les captures d’écran automatiques sur SD sont désactivées par défaut en re
 1. écran et UI générée ;
 2. support des icônes météo ;
 3. gestionnaire Wi-Fi, NVS et callbacks de cycle AP ;
-4. services météo et actualités ;
+4. workers météo et actualités ainsi que le moniteur de présence Printer en lecture seule ;
 5. connexion Wi-Fi ;
 6. serveur HTTP de configuration et DNS captif uniquement lorsque l’AP de configuration démarre réellement ;
-7. poller backend après connexion station ;
-8. moniteur de présence imprimante en lecture seule, avec polling MQTT transitoire lorsque l’écran Printer est inactif et polling MQTT live uniquement lorsque cet écran est actif.
+7. une séquence réseau autonome de premier démarrage après obtention d’une adresse IP station ;
+8. le poller backend PC en dernier, sans faire de la disponibilité du backend une condition de démarrage.
 
-Après l’obtention d’une adresse IP station, les travaux réseau démarrent via un timer one-shot non bloquant et non directement dans le callback d’événement Wi-Fi. La séquence courante est : poller backend après 0,5 s, Météo 1,5 s plus tard (2,0 s cumulé), GNews 6,0 s plus tard (8,0 s cumulé), puis premier cycle présence/statut Printer 10,0 s plus tard (18,0 s cumulé). Météo et GNews partagent toujours un verrou HTTPS : si Météo dure plus longtemps, GNews attend au lieu d’ouvrir un handshake TLS concurrent.
+Après `IP_EVENT_STA_GOT_IP`, une tâche dédiée `startup_net` exécute la séquence réseau hors du callback d’événement Wi-Fi. L’ordre normal est : démarrer SNTP sur `pool.ntp.org` et attendre au maximum 8 secondes une horloge système valide, demander le premier cycle Météo et attendre au maximum 12 secondes la fin de ce worker, demander le premier cycle GNews et attendre au maximum 10 secondes, demander le premier cycle Printer en arrière-plan, puis démarrer le poller backend PC. Météo et GNews continuent de partager `pulsemon_https_gate`, donc leurs opérations HTTPS/TLS restent sérialisées. La demande Printer reste volontairement non bloquante au démarrage : le worker inactif effectue d’abord son probe HTTP de présence et, uniquement si l’imprimante configurée répond, poursuit avec le cycle de statut MQTT transitoire. Le poller backend démarre en dernier. Le démarrage attend ensuite au maximum 9 secondes que le poller détermine l’état initial du backend : un backend confirmé en ligne libère directement le splash vers Main ; un backend indisponible ou encore indéterminé le libère vers Météo avec la navigation Main/GPU désactivée.
+
+L’écran de démarrage attend au maximum 10 secondes la première connexion Wi-Fi. Si aucune adresse IP station n’est disponible à l’issue de ce délai, le firmware libère directement l’écran de démarrage vers Météo avec les écrans de monitoring PC désactivés tandis que `startup_net` continue d’attendre en arrière-plan ; la même séquence NTP/Météo/GNews/Printer/backend démarre dès qu’une adresse IP est obtenue ultérieurement. Lorsque le backend est ensuite confirmé en ligne, Main/GPU sont réactivés et PulseMon revient sur Main si Météo est toujours l’écran autonome de repli. Un timeout NTP n’est pas bloquant : SNTP reste actif pour une synchronisation ultérieure et le démarrage continue sans dépendre de l’horloge du PC. L’horloge système est obtenue en UTC via SNTP ; l’affichage de l’heure Météo applique localement l’offset `gmt_min` configuré.
 
 ## Politique mémoire et TLS
 
@@ -44,7 +46,7 @@ Main --gauche--> GPU --gauche--> Météo --gauche--> Printer
 Main <--droite-- GPU <--droite-- Météo <--droite-- Printer
 ```
 
-Les transitions animées par swipe utilisent une durée commune de 160 ms. Le fondu de démarrage reste à 200 ms. Cette durée de navigation plus courte est volontaire : les mesures DEV avec le précédent réglage à 220 ms ont observé 70 transitions réelles autour de 250 ms en moyenne, le travail de flush écran ne représentant qu’une partie de cette durée.
+Les transitions animées par swipe utilisent une durée commune de 160 ms. Le fondu de démarrage reste à 200 ms. Cette durée de navigation plus courte est volontaire : les mesures DEV avec le précédent réglage à 220 ms ont observé 70 transitions réelles autour de 250 ms en moyenne, le travail de flush écran ne représentant qu’une partie de cette durée. Lorsque le backend PC est confirmé hors ligne, Main et GPU sont temporairement retirés de la navigation ; seul le parcours Météo <-> Printer reste disponible. Ils sont restaurés uniquement après confirmation du retour backend.
 
 La navigation vers Printer est inconditionnelle et indépendante de la disponibilité de l’imprimante. Un moniteur périodique léger vérifie l’imprimante configurée toutes les 60 secondes lorsque l’écran est inactif. Chaque probe HTTP réussi crée un worker MQTT temporaire, lit l’état courant puis détruit le client MQTT et le worker. L’entrée sur Printer bascule en mode live : le worker conserve sa session MQTT et rafraîchit le statut toutes les 5 secondes. La sortie de Printer termine immédiatement cette session live puis revient au monitoring périodique. Si une impression active a déjà produit un snapshot d’affichage valide, ce snapshot est conservé en PSRAM pendant que l’écran est inactif puis restauré immédiatement au prochain retour sur Printer avant la reprise du polling live. Le label EEZ généré `imp_gone` reste masqué tant qu’un snapshot d’impression active est disponible en cache ; sinon il reste visible jusqu’à la réception d’un statut `1002` valide. Aucun fichier sous `esp/src/ui/` n’est modifié par l’intégration runtime.
 
@@ -54,8 +56,10 @@ La navigation vers Printer est inconditionnelle et indépendante de la disponibi
 
 - Écran GPU : requête `/api/v1/gpu/dashboard`.
 - Écrans Main, Météo et Printer : requête `/api/v1/dashboard`. La disponibilité de Printer reste indépendante de celle du backend.
-- En cas d’échec backend : conserver les dernières valeurs et marquer le backend offline. Main/GPU basculent automatiquement vers Météo ; un écran Printer déjà actif n’est pas déplacé par la panne backend.
-- Au retour du backend après bascule offline automatique : revenir sur Main uniquement si Météo est toujours l’écran actif ; une navigation manuelle ailleurs annule ce retour automatique.
+- La disponibilité backend est suivie avec les états `UNKNOWN`, `ONLINE`, `SUSPECT` et `OFFLINE`. Un seul échec fait seulement passer `ONLINE`/`UNKNOWN` à `SUSPECT` ; l’écran courant et les dernières valeurs valides sont conservés.
+- L’état `OFFLINE` n’est déclaré qu’après des échecs continus pendant `PULSEMON_BACKEND_OFFLINE_GRACE_MS` (5000 ms). Main/GPU sont alors désactivés et un écran Main/GPU actif bascule une seule fois vers Météo ; Printer n’est jamais déplacé.
+- En état `OFFLINE`, le retour exige `PULSEMON_BACKEND_RECOVERY_SUCCESSES` (2) réponses dashboard valides consécutives. Un échec pendant cette récupération remet le compteur à zéro.
+- Une fois le retour confirmé, Main/GPU sont réactivés. Si Météo est toujours l’écran de repli automatique, PulseMon revient sur Main ; si l’utilisateur consulte Printer, cet écran n’est pas interrompu.
 
 L’hôte et le port backend sont chargés depuis le namespace NVS `pulsemon_api`. `pulsemon_api_config.h` fournit l’hôte/port de fallback compilés et les valeurs fixes de timeout/polling. Les changements du portail sont rechargés immédiatement. Le firmware n’utilise ni découverte backend ni header de clé API. Le portail n’est pas un service LAN permanent : HTTP et DNS captif démarrent avec l’AP de configuration et s’arrêtent avec lui. Un appui maintenu cinq secondes dans le coin supérieur gauche de Main, GPU ou Météo ouvre une fenêtre manuelle de cinq minutes en conservant la connexion station. Le déclencheur est implémenté dans le runtime non généré et ne modifie aucune sortie EEZ.
 
@@ -82,7 +86,7 @@ Pour la preview du job courant, la méthode `1002` reste la source du nom brut d
 
 ## Météo et actualités
 
-Météo et GNews fonctionnent indépendamment du backend dès que le Wi-Fi et les clés nécessaires sont disponibles. Les deux utilisent HTTPS avec validation des certificats via le bundle ESP-IDF et conservent leur état local selon leur implémentation.
+Météo et GNews fonctionnent indépendamment du backend dès que le Wi-Fi et les clés nécessaires sont disponibles. L’heure système est synchronisée directement par l’ESP32-S3 via SNTP avant leur séquence normale de premier démarrage ; le backend PC n’est plus une source d’horloge. Les deux utilisent HTTPS avec validation des certificats via le bundle ESP-IDF et conservent leur état local selon leur implémentation.
 
 ## Fichiers EEZ
 

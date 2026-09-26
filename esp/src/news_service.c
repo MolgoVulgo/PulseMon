@@ -18,6 +18,7 @@
 #include "esp_netif.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
 #include "freertos/task.h"
 
 #include "news_settings.h"
@@ -51,6 +52,7 @@ static const char *TAG = "pulsemon_news";
 #define NEWS_CACHE_STALE_SECONDS (6 * 60 * 60)
 #define NEWS_RETRY_BACKOFF_SECONDS (30 * 60)
 #define NEWS_LONG_BACKOFF_SECONDS (6 * 60 * 60)
+#define NEWS_EVENT_UPDATE_DONE BIT0
 
 typedef struct {
     char *buf;
@@ -70,6 +72,7 @@ typedef struct {
 
 static TaskHandle_t s_news_task;
 static esp_timer_handle_t s_news_timer;
+static EventGroupHandle_t s_update_events;
 static bool s_started;
 static news_cache_t s_cache;
 static time_t s_next_allowed_fetch;
@@ -580,6 +583,9 @@ static void news_task(void *arg)
     while (1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         fetch_news_once();
+        if (s_update_events != NULL) {
+            xEventGroupSetBits(s_update_events, NEWS_EVENT_UPDATE_DONE);
+        }
         pulsemon_diag_stack("news", "cycle_done");
     }
 }
@@ -594,6 +600,12 @@ esp_err_t news_service_start(void)
 {
     if (s_started) {
         return ESP_OK;
+    }
+    if (s_update_events == NULL) {
+        s_update_events = xEventGroupCreate();
+        if (s_update_events == NULL) {
+            return ESP_ERR_NO_MEM;
+        }
     }
     if (s_news_task == NULL) {
         BaseType_t ok = xTaskCreate(news_task, "NewsTask", 8192, NULL, tskIDLE_PRIORITY + 1, &s_news_task);
@@ -618,7 +630,7 @@ esp_err_t news_service_start(void)
         return err;
     }
     s_started = true;
-    NEWS_LOGI("service started; initial fetch deferred to Wi-Fi stagger");
+    NEWS_LOGI("service started; initial fetch controlled by startup sequence");
     return ESP_OK;
 }
 
@@ -627,4 +639,21 @@ void news_service_request_update(void)
     if (s_news_task != NULL) {
         xTaskNotifyGive(s_news_task);
     }
+}
+
+
+bool news_service_request_update_and_wait(uint32_t timeout_ms)
+{
+    if (s_news_task == NULL || s_update_events == NULL) {
+        return false;
+    }
+
+    xEventGroupClearBits(s_update_events, NEWS_EVENT_UPDATE_DONE);
+    xTaskNotifyGive(s_news_task);
+    EventBits_t bits = xEventGroupWaitBits(s_update_events,
+                                           NEWS_EVENT_UPDATE_DONE,
+                                           pdTRUE,
+                                           pdFALSE,
+                                           pdMS_TO_TICKS(timeout_ms));
+    return (bits & NEWS_EVENT_UPDATE_DONE) != 0;
 }

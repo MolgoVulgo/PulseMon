@@ -16,13 +16,15 @@ Automatic SD screenshots are disabled by default in both release and dev builds.
 1. display and generated UI;
 2. weather icon support;
 3. Wi-Fi manager, NVS and AP lifecycle callbacks;
-4. weather and news services;
+4. weather and news workers plus the read-only Printer presence monitor;
 5. Wi-Fi connection;
 6. configuration HTTP server and captive DNS only when the setup AP actually starts;
-7. backend poller after station connection;
-8. read-only printer presence monitor, with transient MQTT polling while the Printer screen is inactive and live MQTT polling only while that screen is active.
+7. an autonomous first-network sequence after the station obtains an IP address;
+8. the PC backend poller last, without making backend availability a startup requirement.
 
-After the station receives an IP address, network work is started by a non-blocking one-shot timer rather than directly in the Wi-Fi event callback. The current sequence is: backend poller after 0.5 s, Weather 1.5 s later (2.0 s cumulative), GNews 6.0 s later (8.0 s cumulative), then the first Printer presence/status cycle 10.0 s later (18.0 s cumulative). Weather and GNews still share an HTTPS gate, so a slower Weather transaction makes GNews wait instead of creating a concurrent TLS handshake.
+After `IP_EVENT_STA_GOT_IP`, a dedicated `startup_net` task performs the first-network sequence outside the Wi-Fi event callback. The normal order is: start SNTP against `pool.ntp.org` and wait up to 8 seconds for a valid system clock, request the first Weather cycle and wait up to 12 seconds for that worker to finish, request the first GNews cycle and wait up to 10 seconds, request the first Printer background cycle, then start the PC backend poller. Weather and GNews continue to share `pulsemon_https_gate`, so their HTTPS/TLS work remains serialized. The Printer request is intentionally non-blocking at startup: the inactive Printer worker performs its HTTP presence probe and, only when the configured printer answers, continues with the transient MQTT status cycle. The backend poller is launched last. Startup then waits up to 9 seconds for the poller to resolve the initial backend state: a confirmed online backend releases the splash directly to Main; an unavailable or still unresolved backend releases it to Weather with Main/GPU navigation disabled.
+
+The startup screen waits at most 10 seconds for the initial Wi-Fi connection. If no station IP is available by then, the firmware releases the startup screen directly to Weather with the PC-monitoring screens disabled while `startup_net` keeps waiting in the background; the same NTP/Weather/GNews/Printer/backend sequence starts when Wi-Fi later obtains an IP address. When the backend later becomes confirmed online, Main/GPU are re-enabled and PulseMon returns to Main if Weather is still the active autonomous fallback screen. An NTP timeout is non-fatal: SNTP remains active for later synchronization and startup continues instead of depending on the PC clock. The system clock is UTC from SNTP; the Weather clock display applies the configured `gmt_min` offset locally.
 
 ## Memory and TLS policy
 
@@ -44,7 +46,7 @@ Main --left--> GPU --left--> Weather --left--> Printer
 Main <--right-- GPU <--right-- Weather <--right-- Printer
 ```
 
-Animated swipe transitions use a shared 160 ms duration. The startup fade remains 200 ms. The shorter navigation duration is intentional: DEV measurements on the previous 220 ms setting showed 70 real transitions averaging about 250 ms, while display flush work accounted for only part of that elapsed time.
+Animated swipe transitions use a shared 160 ms duration. The startup fade remains 200 ms. The shorter navigation duration is intentional: DEV measurements on the previous 220 ms setting showed 70 real transitions averaging about 250 ms, while display flush work accounted for only part of that elapsed time. When the PC backend is confirmed offline, Main and GPU are temporarily excluded from navigation, leaving Weather <-> Printer available. They are restored only after backend recovery is confirmed.
 
 Printer navigation is unconditional and independent from printer availability. A lightweight periodic monitor checks the configured printer every 60 seconds while the screen is inactive. Each successful HTTP presence probe creates a short-lived MQTT worker, reads the current state, then destroys the MQTT client and worker. Entering Printer switches to live mode: the worker keeps its MQTT session and refreshes status every 5 seconds. Leaving Printer immediately ends that live session and returns to periodic monitoring. If an active print has already produced a valid display snapshot, that snapshot is retained in PSRAM while the screen is inactive and is restored immediately on the next Printer entry before live polling resumes. The EEZ-generated `imp_gone` label remains hidden while a cached active-job snapshot is available; otherwise it is visible until a valid method-1002 status makes the printer available. No file under `esp/src/ui/` is modified by the runtime integration.
 
@@ -54,8 +56,10 @@ Printer navigation is unconditional and independent from printer availability. A
 
 - GPU screen: request `/api/v1/gpu/dashboard`.
 - Main, Weather and Printer screens: request `/api/v1/dashboard`. Printer availability itself is independent from backend availability.
-- On backend failure: keep the last display values and mark the backend offline. Main/GPU automatically switch to Weather; an already active Printer screen is not displaced by backend failure.
-- When the backend returns after an automatic offline switch: return to Main only if Weather is still the active screen; manual navigation elsewhere cancels the automatic return.
+- Backend availability is tracked as `UNKNOWN`, `ONLINE`, `SUSPECT` or `OFFLINE`. A single failed request only changes `ONLINE`/`UNKNOWN` to `SUSPECT`; the current screen and last valid values are preserved.
+- `OFFLINE` is entered only after failures have remained continuous for `PULSEMON_BACKEND_OFFLINE_GRACE_MS` (5000 ms). Main/GPU are then disabled and an active Main/GPU screen switches once to Weather; Printer is never displaced.
+- While `OFFLINE`, recovery requires `PULSEMON_BACKEND_RECOVERY_SUCCESSES` (2) consecutive successful dashboard requests. A failed recovery probe resets that counter.
+- Once recovery is confirmed, Main/GPU are re-enabled. If Weather is still the automatic fallback screen, PulseMon returns to Main; if the user is on Printer, that screen is left undisturbed.
 
 The backend host and port are loaded from NVS namespace `pulsemon_api`. `pulsemon_api_config.h` supplies the compiled fallback host/port and fixed timeout/polling values. Portal changes are reloaded immediately. The firmware does not use backend discovery or an API-key header. The portal is not a permanent LAN service: HTTP and captive DNS start with the setup AP and stop when the AP stops. A five-second hold in the top-left corner of Main, GPU or Weather opens a five-minute manual window while preserving the station connection. The trigger is implemented in non-generated runtime code and does not modify EEZ outputs.
 
@@ -82,7 +86,7 @@ For the current-job preview, method `1002` remains the source of the raw active 
 
 ## Weather and news
 
-Weather and GNews run independently from backend availability once Wi-Fi and required keys are available. Both use HTTPS with certificate validation through the ESP-IDF certificate bundle and retain local cached state according to their service implementations.
+Weather and GNews run independently from backend availability once Wi-Fi and required keys are available. System time is synchronized directly by the ESP32-S3 through SNTP before their normal first-start sequence; the PC backend is not a clock source. Both use HTTPS with certificate validation through the ESP-IDF certificate bundle and retain local cached state according to their service implementations.
 
 ## EEZ files
 
